@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build output
+dist/
+.next/
+out/
+build/
+
+# Foundry
+apps/contracts/cache/
+apps/contracts/out/
+apps/contracts/broadcast/
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Turbo
+.turbo/
+
+# Docker volumes
+pgdata/
+redisdata/
+
+# Prisma
+apps/api/prisma/migrations/*.sql.bak
+
+# Temporary
+tmp/
+temp/
+*.tmp
