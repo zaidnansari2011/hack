@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pol-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: proofoflearn
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: pol-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # RAGFlow — document parsing + retrieval engine
+  # Requires significant memory (~4GB). Comment out if not needed locally.
+  # ragflow:
+  #   image: infiniflow/ragflow:latest
+  #   container_name: pol-ragflow
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9380:9380"
+  #   volumes:
+  #     - ragflow_data:/ragflow/data
+  #   environment:
+  #     - RAGFLOW_HOST=0.0.0.0
+  #   depends_on:
+  #     - postgres
+  #     - redis
+
+volumes:
+  pgdata:
+  redisdata:
+  # ragflow_data:
