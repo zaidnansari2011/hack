@@ -1,90 +1,98 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { BrainCircuit, CircleDollarSign, ShieldCheck, Bot, Sparkles, LineChart } from "lucide-react"
+import { BrainCircuit, ShieldCheck, Coins, Hash } from "lucide-react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
-const features = [
+const layers = [
   {
-    title: "Adaptive AI Tutor",
-    description: "Dify-powered tutoring adapts difficulty in real-time and keeps students moving forward with confidence.",
     icon: BrainCircuit,
-    className: "md:col-span-2",
-    tone: "text-violet-600 bg-violet-100",
+    name: "Tutoring Layer",
+    detail:
+      "Dify workflows orchestrate lesson delivery; RAGFlow anchors every response to the sponsor's curriculum so tutors stay on-topic and on-spec.",
+    stack: ["Dify", "RAGFlow", "LLM"],
   },
   {
-    title: "Guaranteed USDC",
-    description: "Milestones trigger queued, idempotent Circle payouts so rewards are dependable.",
-    icon: CircleDollarSign,
-    className: "md:col-span-1",
-    tone: "text-emerald-600 bg-emerald-100",
-  },
-  {
-    title: "On-chain Proof",
-    description: "Completion events are indexed and auditable for sponsors and students.",
     icon: ShieldCheck,
-    className: "md:col-span-1",
-    tone: "text-blue-600 bg-blue-100",
+    name: "Verification Layer",
+    detail:
+      "Postgres-backed quiz sessions enforce timing budgets, question rotation, answer shuffling, and per-attempt fingerprinting rules.",
+    stack: ["Postgres", "Prisma", "Redis"],
   },
   {
-    title: "Dynamic Quiz Defense",
-    description: "Question randomization, timing constraints, and answer shuffling reduce cheating vectors.",
-    icon: Bot,
-    className: "md:col-span-1",
-    tone: "text-amber-600 bg-amber-100",
+    icon: Coins,
+    name: "Payout Layer",
+    detail:
+      "BullMQ workers process Circle Programmable Wallet transfers with idempotency keys, bounded retries, and end-to-end webhooks.",
+    stack: ["BullMQ", "Circle", "USDC"],
   },
   {
-    title: "Sponsor Analytics",
-    description: "Track completion velocity, payout efficiency, and curriculum ROI from one clean dashboard.",
-    icon: LineChart,
-    className: "md:col-span-1",
-    tone: "text-sky-600 bg-sky-100",
+    icon: Hash,
+    name: "Proof Layer",
+    detail:
+      "A Solidity escrow on Base emits completion events. The indexer reconciles on-chain proof with off-chain settlement for a single receipt.",
+    stack: ["Foundry", "Base", "Solidity"],
   },
 ]
 
 export function FeatureBento() {
   return (
-    <section id="features" className="px-4 py-16 md:px-8 md:py-22">
+    <section
+      id="stack"
+      className="border-y border-slate-200 bg-slate-50 px-4 py-24 md:px-8 md:py-32"
+    >
       <div className="mx-auto w-[min(1200px,92vw)]">
-        <div className="mb-8 flex items-center gap-2 text-sm font-medium text-slate-500">
-          <Sparkles className="size-4 text-blue-600" />
-          Platform Highlights
+        <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+              The Proof Stack
+            </p>
+            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+              Four layers. One auditable receipt.
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
+              Every completion is produced by a pipeline of distinct, verifiable components — so
+              sponsors can trust the outcome and students can trust the payout.
+            </p>
+          </div>
+          <p className="hidden text-xs font-medium uppercase tracking-[0.18em] text-slate-400 md:block">
+            Architecture
+          </p>
         </div>
 
-        <div className="grid auto-rows-[1fr] gap-4 md:grid-cols-3">
-          {features.map((feature, index) => {
-            const Icon = feature.icon
+        <div className="mt-14 grid gap-4 md:grid-cols-2">
+          {layers.map((layer, i) => {
+            const Icon = layer.icon
             return (
               <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 24 }}
+                key={layer.name}
+                initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.25 }}
-                transition={{ duration: 0.45, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                whileHover={{ y: -5 }}
-                className={feature.className}
+                transition={{ duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-8 transition-colors hover:border-slate-300"
               >
-                <Card className="h-full">
-                  <CardHeader>
-                    <div className={["mb-2 flex h-10 w-10 items-center justify-center rounded-xl", feature.tone].join(" ")}>
-                      <Icon className="size-5" />
-                    </div>
-                    <CardTitle>{feature.title}</CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-1.5 w-full rounded-full bg-slate-100">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        whileInView={{ width: `${70 + index * 5}%` }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.2 + index * 0.05, duration: 0.65 }}
-                        className="h-full rounded-full bg-linear-to-r from-blue-500 to-indigo-400"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="flex items-start justify-between">
+                  <div className="flex size-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-900">
+                    <Icon className="size-5" />
+                  </div>
+                  <span className="font-mono text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+                    L/0{i + 1}
+                  </span>
+                </div>
+                <h3 className="mt-7 text-xl font-semibold tracking-tight text-slate-950">
+                  {layer.name}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">{layer.detail}</p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {layer.stack.map((s) => (
+                    <span
+                      key={s}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-mono text-[11px] font-medium text-slate-600"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
               </motion.div>
             )
           })}

@@ -1,114 +1,76 @@
 "use client"
 
-import { useState } from "react"
 import { motion } from "framer-motion"
-import { BriefcaseBusiness, GraduationCap, CheckCircle2, Coins } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+
+const marks = [
+  { label: "Learners rewarded", value: "10,000+" },
+  { label: "Avg. payout latency", value: "2.4s" },
+  { label: "Sponsor completion rate", value: "97.8%" },
+]
 
 export function RoleExperiences() {
-  const [tab, setTab] = useState("student")
-
   return (
-    <section id="roles" className="px-4 pb-20 md:px-8 md:pb-28">
+    <section id="start" className="px-4 py-24 md:px-8 md:py-32">
       <div className="mx-auto w-[min(1200px,92vw)]">
-        <div className="mb-7 flex items-center gap-2 text-sm font-medium text-slate-500">
-          <BriefcaseBusiness className="size-4 text-blue-600" />
-          Product Views
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.25 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden rounded-[2rem] border border-slate-900 bg-slate-950 p-10 md:p-16"
+        >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-slate-700 to-transparent" />
+          <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[620px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.18)_0%,rgba(15,23,42,0)_70%)]" />
 
-        <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="student">Student Experience</TabsTrigger>
-            <TabsTrigger value="sponsor">Sponsor Experience</TabsTrigger>
-          </TabsList>
+          <div className="relative">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+              Start Shipping Verified Learning
+            </p>
+            <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-white md:text-5xl">
+              Learning that pays. Funding that lands.
+            </h2>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-300 md:text-lg">
+              Whether you're a student ready to earn or a sponsor ready to fund outcomes, you can
+              be live in minutes — no custody, no intermediaries, no unverified claims.
+            </p>
 
-          <TabsContent value="student">
-            <motion.div
-              key="student"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35 }}
-              className="grid gap-6 md:grid-cols-[1.15fr_0.85fr]"
-            >
-              <div className="rounded-2xl border border-slate-200 bg-linear-to-b from-white to-slate-50 p-6">
-                <div className="mb-4 flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback>ST</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold text-slate-900">Student Workspace</p>
-                    <p className="text-sm text-slate-500">Rust Fundamentals · Lesson 6 of 10</p>
-                  </div>
-                </div>
-                <div className="space-y-3 text-sm">
-                  {[
-                    "AI tutor gives context-aware hints",
-                    "Timed quiz gate with answer-order randomization",
-                    "Instant payout receipt after passing",
-                  ].map((item) => (
-                    <div key={item} className="flex items-start gap-2 text-slate-700">
-                      <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button size="lg" className="group bg-white text-slate-950 shadow-none hover:bg-slate-100 hover:brightness-100">
+                Start Learning
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-slate-700 bg-transparent text-white hover:bg-slate-900 hover:text-white"
+              >
+                Become a Sponsor
+              </Button>
+            </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="mb-2 flex items-center gap-2 text-slate-900">
-                  <Coins className="size-5 text-emerald-600" />
-                  <p className="font-semibold">Wallet Snapshot</p>
-                </div>
-                <p className="text-4xl font-semibold text-slate-900">$42.80</p>
-                <p className="mt-2 text-sm text-slate-500">+ $2.00 from Rust Quiz #6</p>
-              </div>
-            </motion.div>
-          </TabsContent>
-
-          <TabsContent value="sponsor">
-            <motion.div
-              key="sponsor"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35 }}
-              className="grid gap-6 md:grid-cols-[1fr_1fr]"
-            >
-              <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="mb-3 flex items-center gap-2 text-slate-900">
-                  <BriefcaseBusiness className="size-5 text-blue-600" />
-                  <p className="font-semibold">Escrow Program Overview</p>
-                </div>
-                <div className="space-y-3 text-sm text-slate-700">
-                  <div className="flex justify-between rounded-lg bg-slate-50 p-3">
-                    <span>Funded students</span>
-                    <span className="font-semibold">10,000</span>
-                  </div>
-                  <div className="flex justify-between rounded-lg bg-slate-50 p-3">
-                    <span>Completion ratio</span>
-                    <span className="font-semibold">71%</span>
-                  </div>
-                  <div className="flex justify-between rounded-lg bg-slate-50 p-3">
-                    <span>Remaining escrow</span>
-                    <span className="font-semibold">$5,800</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-white to-blue-50 p-6">
-                <div className="mb-2 flex items-center gap-2 text-slate-900">
-                  <GraduationCap className="size-5 text-indigo-600" />
-                  <p className="font-semibold">Program Signals</p>
-                </div>
-                <p className="text-sm leading-relaxed text-slate-600">
-                  High retention in Module 3 indicates strong tutor effectiveness. Recommend increasing reward size for advanced tracks to
-                  accelerate completions.
-                </p>
-              </div>
-            </motion.div>
-          </TabsContent>
-        </Tabs>
+            <div className="mt-14 grid gap-10 border-t border-slate-800 pt-10 md:grid-cols-3">
+              {marks.map((m, i) => (
+                <motion.div
+                  key={m.label}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: 0.45, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
+                    {m.label}
+                  </p>
+                  <p className="mt-3 font-[family-name:var(--font-heading)] text-4xl font-semibold tracking-tight text-white md:text-5xl">
+                    {m.value}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   )
