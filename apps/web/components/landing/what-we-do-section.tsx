@@ -1,131 +1,114 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { BrainCircuit, CircleCheckBig, Coins, Fingerprint, Layers3, ShieldCheck } from "lucide-react"
+import { GraduationCap, BriefcaseBusiness, Check } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
-const pillars = [
-  {
-    title: "Teach Through AI",
-    description:
-      "Students learn with guided Dify tutoring, adaptive explanations, and structured practice that keeps momentum high.",
-    icon: BrainCircuit,
-    tone: "bg-violet-100 text-violet-700",
-  },
-  {
-    title: "Verify Mastery",
-    description:
-      "We validate learning with anti-cheat quiz sessions using rotation, timers, randomization, and session-level checks.",
-    icon: Fingerprint,
-    tone: "bg-blue-100 text-blue-700",
-  },
-  {
-    title: "Reward Outcomes",
-    description:
-      "Passing milestones triggers guaranteed USDC micro-rewards, while on-chain events prove each completion transparently.",
-    icon: Coins,
-    tone: "bg-emerald-100 text-emerald-700",
-  },
+const studentPoints = [
+  "Free, adaptive AI tutor trained on the full curriculum",
+  "Guaranteed USDC micro-rewards for every verified milestone",
+  "Programmable Circle wallet — no prior crypto experience needed",
+  "Transcripts and receipts retained for portfolio review",
 ]
 
-const flow = [
-  {
-    title: "Curriculum Activated",
-    detail: "Sponsor-funded bounties unlock learning paths.",
-    icon: Layers3,
-  },
-  {
-    title: "Quiz Confirmed",
-    detail: "Cheat-resistant assessments validate outcomes.",
-    icon: CircleCheckBig,
-  },
-  {
-    title: "Proof + Payout",
-    detail: "Completion is recorded and payout is sent.",
-    icon: ShieldCheck,
-  },
+const sponsorPoints = [
+  "Escrow-backed bounties with full spend visibility",
+  "Pay only for verified, anti-cheat-proof completions",
+  "Cohort analytics: completion velocity, cost per pass, drop-off",
+  "Open-source Solidity contracts, audited and live on Base",
 ]
 
 export function WhatWeDoSection() {
   return (
-    <section id="what-we-do" className="px-4 pb-14 md:px-8 md:pb-18">
+    <section id="sides" className="px-4 py-24 md:px-8 md:py-32">
       <div className="mx-auto w-[min(1200px,92vw)]">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto max-w-3xl text-center"
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-2xl"
         >
-          <Badge variant="neutral" className="border-slate-300 bg-white/85 text-slate-700">
-            What We Actually Do
-          </Badge>
-          <h2 className="mt-4 text-balance text-3xl font-semibold text-slate-950 md:text-5xl">
-            A full proof-of-learning pipeline, not just a landing page concept.
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+            Built For Both Sides
+          </p>
+          <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
+            One protocol, two aligned incentives.
           </h2>
-          <p className="mt-4 text-pretty text-base leading-relaxed text-slate-600 md:text-lg">
-            We combine AI tutoring, verified assessment, and automated USDC disbursement into one measurable protocol for students
-            and sponsors.
+          <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
+            Students learn for real rewards. Sponsors fund measurable outcomes. The protocol keeps
+            both sides honest — without intermediaries.
           </p>
         </motion.div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {pillars.map((pillar, index) => {
-            const Icon = pillar.icon
-            return (
-              <motion.div
-                key={pillar.title}
-                initial={{ opacity: 0, y: 22 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.25 }}
-                transition={{ duration: 0.45, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                whileHover={{ y: -5 }}
-              >
-                <Card className="h-full">
-                  <CardHeader>
-                    <div className={["mb-2 flex h-10 w-10 items-center justify-center rounded-xl", pillar.tone].join(" ")}>
-                      <Icon className="size-5" />
-                    </div>
-                    <CardTitle>{pillar.title}</CardTitle>
-                    <CardDescription>{pillar.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </motion.div>
-            )
-          })}
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white/88 p-5 shadow-[0_12px_38px_-24px_rgba(15,23,42,0.42)] md:p-6">
-          <div className="grid gap-3 md:grid-cols-3">
-            {flow.map((step, index) => {
-              const Icon = step.icon
-              return (
-                <motion.div
-                  key={step.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.4, delay: 0.12 + index * 0.08 }}
-                  className="rounded-xl bg-slate-50 p-4"
-                >
-                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700">
-                    <Icon className="size-4" />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-900">{step.title}</p>
-                  <p className="mt-1 text-sm text-slate-600">{step.detail}</p>
-                </motion.div>
-              )
-            })}
-          </div>
+        <div className="mt-14 grid gap-5 md:grid-cols-2">
           <motion.div
-            initial={{ scaleX: 0 }}
-            whileInView={{ scaleX: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, ease: "easeOut", delay: 0.25 }}
-            className="mt-4 h-1 origin-left rounded-full bg-linear-to-r from-blue-500 via-indigo-500 to-emerald-500"
-          />
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-3xl border border-slate-200 bg-white p-10"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-900">
+                <GraduationCap className="size-5" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                For Students
+              </p>
+            </div>
+            <h3 className="mt-7 text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+              Learn freely. Earn real value.
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              A guided path from first lesson to first payout, with nothing to sign up, pay, or
+              install beyond your browser.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {studentPoints.map((point) => (
+                <li key={point} className="flex gap-3 text-sm text-slate-700">
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-50 text-slate-900">
+                    <Check className="size-3" />
+                  </span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            className="relative overflow-hidden rounded-3xl border border-slate-900 bg-slate-950 p-10 text-white"
+          >
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-slate-700 to-transparent" />
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-white">
+                <BriefcaseBusiness className="size-5" />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                For Sponsors
+              </p>
+            </div>
+            <h3 className="mt-7 text-2xl font-semibold tracking-tight md:text-3xl">
+              Fund outcomes. Not clicks.
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-300">
+              Deposit USDC into escrow, define the curriculum and the bounty, and let the protocol
+              disburse only against verified completions.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {sponsorPoints.map((point) => (
+                <li key={point} className="flex gap-3 text-sm text-slate-200">
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-white">
+                    <Check className="size-3" />
+                  </span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
         </div>
       </div>
     </section>

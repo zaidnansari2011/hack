@@ -5,10 +5,10 @@ import { useState } from "react"
 import { useMotionValueEvent, useScroll } from "framer-motion"
 
 const links = [
-  { href: "#features", label: "Features" },
-  { href: "#what-we-do", label: "What We Do" },
-  { href: "#journey", label: "Journey" },
-  { href: "#roles", label: "Roles" },
+  { href: "#journey", label: "How It Flows" },
+  { href: "#sides", label: "Both Sides" },
+  { href: "#stack", label: "Stack" },
+  { href: "#start", label: "Start" },
 ]
 
 export function SiteHeader() {
