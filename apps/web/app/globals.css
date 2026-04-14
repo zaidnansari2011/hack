@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+@layer base {
+  :root {
+    --background: 220 40% 98%;
+    --foreground: 222.2 62% 12%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 62% 12%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 62% 12%;
+    
+    --primary: 220 92% 53%;
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 220 35% 96%;
+    --secondary-foreground: 222.2 62% 12%;
+    
+    --muted: 220 30% 95.8%;
+    --muted-foreground: 218 18% 42%;
+    
+    --accent: 156 62% 95%;
+    --accent-foreground: 156 52% 22%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 26% 89%;
+    --input: 220 26% 89%;
+    --ring: 220 92% 53%;
+
+    --radius: 0.875rem;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    @apply antialiased;
+    font-family: var(--font-body), sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading), sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-linear-to-r from-blue-600 via-indigo-500 to-emerald-500 bg-clip-text text-transparent;
+  }
+
+  .glass-surface {
+    @apply border border-slate-200/70 bg-white/80 backdrop-blur;
+  }
+}
