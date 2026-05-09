@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import type { VerifiedCredential } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
+import { CredentialShareCard } from "@/components/verify/credential-share-card"
 
 type State =
   | { status: "loading" }
@@ -146,6 +147,8 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
         />
       </div>
 
+      <CredentialShareCard cred={cred} />
+
       <Section title="On-chain receipts">
         <FieldRow label="Release tx">
           <a
@@ -159,13 +162,19 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
         </FieldRow>
         {cred.studentAddress && cred.chain.basescanAddressUrl && (
           <FieldRow label="Student address">
+            <Link
+              href={`/credentials/${cred.studentAddress}`}
+              className="font-mono text-[0.8125rem] text-teal underline-offset-4 hover:underline"
+            >
+              {short(cred.studentAddress)}
+            </Link>
             <a
               href={cred.chain.basescanAddressUrl}
               target="_blank"
               rel="noreferrer"
-              className="font-mono text-[0.8125rem] text-teal underline-offset-4 hover:underline"
+              className="ml-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint hover:text-ink"
             >
-              {short(cred.studentAddress)} ↗
+              BaseScan ↗
             </a>
           </FieldRow>
         )}
@@ -227,6 +236,14 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
         >
           View on BaseScan ↗
         </a>
+        {cred.studentAddress && (
+          <Link
+            href={`/credentials/${cred.studentAddress}`}
+            className="inline-flex items-center gap-2 rounded-full border border-rule bg-surface px-5 py-2.5 text-[0.875rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
+          >
+            See full transcript →
+          </Link>
+        )}
         <Link
           href={`/recruit?curriculum=${cred.curriculum.slug}`}
           className="inline-flex items-center gap-2 rounded-full border border-rule bg-surface px-5 py-2.5 text-[0.875rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"

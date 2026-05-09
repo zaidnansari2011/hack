@@ -214,6 +214,30 @@ export type OnchainProof = {
   mintedAt: string | null
 }
 
+// ─── Wallet profile (recruiter's deep dive on one address) ──────
+export type WalletCredential = {
+  txHash: string
+  scorePct: number
+  passedAt: string | null
+  curriculumTitle: string
+  curriculumSlug: string
+  rewardInr: number
+  bountyTitle: string
+  sponsorName: string
+  tokenId: string | null
+}
+
+export type WalletProfile = {
+  address: string
+  studentInitials: string
+  totalCredentials: number
+  totalEarnedInr: number
+  firstPassedAt: string | null
+  curricula: { slug: string; title: string }[]
+  credentials: WalletCredential[]
+  basescanAddressUrl: string
+}
+
 // Public-facing verify payload — no PII, just credential facts a third
 // party can audit alongside the on-chain tx.
 export type VerifiedCredential = {

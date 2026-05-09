@@ -1,6 +1,10 @@
 import { keccak256, toHex, type Address } from "viem"
 import type { OnchainProof as PrismaProof } from "@prisma/client"
-import type { OnchainProof, VerifiedCredential } from "@pol/shared"
+import type {
+  OnchainProof,
+  VerifiedCredential,
+  WalletProfile,
+} from "@pol/shared"
 
 import { prisma } from "@/db/prisma"
 import { logger } from "@/config/logger"
@@ -232,3 +236,91 @@ export async function getVerifiedCredentialByTx(
     },
   }
 }
+
+/**
+ * Public lookup by wallet address — drives /credentials/[address]. Returns
+ * every minted SBT this address holds across curricula plus aggregate
+ * earnings, so a recruiter can read the full transcript at a glance.
+ */
+export async function getWalletProfileByAddress(
+  rawAddress: string,
+): Promise<WalletProfile> {
+  const address = rawAddress.toLowerCase().startsWith("0x")
+    ? rawAddress.toLowerCase()
+    : `0x${rawAddress.toLowerCase()}`
+
+  const proofs = await prisma.onchainProof.findMany({
+    where: { studentAddress: address, status: "minted" },
+    include: {
+      curriculum: true,
+      enrollment: {
+        include: {
+          student: true,
+          bounty: { include: { sponsor: true } },
+        },
+      },
+    },
+    orderBy: { mintedAt: "desc" },
+  })
+  if (proofs.length === 0) {
+    throw NotFound("No credentials found for this address")
+  }
+
+  const sessions = await Promise.all(
+    proofs.map((p) =>
+      prisma.quizSession.findFirst({
+        where: { enrollmentId: p.enrollmentId, status: "passed" },
+        orderBy: { submittedAt: "desc" },
+        select: { scorePct: true, submittedAt: true },
+      }),
+    ),
+  )
+
+  const credentials = proofs.map((p, i) => {
+    const s = sessions[i]
+    return {
+      txHash: p.txHash ?? "",
+      scorePct: s?.scorePct ?? 0,
+      passedAt:
+        s?.submittedAt?.toISOString() ?? p.mintedAt?.toISOString() ?? null,
+      curriculumTitle: p.curriculum.title,
+      curriculumSlug: p.curriculum.slug,
+      rewardInr: p.enrollment.bounty.rewardInr,
+      bountyTitle: p.enrollment.bounty.title,
+      sponsorName: p.enrollment.bounty.sponsor.organizationName,
+      tokenId: p.tokenId,
+    }
+  })
+
+  const totalEarnedInr = credentials.reduce((s, c) => s + c.rewardInr, 0)
+  const firstPassedAt = credentials
+    .map((c) => c.passedAt)
+    .filter((d): d is string => d !== null)
+    .sort()[0] ?? null
+
+  // Distinct curricula represented in this profile.
+  const seen = new Set<string>()
+  const curricula: { slug: string; title: string }[] = []
+  for (const c of credentials) {
+    if (!seen.has(c.curriculumSlug)) {
+      seen.add(c.curriculumSlug)
+      curricula.push({ slug: c.curriculumSlug, title: c.curriculumTitle })
+    }
+  }
+
+  // Take initials from any of the underlying enrollment students — they're
+  // all the same person since the address is keyed to one userId.
+  const studentInitials = initials(proofs[0]?.enrollment.student.name ?? "")
+
+  return {
+    address,
+    studentInitials,
+    totalCredentials: credentials.length,
+    totalEarnedInr,
+    firstPassedAt,
+    curricula,
+    credentials,
+    basescanAddressUrl: basescanAddressUrl(address),
+  }
+}
+

@@ -146,6 +146,10 @@ export function PayoutCelebration({
         <ProofCard proof={proof} />
       </div>
 
+      {proof?.txHash && proof.status === "minted" && (
+        <CredentialLiveBanner txHash={proof.txHash} />
+      )}
+
       <div className="flex flex-wrap items-center gap-4 border-t border-rule pt-6">
         <Link
           href="/payouts"
@@ -294,6 +298,58 @@ function ProofCard({ proof }: { proof: OnchainProof | null }) {
         />
       </dl>
     </div>
+  )
+}
+
+function CredentialLiveBanner({ txHash }: { txHash: string }) {
+  const [copied, setCopied] = useState(false)
+  const verifyPath = `/verify/${txHash}`
+  const fullUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}${verifyPath}`
+      : verifyPath
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: ease.outQuart }}
+      className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-teal/40 bg-teal-soft/50 p-5"
+    >
+      <div className="min-w-0">
+        <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-teal">
+          Credential is live
+        </span>
+        <p className="mt-1.5 max-w-xl text-[0.875rem] leading-relaxed text-ink-soft">
+          Anyone with this link can verify your score and on-chain receipt —
+          no login required. Open the verify page for the QR code and PDF
+          certificate.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(fullUrl)
+              setCopied(true)
+              window.setTimeout(() => setCopied(false), 2000)
+            } catch {
+              // ignore
+            }
+          }}
+          className="inline-flex items-center gap-2 rounded-full border border-rule bg-paper px-4 py-2 text-[0.8125rem] font-medium text-ink-soft transition-colors hover:border-ink/40 hover:text-ink"
+        >
+          {copied ? "Copied" : "Copy link"}
+        </button>
+        <Link
+          href={verifyPath}
+          className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-ink/90"
+        >
+          Open verify page →
+        </Link>
+      </div>
+    </motion.div>
   )
 }
 

@@ -106,7 +106,9 @@ export function QuizRunner({ bountyId, session }: Props) {
   }
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
+    <div className="space-y-5">
+      <AntiCheatRibbon timerLabel={timerLabel} expired={expired} />
+      <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
       <div className="space-y-6">
         <ProgressBar
           questions={session.questions}
@@ -221,7 +223,79 @@ export function QuizRunner({ bountyId, session }: Props) {
         currentIndex={index}
         onJump={setIndex}
       />
+      </div>
     </div>
+  )
+}
+
+function AntiCheatRibbon({
+  timerLabel,
+  expired,
+}: {
+  timerLabel: string
+  expired: boolean
+}) {
+  const guards: { label: string; tip: string }[] = [
+    {
+      label: "Question bank rotated",
+      tip: "Your questions were sampled from a larger bank, weighted across topics",
+    },
+    {
+      label: "Answers shuffled per session",
+      tip: "Choice order is permuted with a session-specific seed — answer keys can't be cached",
+    },
+    {
+      label: "Session fingerprint logged",
+      tip: "User agent, locale, screen, and timezone are snapshotted for audit",
+    },
+  ]
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-rule bg-surface-soft px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-teal">
+          Proctored
+        </span>
+        <span className="h-3 w-px bg-rule" />
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          {guards.map((g) => (
+            <li
+              key={g.label}
+              title={g.tip}
+              className="inline-flex items-center gap-1.5 font-mono text-[0.6875rem] text-ink-soft"
+            >
+              <CheckTickIcon className="h-3 w-3 text-forest" />
+              {g.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <span
+        className={cn(
+          "tabular-nums font-mono text-[0.75rem] font-semibold",
+          expired ? "text-terracotta" : "text-ink",
+        )}
+        aria-label="Time remaining"
+      >
+        {expired ? "expired" : `${timerLabel} lock-in`}
+      </span>
+    </div>
+  )
+}
+
+function CheckTickIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M5 12l4 4L19 7" />
+    </svg>
   )
 }
 
