@@ -191,7 +191,16 @@ export async function listMyBounties(userId: string): Promise<Bounty[]> {
 }
 
 // ─── Sponsor: dashboard summary ───────────────────────────────────────────────
-import type { SponsorAnalytics } from "@pol/shared"
+import type { SponsorAnalytics, SponsorTopScorer } from "@pol/shared"
+
+const NAME_INITIALS_RE = /\S+/g
+function initialsForName(name: string): string {
+  const parts = name.match(NAME_INITIALS_RE) ?? []
+  return parts
+    .slice(0, 2)
+    .map((p) => (p[0] ?? "").toUpperCase())
+    .join("")
+}
 
 export type SponsorDashboardSummary = {
   totalBounties: number
@@ -201,6 +210,7 @@ export type SponsorDashboardSummary = {
   totalRemainingInr: number
   recentBounties: Bounty[]
   analytics: SponsorAnalytics
+  topScorers: SponsorTopScorer[]
 }
 
 // Industry-baseline cost-per-completion in INR for a bootcamp seat. Used to
@@ -281,6 +291,54 @@ export async function getSponsorDashboard(
       ? Math.round(minutes[Math.floor(minutes.length / 2)] ?? 0)
       : null
 
+  // ─ Top 5 scorers across this sponsor's bounties (leaderboard) ─
+  const topProofs = await prisma.onchainProof.findMany({
+    where: {
+      status: "minted",
+      enrollment: { bounty: { sponsorId: sponsor.id } },
+    },
+    include: {
+      curriculum: { select: { title: true } },
+      enrollment: {
+        include: {
+          student: { select: { name: true } },
+          bounty: { select: { title: true, rewardInr: true } },
+        },
+      },
+    },
+    orderBy: { mintedAt: "desc" },
+    take: 50,
+  })
+
+  const topScorerEntries = await Promise.all(
+    topProofs.map(async (p) => {
+      const session = await prisma.quizSession.findFirst({
+        where: { enrollmentId: p.enrollmentId, status: "passed" },
+        orderBy: { submittedAt: "desc" },
+        select: { scorePct: true, submittedAt: true },
+      })
+      if (!session || session.scorePct === null) return null
+      const passedAt =
+        session.submittedAt?.toISOString() ?? p.mintedAt?.toISOString() ?? null
+      if (!passedAt || !p.txHash) return null
+      const entry: SponsorTopScorer = {
+        studentInitials: initialsForName(p.enrollment.student.name),
+        studentAddress: p.studentAddress,
+        scorePct: session.scorePct,
+        rewardInr: p.enrollment.bounty.rewardInr,
+        curriculumTitle: p.curriculum.title,
+        bountyTitle: p.enrollment.bounty.title,
+        passedAt,
+        txHash: p.txHash,
+      }
+      return entry
+    }),
+  )
+  const topScorers = topScorerEntries
+    .filter((e): e is SponsorTopScorer => e !== null)
+    .sort((a, b) => b.scorePct - a.scorePct)
+    .slice(0, 5)
+
   return {
     totalBounties: rows.length,
     activeBounties: active,
@@ -297,6 +355,7 @@ export async function getSponsorDashboard(
       averageScorePct,
       medianMinutesToComplete,
     },
+    topScorers,
   }
 }
 

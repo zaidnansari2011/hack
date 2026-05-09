@@ -175,6 +175,69 @@ export default function SponsorDashboardPage() {
             </div>
           </section>
 
+          {data.topScorers.length > 0 && (
+            <section>
+              <div className="flex items-baseline justify-between">
+                <h2 className="eyebrow eyebrow-tick">Top scorers</h2>
+                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+                  Across all your bounties
+                </span>
+              </div>
+              <ol className="mt-5 divide-y divide-rule overflow-hidden rounded-md border border-rule bg-surface">
+                {data.topScorers.map((s, i) => (
+                  <li
+                    key={s.txHash}
+                    className="flex items-center justify-between gap-4 px-5 py-3.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <span className="tabular w-6 font-mono text-[0.75rem] font-semibold text-ink-faint">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      {s.studentAddress ? (
+                        <Link
+                          href={`/credentials/${s.studentAddress}`}
+                          className="grid h-9 w-9 place-items-center rounded-full bg-ink text-[0.75rem] font-semibold text-paper transition-transform hover:scale-105"
+                          title="Open transcript"
+                        >
+                          {s.studentInitials || "?"}
+                        </Link>
+                      ) : (
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-ink text-[0.75rem] font-semibold text-paper">
+                          {s.studentInitials || "?"}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-[0.875rem] font-medium text-ink">
+                          {s.studentInitials} ·{" "}
+                          <span className="text-ink-soft">{s.curriculumTitle}</span>
+                        </div>
+                        <div className="mt-0.5 font-mono text-[0.6875rem] text-ink-faint">
+                          {s.bountyTitle}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-5">
+                      <div className="text-right">
+                        <div className="tabular font-display text-[1.125rem] font-medium leading-none text-teal">
+                          {s.scorePct}%
+                        </div>
+                        <div className="mt-1 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+                          ₹{s.rewardInr.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <Link
+                        href={`/verify/${s.txHash}`}
+                        className="rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-ink-soft transition-colors hover:border-ink/40 hover:text-ink"
+                      >
+                        verify →
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <section>
             <div className="flex items-baseline justify-between">
               <h2 className="eyebrow eyebrow-tick">Recent bounties</h2>

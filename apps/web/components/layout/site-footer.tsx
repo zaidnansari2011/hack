@@ -27,6 +27,7 @@ export function SiteFooter() {
             links={[
               { label: "Sponsor portal", href: "/dashboard" },
               { label: "Bounty index", href: "/learn" },
+              { label: "Talent search", href: "/recruit" },
               { label: "Earnings ledger", href: "/payouts" },
             ]}
           />
@@ -34,8 +35,8 @@ export function SiteFooter() {
           <FooterColumn
             heading="The protocol"
             links={[
-              { label: "Manifesto", href: "/#manifesto" },
-              { label: "Methodology", href: "/#methodology" },
+              { label: "About", href: "/about" },
+              { label: "API", href: "/api-docs" },
               { label: "Live activity", href: "/#live" },
             ]}
           />
@@ -45,7 +46,6 @@ export function SiteFooter() {
             links={[
               { label: "Sign in", href: "/login" },
               { label: "Create account", href: "/signup" },
-              { label: "Demo runbook", href: "/" },
             ]}
           />
         </div>

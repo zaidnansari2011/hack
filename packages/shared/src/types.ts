@@ -67,6 +67,17 @@ export type EnrollmentDetail = Enrollment & {
   curriculum: Curriculum
 }
 
+export type SponsorTopScorer = {
+  studentInitials: string
+  studentAddress: string | null
+  scorePct: number
+  rewardInr: number
+  curriculumTitle: string
+  bountyTitle: string
+  passedAt: string
+  txHash: string
+}
+
 export type SponsorDashboard = {
   totalBounties: number
   activeBounties: number
@@ -75,6 +86,7 @@ export type SponsorDashboard = {
   totalRemainingInr: number
   recentBounties: Bounty[]
   analytics: SponsorAnalytics
+  topScorers: SponsorTopScorer[]
 }
 
 export type ChainStatus = {
@@ -341,6 +353,7 @@ export type SendMessageRequest = {
   enrollmentId: string
   message: string
   lang?: TutorLanguage
+  persona?: TutorPersona
 }
 
 export type SendMessageResponse = {
@@ -348,6 +361,10 @@ export type SendMessageResponse = {
 }
 
 export type TutorLanguage = "en" | "hi" | "ta" | "te"
+
+// Three personas the tutor can adopt — same RAG, same content, different
+// teaching voice. Persisted in localStorage so the choice survives reloads.
+export type TutorPersona = "mentor" | "examiner" | "coach"
 
 export type RemediationPlan = {
   sessionId: string
