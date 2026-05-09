@@ -1,0 +1,283 @@
+// Proof-of-Learn — Prisma schema
+// Vector columns are managed via raw SQL migrations (see prisma/migrations/).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, vector]
+}
+
+// ─── Users & roles ──────────────────────────────────────────────
+enum UserRole {
+  student
+  sponsor
+  admin
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studentProfile StudentProfile?
+  sponsor        Sponsor?
+  enrollments    Enrollment[]
+  quizSessions   QuizSession[]
+  payouts        Payout[]
+  chatMessages   ChatMessage[]
+}
+
+model StudentProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  upiId           String?
+  bankAccountLast4 String?
+  walletAddress   String?
+  totalEarnedInr  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Sponsor {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationName String
+  websiteUrl       String?
+  walletAddress    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bounties Bounty[]
+}
+
+// ─── Curriculum ──────────────────────────────────────────────────
+model Curriculum {
+  id               String   @id @default(uuid())
+  slug             String   @unique
+  title            String
+  summary          String
+  topics           String[]
+  // Structured syllabus: array of { module, summary, durationMinutes }.
+  // Stored as JSON so the shape can evolve without a migration per tweak.
+  syllabus         Json     @default("[]")
+  estimatedMinutes Int      @default(60)
+  thumbnailUrl     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  chunks    CurriculumChunk[]
+  bounties  Bounty[]
+  questions Question[]
+  proofs    OnchainProof[]
+}
+
+// CurriculumChunk.embedding is a vector(384) column managed via raw SQL.
+// Dimension matches Xenova/all-MiniLM-L6-v2 — local ONNX, no API key.
+model CurriculumChunk {
+  id           String     @id @default(uuid())
+  curriculumId String
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  chunkIndex   Int
+  content      String
+  source       String
+  pageNumber   Int?
+  embedding    Unsupported("vector(384)")?
+  createdAt    DateTime   @default(now())
+
+  @@index([curriculumId, chunkIndex])
+}
+
+// ─── Bounties ────────────────────────────────────────────────────
+enum BountyStatus {
+  draft
+  funding
+  active
+  paused
+  depleted
+  closed
+}
+
+model Bounty {
+  id                String        @id @default(uuid())
+  sponsorId         String
+  sponsor           Sponsor       @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  curriculumId      String
+  curriculum        Curriculum    @relation(fields: [curriculumId], references: [id])
+  title             String
+  description       String
+  rewardInr         Int
+  rewardUsdcMicros  BigInt
+  maxStudents       Int
+  enrolled          Int           @default(0)
+  completed         Int           @default(0)
+  totalDepositMicros BigInt       @default(0)
+  remainingMicros   BigInt        @default(0)
+  status            BountyStatus  @default(draft)
+  escrowTxHash      String?
+  onchainBountyId   String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  enrollments Enrollment[]
+
+  @@index([status])
+  @@index([sponsorId])
+}
+
+// ─── Enrollments ─────────────────────────────────────────────────
+enum EnrollmentStatus {
+  active
+  completed
+  abandoned
+}
+
+model Enrollment {
+  id          String           @id @default(uuid())
+  studentId   String
+  student     User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  bountyId    String
+  bounty      Bounty           @relation(fields: [bountyId], references: [id], onDelete: Cascade)
+  status      EnrollmentStatus @default(active)
+  progressPct Int              @default(0)
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  quizSessions QuizSession[]
+  payouts      Payout[]
+  chatMessages ChatMessage[]
+  proofs       OnchainProof[]
+
+  @@unique([studentId, bountyId])
+  @@index([bountyId])
+}
+
+// ─── Quizzes ─────────────────────────────────────────────────────
+model Question {
+  id           String     @id @default(uuid())
+  curriculumId String
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  prompt       String
+  choices      String[]
+  correctIndex Int
+  difficulty   Int        @default(1)
+  topic        String?
+  createdAt    DateTime   @default(now())
+
+  @@index([curriculumId])
+}
+
+enum QuizStatus {
+  in_progress
+  submitted
+  passed
+  failed
+  expired
+}
+
+model QuizSession {
+  id              String      @id @default(uuid())
+  enrollmentId    String
+  enrollment      Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status          QuizStatus  @default(in_progress)
+  questionIds     String[]
+  answers         Json?
+  fingerprint     Json?
+  scorePct        Int?
+  passed          Boolean?
+  startedAt       DateTime    @default(now())
+  expiresAt       DateTime
+  submittedAt     DateTime?
+
+  @@index([enrollmentId])
+  @@index([status])
+}
+
+// ─── Payouts ─────────────────────────────────────────────────────
+enum PayoutStatus {
+  queued
+  processing
+  sent
+  confirmed
+  failed
+}
+
+model Payout {
+  id                String       @id @default(uuid())
+  studentId         String
+  student           User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  enrollmentId      String
+  enrollment        Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  amountInr         Int
+  status            PayoutStatus @default(queued)
+  upiId             String?
+  razorpayPayoutId  String?      @unique
+  idempotencyKey    String       @unique
+  failureReason     String?
+  attempts          Int          @default(0)
+  createdAt         DateTime     @default(now())
+  sentAt            DateTime?
+  confirmedAt       DateTime?
+
+  @@index([studentId])
+  @@index([status])
+}
+
+// ─── On-chain proof / SBT ────────────────────────────────────────
+enum ProofStatus {
+  pending
+  minted
+  failed
+}
+
+model OnchainProof {
+  id              String      @id @default(uuid())
+  enrollmentId    String
+  enrollment      Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  curriculumId    String
+  curriculum      Curriculum  @relation(fields: [curriculumId], references: [id])
+  studentAddress  String?
+  scoreHash       String
+  txHash          String?
+  tokenId         String?
+  status          ProofStatus @default(pending)
+  failureReason   String?
+  createdAt       DateTime    @default(now())
+  mintedAt        DateTime?
+
+  @@index([enrollmentId])
+  @@index([status])
+}
+
+// ─── Tutor chat history ──────────────────────────────────────────
+enum ChatRole {
+  user
+  tutor
+  system
+}
+
+model ChatMessage {
+  id           String    @id @default(uuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         ChatRole
+  content      String
+  citations    Json?
+  createdAt    DateTime   @default(now())
+
+  @@index([enrollmentId, createdAt])
+}

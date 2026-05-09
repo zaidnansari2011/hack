@@ -1,0 +1,146 @@
+[
+  {
+    "topic": "DataFrames",
+    "difficulty": 1,
+    "prompt": "What is a pandas DataFrame, internally?",
+    "choices": [
+      "A wrapper around a SQLite database.",
+      "A labeled, two-dimensional table where each column is a one-dimensional Series backed by a NumPy array.",
+      "A Python dictionary of lists.",
+      "A streaming generator over CSV rows."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "DataFrames",
+    "difficulty": 2,
+    "prompt": "Which three operations cover roughly 80% of real pandas analysis work?",
+    "choices": [
+      "Plot, save, and email.",
+      "Selection (filter rows), aggregation (groupby + reduce), and joining (merge tables).",
+      "Lambda, comprehension, and decorator.",
+      "Vectorize, JIT-compile, and parallelize."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Indexing",
+    "difficulty": 2,
+    "prompt": "What is the difference between `df.loc` and `df.iloc`?",
+    "choices": [
+      "`loc` is for columns and `iloc` is for rows.",
+      "`loc` selects by label; `iloc` selects by integer position.",
+      "`iloc` is the immutable version of `loc`.",
+      "`loc` runs on disk; `iloc` runs in memory."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Reading data",
+    "difficulty": 1,
+    "prompt": "Why pass `parse_dates=['date_col']` to `pd.read_csv`?",
+    "choices": [
+      "To skip rows with bad dates.",
+      "To convert string date columns into proper pandas timestamps so filtering and sorting behave correctly.",
+      "To validate the file's checksum.",
+      "To deduplicate rows by date."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Reading data",
+    "difficulty": 2,
+    "prompt": "Why is Parquet often dramatically faster than CSV for selective queries on large tables?",
+    "choices": [
+      "It compresses better, so the file is smaller.",
+      "It is a columnar binary format, so only the columns you request are read off disk.",
+      "It is encrypted, which speeds reads.",
+      "It runs on the GPU."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Cleaning",
+    "difficulty": 2,
+    "prompt": "What does `errors='coerce'` do in `pd.to_numeric` or `pd.to_datetime`?",
+    "choices": [
+      "Aborts the script if any value is invalid.",
+      "Replaces values that can't be parsed with NaN, allowing the rest of the column to convert.",
+      "Re-runs the conversion until everything succeeds.",
+      "Silently drops the column."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Group-by",
+    "difficulty": 2,
+    "prompt": "What is the 'split-apply-combine' pattern?",
+    "choices": [
+      "A way to merge two DataFrames row-by-row.",
+      "Split rows into groups by a key, apply a function per group, combine the results back into a DataFrame.",
+      "A regex strategy for cleaning text columns.",
+      "A pandas alternative to multiprocessing."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Group-by",
+    "difficulty": 3,
+    "prompt": "Why is the named-aggregation form `agg(revenue_sum=('revenue','sum'))` preferred over the older syntax?",
+    "choices": [
+      "It is faster at runtime.",
+      "It produces explicit, named output columns and survives column reordering, making code more readable and robust.",
+      "It bypasses the Python GIL.",
+      "It is the only form that supports custom functions."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Visualization",
+    "difficulty": 1,
+    "prompt": "In matplotlib, what is the relationship between Figure and Axes?",
+    "choices": [
+      "They are aliases of the same object.",
+      "A Figure is the whole page; an Axes is one plotting region inside it. A Figure can hold many Axes.",
+      "An Axes contains a Figure.",
+      "Axes are only used in 3D plots."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Time series",
+    "difficulty": 2,
+    "prompt": "Why localize naive timestamps to UTC immediately after loading?",
+    "choices": [
+      "It compresses the column.",
+      "Naive timestamps lose meaning across regions or DST boundaries; localizing keeps the absolute instant unambiguous.",
+      "It is required for plotting.",
+      "It avoids floating-point error."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Jupyter",
+    "difficulty": 1,
+    "prompt": "What is the simplest discipline that prevents most Jupyter 'works on my machine' bugs?",
+    "choices": [
+      "Always run in Google Colab.",
+      "Restart the kernel and run all cells in order before sharing or trusting a result.",
+      "Use only one cell per notebook.",
+      "Save output as PDF."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Scaling",
+    "difficulty": 3,
+    "prompt": "When pandas runs out of memory on a single big file, which approach lets you process it without changing tools?",
+    "choices": [
+      "Switch to Spark.",
+      "Pass `chunksize=` to `read_csv` to get an iterator of small DataFrames, then process and reduce one at a time.",
+      "Convert the file to JSON.",
+      "Open it twice in parallel."
+    ],
+    "correctIndex": 1
+  }
+]

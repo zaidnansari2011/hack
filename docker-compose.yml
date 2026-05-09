@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: pol-postgres
     restart: unless-stopped
     environment:
@@ -33,23 +33,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # RAGFlow — document parsing + retrieval engine
-  # Requires significant memory (~4GB). Comment out if not needed locally.
-  # ragflow:
-  #   image: infiniflow/ragflow:latest
-  #   container_name: pol-ragflow
-  #   restart: unless-stopped
-  #   ports:
-  #     - "9380:9380"
-  #   volumes:
-  #     - ragflow_data:/ragflow/data
-  #   environment:
-  #     - RAGFLOW_HOST=0.0.0.0
-  #   depends_on:
-  #     - postgres
-  #     - redis
-
 volumes:
   pgdata:
   redisdata:
-  # ragflow_data:

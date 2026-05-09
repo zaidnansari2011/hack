@@ -1,0 +1,146 @@
+[
+  {
+    "topic": "Storage",
+    "difficulty": 1,
+    "prompt": "Why do Solidity engineers obsess over storage layout?",
+    "choices": [
+      "Because storage variables are hard to declare.",
+      "Because writing a storage slot costs 20,000 gas the first time and 5,000 after.",
+      "Because storage is volatile and gets cleared between calls.",
+      "Because the EVM can't read storage at all."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Storage",
+    "difficulty": 2,
+    "prompt": "Why is `string calldata name` cheaper than `string memory name` for a function parameter?",
+    "choices": [
+      "Because calldata is held in registers.",
+      "Because `memory` requires allocation and a copy, while `calldata` is read-only and stays in place.",
+      "Because the EVM does not support memory strings.",
+      "Because calldata is encrypted and skipped."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Visibility",
+    "difficulty": 1,
+    "prompt": "What is the difference between `public` and `external` in Solidity?",
+    "choices": [
+      "There is no difference — they are aliases.",
+      "`public` is callable internally and externally; `external` is only callable from outside the contract.",
+      "`external` functions cannot accept arguments.",
+      "`public` is for view functions only."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Visibility",
+    "difficulty": 2,
+    "prompt": "Does `private` mean a function or variable is hidden from the world?",
+    "choices": [
+      "Yes — `private` storage is encrypted on-chain.",
+      "No — anyone can read the bytecode and storage off-chain; `private` only restricts Solidity-level callers.",
+      "Yes, but only on mainnet.",
+      "Only if the contract is upgradeable."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Reentrancy",
+    "difficulty": 2,
+    "prompt": "What is the Checks-Effects-Interactions pattern?",
+    "choices": [
+      "A unit-test naming convention.",
+      "Validate inputs first, update state second, make external calls last.",
+      "An access-control modifier.",
+      "A pattern for inheriting from multiple contracts."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Reentrancy",
+    "difficulty": 3,
+    "prompt": "What does OpenZeppelin's `nonReentrant` modifier use to prevent re-entry?",
+    "choices": [
+      "A signature check.",
+      "A single storage slot acting as a mutex.",
+      "A Merkle proof.",
+      "An EIP-712 nonce."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Events",
+    "difficulty": 1,
+    "prompt": "Why are events much cheaper than storage writes?",
+    "choices": [
+      "They are written to the contract owner's wallet, not chain.",
+      "A 32-byte log topic costs about 375 gas vs 20,000 for a storage write.",
+      "They are off-chain and never reach the EVM.",
+      "They use a different opcode that's free."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Events",
+    "difficulty": 2,
+    "prompt": "How many `indexed` parameters can a Solidity event have?",
+    "choices": [
+      "One.",
+      "Up to three.",
+      "Up to eight.",
+      "Unlimited, but each costs gas."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Access Control",
+    "difficulty": 2,
+    "prompt": "Why is OpenZeppelin's `AccessControl` typically preferred over `Ownable` for production?",
+    "choices": [
+      "It is faster at runtime.",
+      "It supports multiple named roles, so different responsibilities can be granted to different addresses, and roles can be granted or revoked.",
+      "It is gas-free.",
+      "It auto-deploys a multisig."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "ERC Standards",
+    "difficulty": 2,
+    "prompt": "Why must you use OpenZeppelin's `SafeERC20` instead of calling `transfer` directly?",
+    "choices": [
+      "Because `transfer` is deprecated.",
+      "Because some legacy ERC-20 tokens (notably USDT) don't return a bool, so naive return-value checks revert or silently fail.",
+      "Because `transfer` is not part of the ERC-20 spec.",
+      "Because `SafeERC20` is mandatory in EIP-712."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "ERC Standards",
+    "difficulty": 3,
+    "prompt": "How is a soulbound token typically implemented?",
+    "choices": [
+      "A new EIP standard separate from ERC-721.",
+      "An ERC-721 contract that overrides `transferFrom` and `safeTransferFrom` to revert.",
+      "A regular ERC-20 with the `transfer` removed.",
+      "An off-chain signature stored in IPFS."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Foundry",
+    "difficulty": 2,
+    "prompt": "What does `vm.prank(alice)` do in a Foundry test?",
+    "choices": [
+      "Mints test ETH to alice's address.",
+      "Causes the next call to originate from alice's address (changes msg.sender).",
+      "Logs a debug message.",
+      "Reverts the test if alice does not exist."
+    ],
+    "correctIndex": 1
+  }
+]

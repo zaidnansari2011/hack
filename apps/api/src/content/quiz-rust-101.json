@@ -1,0 +1,136 @@
+[
+  {
+    "topic": "Ownership",
+    "difficulty": 1,
+    "prompt": "What happens when a heap-backed value like `String` is assigned to a new variable in Rust?",
+    "choices": [
+      "Both variables share the same heap allocation safely.",
+      "Ownership moves to the new variable; the original becomes invalid.",
+      "The compiler implicitly clones the value.",
+      "A reference is created automatically."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Ownership",
+    "difficulty": 2,
+    "prompt": "Why do small types like `i32` not need `clone()` to copy?",
+    "choices": [
+      "Because the borrow checker is disabled for primitives.",
+      "Because they implement the `Copy` trait, so assignment copies bit-for-bit.",
+      "Because they live on the heap and use reference counting.",
+      "Because the compiler reorders them automatically."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Borrowing",
+    "difficulty": 1,
+    "prompt": "Which combination of borrows does Rust allow on a single value at one moment?",
+    "choices": [
+      "Many `&mut T` references at the same time.",
+      "Either many `&T` borrows OR exactly one `&mut T` borrow — never both.",
+      "One `&T` and one `&mut T` simultaneously, as long as threads differ.",
+      "Only one borrow of any kind, ever."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Borrowing",
+    "difficulty": 2,
+    "prompt": "What property does the borrow-checker rule give to the standard library's data structures?",
+    "choices": [
+      "Automatic garbage collection.",
+      "Compile-time proof that there is no data race.",
+      "Faster pointer arithmetic at runtime.",
+      "Implicit `unsafe` blocks where needed."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Lifetimes",
+    "difficulty": 2,
+    "prompt": "What does the lifetime annotation `'a` in `&'a T` express?",
+    "choices": [
+      "The reference is valid for the entire program.",
+      "T must implement `Copy`.",
+      "The reference must live at least as long as `'a`.",
+      "The compiler will allocate the value on the stack."
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Lifetimes",
+    "difficulty": 3,
+    "prompt": "Why are lifetimes typically required on functions that return references?",
+    "choices": [
+      "So the compiler can pick the right calling convention.",
+      "To tie the returned reference to one of the inputs and prove it does not outlive its data.",
+      "So the runtime can free memory deterministically.",
+      "Because Rust uses exceptions for invalid references."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Traits",
+    "difficulty": 1,
+    "prompt": "Which Rust trait would you implement to support `{}` formatting for a custom type?",
+    "choices": ["`Debug`", "`Display`", "`ToString`", "`Format`"],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Traits",
+    "difficulty": 2,
+    "prompt": "What is the main advantage of generic trait bounds over `Box<dyn Trait>` for most code?",
+    "choices": [
+      "Generics support runtime polymorphism; trait objects don't.",
+      "Generics monomorphize to zero-overhead static dispatch.",
+      "Generics allow trait objects to outlive the program.",
+      "There is no difference; the compiler treats them identically."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Error handling",
+    "difficulty": 1,
+    "prompt": "What does the `?` operator do in a function returning `Result<T, E>`?",
+    "choices": [
+      "Panics if the value is `None`.",
+      "Propagates `Err` early, otherwise unwraps `Ok`.",
+      "Marks the call as `unsafe`.",
+      "Logs the error to stderr without changing control flow."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Error handling",
+    "difficulty": 2,
+    "prompt": "Which crate is conventionally used in libraries to define a typed error enum?",
+    "choices": ["`anyhow`", "`thiserror`", "`error-chain`", "`std::error`"],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Iterators",
+    "difficulty": 2,
+    "prompt": "Why is `vec.iter().filter(...).map(...).sum()` not slower than a hand-written for-loop?",
+    "choices": [
+      "Because Rust caches iterator results between runs.",
+      "Because iterator combinators compile down to the same machine code as the loop (zero-cost).",
+      "Because the compiler runs them on multiple threads automatically.",
+      "Because iterators bypass the borrow checker."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Testing",
+    "difficulty": 1,
+    "prompt": "Where do unit tests for a Rust module typically live?",
+    "choices": [
+      "In a separate `tests/` directory only.",
+      "Inline in the same file under `#[cfg(test)] mod tests`.",
+      "In a `.rstest` file alongside the source.",
+      "In any file ending with `_test.rs`, anywhere in the crate."
+    ],
+    "correctIndex": 1
+  }
+]

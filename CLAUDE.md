@@ -2,7 +2,7 @@
 
 ## What This Project Is
 
-A "Proof-of-Learning" protocol for a hackathon. Sponsors deposit USDC into escrow smart contracts with bounties (e.g., "Pay 10,000 students $2 each to complete this Rust curriculum"). Students learn via an AI tutor (Dify + RAGFlow), pass quizzes, and receive guaranteed USDC micro-rewards via Circle Programmable Wallets. On-chain events prove every completion.
+A "Proof-of-Learning" protocol for a hackathon. Sponsors deposit USDC into escrow smart contracts with bounties (e.g., "Pay 10,000 students $2 each to complete this Rust curriculum"). Students learn via an AI tutor (Dify + pgvector), pass quizzes, and receive guaranteed INR payouts via UPI (Razorpay). On-chain events prove every completion — blockchain for escrow and proof, UPI for the last-mile student payment.
 
 ## Core Stack
 
@@ -11,8 +11,10 @@ A "Proof-of-Learning" protocol for a hackathon. Sponsors deposit USDC into escro
 - **Backend**: Express + TypeScript in `apps/api/`
 - **Smart Contracts**: Solidity + Foundry in `apps/contracts/`
 - **AI Tutor**: Dify workflows (external service, configs in `dify/`)
-- **Knowledge Base**: RAGFlow (external service, configs in `ragflow/`)
-- **Payments**: Circle Programmable Wallets API
+- **Knowledge Base**: pgvector extension on PostgreSQL (no separate service — vectors stored in existing DB)
+- **LLM**: Groq API (Llama 3.1 70B) — primary; GPT-4o-mini fallback
+- **Student Payouts**: Razorpay UPI (INR to bank account)
+- **Sponsor Escrow**: Smart contracts on Base (USDC)
 - **Database**: PostgreSQL via Prisma ORM
 - **Queue**: Redis + BullMQ for payout processing
 - **Chain**: Base (Sepolia testnet for dev, Base mainnet for prod)
