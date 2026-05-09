@@ -1,0 +1,29 @@
+{
+  "name": "proof-of-learn",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @pol/api prisma generate",
+    "db:migrate": "pnpm --filter @pol/api prisma migrate dev",
+    "db:push": "pnpm --filter @pol/api prisma db push",
+    "db:studio": "pnpm --filter @pol/api prisma studio",
+    "db:seed": "pnpm --filter @pol/api db:seed",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down",
+    "infra:logs": "docker-compose logs -f"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

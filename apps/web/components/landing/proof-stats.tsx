@@ -63,10 +63,15 @@ export function ProofStats() {
     <section className="px-4 py-8 md:px-8 md:py-10">
       <div ref={rootRef} className="mx-auto grid w-[min(1200px,92vw)] gap-4 md:grid-cols-3">
         {stats.map((stat, index) => (
-          <Card key={stat.label} className="bg-gradient-to-b from-white to-slate-50">
+          <Card key={stat.label} className="bg-linear-to-b from-white to-slate-50">
             <CardContent className="p-6">
               <p className="text-sm text-slate-500">{stat.label}</p>
-              <p ref={(el) => (valueRefs.current[index] = el)} className="mt-3 text-4xl font-semibold text-slate-900">
+              <p
+                ref={(el) => {
+                  valueRefs.current[index] = el
+                }}
+                className="mt-3 text-4xl font-semibold text-slate-900"
+              >
                 {formatValue(0, stat)}
               </p>
             </CardContent>

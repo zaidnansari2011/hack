@@ -1,70 +1,289 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Editorial-Fintech design tokens. Warm cream paper, deep ink, editorial
+   teal, with terracotta + amber as restrained accents. Hairlines and
+   serif headlines do most of the visual work.
+   ────────────────────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
-    --background: 220 40% 98%;
-    --foreground: 222.2 62% 12%;
-    
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 62% 12%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 62% 12%;
-    
-    --primary: 220 92% 53%;
-    --primary-foreground: 210 40% 98%;
-    
-    --secondary: 220 35% 96%;
-    --secondary-foreground: 222.2 62% 12%;
-    
-    --muted: 220 30% 95.8%;
-    --muted-foreground: 218 18% 42%;
-    
-    --accent: 156 62% 95%;
-    --accent-foreground: 156 52% 22%;
-    
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Surfaces */
+    --paper: 38 32% 95%;            /* #F5F0E5 cream background */
+    --paper-deep: 36 28% 92%;       /* slightly toasted variant */
+    --surface: 0 0% 100%;           /* card paper white */
+    --surface-soft: 38 25% 98%;     /* near-white with warmth */
 
-    --border: 220 26% 89%;
-    --input: 220 26% 89%;
-    --ring: 220 92% 53%;
+    /* Ink scale */
+    --ink: 218 39% 12%;             /* near-black with cool cast */
+    --ink-soft: 218 18% 26%;
+    --ink-muted: 220 11% 42%;
+    --ink-faint: 218 8% 60%;
 
-    --radius: 0.875rem;
+    /* Hairlines */
+    --rule: 36 18% 84%;             /* warm gray for borders */
+    --rule-soft: 36 18% 90%;
+    --rule-strong: 218 14% 32%;
+
+    /* Brand scale — editorial teal, not Web3 cyan */
+    --teal: 192 75% 22%;            /* #0E5662 deep teal */
+    --teal-soft: 188 35% 86%;
+    --teal-tint: 188 50% 96%;
+
+    /* Restrained accents */
+    --terracotta: 13 56% 50%;       /* ≈ #C5573B  used for energy beats */
+    --amber: 33 70% 38%;            /* ≈ #A86A1F  for ₹ moments */
+    --forest: 148 33% 37%;          /* success */
+    --forest-soft: 144 23% 90%;
+
+    /* Type scale (clamp() based, fluid) */
+    --display-xl: clamp(3.4rem, 7vw, 5.6rem);
+    --display-lg: clamp(2.6rem, 5vw, 4rem);
+    --display-md: clamp(2rem, 3.5vw, 2.75rem);
+    --headline:   clamp(1.4rem, 2vw, 1.75rem);
+    --body-lg:    1.0625rem;
+    --body:       0.96875rem;
+    --small:      0.84375rem;
+    --micro:      0.6875rem;
+
+    /* Motion */
+    --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-spring:    cubic-bezier(0.34, 1.36, 0.5, 1);
+
+    /* Compatibility tokens (older components reference these) */
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --primary: var(--teal);
+    --primary-foreground: 0 0% 100%;
+    --muted: var(--rule-soft);
+    --muted-foreground: var(--ink-muted);
+    --border: var(--rule);
+    --radius: 0.625rem;
   }
-}
 
-@layer base {
   * {
-    border-color: hsl(var(--border));
+    border-color: hsl(var(--rule));
   }
+
+  html {
+    background-color: hsl(var(--paper));
+  }
+
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    @apply antialiased;
-    font-family: var(--font-body), sans-serif;
+    background-color: hsl(var(--paper));
+    color: hsl(var(--ink));
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--body);
+    line-height: 1.55;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-heading), sans-serif;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    color: hsl(var(--ink));
+    font-feature-settings: "ss01";
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+    letter-spacing: -0.015em;
+    line-height: 1.05;
+  }
+
+  /* Selection */
+  ::selection {
+    background: hsl(var(--teal));
+    color: hsl(var(--surface));
+  }
+
+  /* Scrollbar — minimal in keeping with the editorial tone */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--rule));
+    border: 3px solid hsl(var(--paper));
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--ink-faint)); }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+    font-feature-settings: "calt" 0, "ss01";
   }
 }
 
 @layer utilities {
-  .text-gradient {
-    @apply bg-linear-to-r from-blue-600 via-indigo-500 to-emerald-500 bg-clip-text text-transparent;
+  /* Display headlines — Fraunces with optical sizing */
+  .display-xl {
+    font-family: var(--font-display), ui-serif, serif;
+    font-size: var(--display-xl);
+    font-weight: 350;
+    line-height: 0.96;
+    letter-spacing: -0.03em;
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+  }
+  .display-lg {
+    font-family: var(--font-display), ui-serif, serif;
+    font-size: var(--display-lg);
+    font-weight: 380;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+  }
+  .display-md {
+    font-family: var(--font-display), ui-serif, serif;
+    font-size: var(--display-md);
+    font-weight: 400;
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+  }
+  .display-italic {
+    font-style: italic;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
   }
 
-  .glass-surface {
-    @apply border border-slate-200/70 bg-white/80 backdrop-blur;
+  /* Editorial label — used as kicker copy throughout */
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: var(--micro);
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: hsl(var(--ink-muted));
+  }
+  .eyebrow-tick::before {
+    content: "";
+    display: inline-block;
+    width: 14px;
+    height: 1px;
+    background: currentColor;
+    margin-right: 0.55rem;
+    vertical-align: middle;
+    opacity: 0.65;
+  }
+
+  /* Hairline rules — the editorial spine */
+  .hairline {
+    border-top: 1px solid hsl(var(--rule));
+  }
+  .hairline-strong {
+    border-top: 1px solid hsl(var(--rule-strong) / 0.18);
+  }
+
+  /* Paper grain — subtle SVG noise overlay */
+  .paper-grain {
+    position: relative;
+  }
+  .paper-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* Letterpress feel for serif heads */
+  .letterpress {
+    text-shadow: 0 1px 0 hsl(var(--surface-soft));
+  }
+
+  /* Tabular numerics — used everywhere we show counts/money */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "ss01";
+  }
+
+  /* Surface that feels like an editorial card — paper-on-paper with hairline */
+  .surface-paper {
+    background: hsl(var(--surface));
+    border: 1px solid hsl(var(--rule));
+  }
+  .surface-soft {
+    background: hsl(var(--surface-soft));
+    border: 1px solid hsl(var(--rule-soft));
+  }
+
+  /* Editorial-style underline that animates from left */
+  .link-underline {
+    position: relative;
+    display: inline-block;
+  }
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 1px;
+    background: currentColor;
+    transform-origin: right;
+    transform: scaleX(0);
+    transition: transform 600ms var(--ease-out-quart);
+  }
+  .link-underline:hover::after {
+    transform-origin: left;
+    transform: scaleX(1);
+  }
+
+  /* Badge — used for status pills */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.65rem;
+    border: 1px solid hsl(var(--rule));
+    border-radius: 999px;
+    font-size: var(--micro);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: hsl(var(--surface));
+  }
+
+  /* "Live" dot — used in status indicators */
+  .live-dot {
+    position: relative;
+    display: inline-flex;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: hsl(var(--forest));
+  }
+  .live-dot::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 999px;
+    background: hsl(var(--forest));
+    opacity: 0.45;
+    animation: live-pulse 2.4s var(--ease-out-quart) infinite;
+  }
+  @keyframes live-pulse {
+    0% { transform: scale(0.6); opacity: 0.55; }
+    80%, 100% { transform: scale(1.55); opacity: 0; }
+  }
+
+  /* Marquee animation used by ticker components */
+  @keyframes pol-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: pol-marquee 38s linear infinite;
+  }
+
+  /* Subtle cross-hatch background for hero accent panels */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      hsl(var(--ink) / 0.05),
+      hsl(var(--ink) / 0.05) 1px,
+      transparent 1px,
+      transparent 7px
+    );
   }
 }

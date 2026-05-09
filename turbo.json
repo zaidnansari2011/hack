@@ -1,0 +1,50 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env", ".env.local"],
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "API_PORT",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "WEBHOOK_BASE_URL",
+    "WEBHOOK_SECRET",
+    "GROQ_API_KEY",
+    "OPENAI_API_KEY",
+    "DIFY_API_BASE_URL",
+    "DIFY_API_KEY",
+    "DIFY_TUTOR_WORKFLOW_ID",
+    "DIFY_QUIZ_WORKFLOW_ID",
+    "RAZORPAY_KEY_ID",
+    "RAZORPAY_KEY_SECRET",
+    "RAZORPAY_WEBHOOK_SECRET",
+    "CHAIN_RPC_URL",
+    "DEPLOYER_PRIVATE_KEY",
+    "ESCROW_CONTRACT_ADDRESS",
+    "CREDENTIAL_CONTRACT_ADDRESS",
+    "BASESCAN_API_KEY"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    }
+  }
+}

@@ -1,245 +1,458 @@
 "use client"
 
-import { useRef } from "react"
-import { useGSAP } from "@gsap/react"
-import gsap from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
-import Balancer from "react-wrap-balancer"
-import { ArrowRight, BrainCircuit, CircleCheckBig, Coins } from "lucide-react"
+import Link from "next/link"
+import { animate, motion, useMotionValue, useSpring, useTransform } from "framer-motion"
+import { useEffect, useRef, useState } from "react"
+import type { PlatformStats } from "@pol/shared"
 
-import { MagicBackground } from "@/components/landing/magic-background"
-import { Button } from "@/components/ui/button"
-
-gsap.registerPlugin(ScrollTrigger, useGSAP)
-
-const headlineLines = [
-  ["Prove", "learning", "outcomes."],
-  ["Reward", "students", "instantly."],
-]
-
-const domePillars = [
-  { label: "AI Tutor", icon: BrainCircuit },
-  { label: "Quiz Verified", icon: CircleCheckBig },
-  { label: "USDC Reward", icon: Coins },
-]
+import { apiFetch } from "@/lib/api"
+import { ease } from "@/lib/motion"
 
 export function HeroSection() {
-  const rootRef = useRef<HTMLElement>(null)
-  const subtitleRef = useRef<HTMLParagraphElement | null>(null)
-  const ctaRef = useRef<HTMLDivElement | null>(null)
-  const wordRefs = useRef<Array<HTMLSpanElement | null>>([])
-  const domeRef = useRef<HTMLDivElement | null>(null)
-  const domeShadowRef = useRef<HTMLDivElement | null>(null)
-  const domeEdgeRef = useRef<SVGPathElement | null>(null)
-  const domeGlowRef = useRef<SVGPathElement | null>(null)
-  const domeContentRef = useRef<HTMLDivElement | null>(null)
-
-  useGSAP(
-    () => {
-      const words = wordRefs.current.filter((node): node is HTMLSpanElement => node !== null)
-      const domeChildren = domeContentRef.current ? Array.from(domeContentRef.current.children) : []
-
-      const timeline = gsap.timeline({ defaults: { ease: "power3.out" } })
-      timeline
-        .from(words, { yPercent: 120, opacity: 0, duration: 0.88, stagger: 0.065 })
-        .from(subtitleRef.current, { y: 26, opacity: 0, duration: 0.65 }, "-=0.48")
-        .from(ctaRef.current, { y: 20, opacity: 0, duration: 0.55 }, "-=0.35")
-        .from(domeRef.current, { y: 160, opacity: 0, duration: 0.88, ease: "power4.out" }, "-=0.36")
-        .to(domeRef.current, { y: -10, duration: 0.18, ease: "power2.out" })
-        .to(domeRef.current, { y: 0, duration: 0.64, ease: "elastic.out(1,0.7)" })
-        .from(domeChildren, { y: 14, opacity: 0, duration: 0.42, stagger: 0.075 }, "-=0.35")
-
-      if (domeRef.current && domeContentRef.current && domeShadowRef.current && domeEdgeRef.current && domeGlowRef.current) {
-        gsap.set(domeRef.current, {
-          clipPath: "ellipse(88% 100% at 50% 100%)",
-        })
-        gsap.set(domeShadowRef.current, { opacity: 0.78, scaleX: 1, y: 0 })
-        gsap.set([domeEdgeRef.current, domeGlowRef.current], { opacity: 1 })
-
-        const collapseTimeline = gsap.timeline({
-          scrollTrigger: {
-            trigger: rootRef.current,
-            start: "top top",
-            end: "bottom top",
-            scrub: 0.72,
-          },
-        })
-
-        collapseTimeline
-          .to(
-            domeShadowRef.current,
-            {
-              opacity: 0.34,
-              scaleX: 0.93,
-              y: 8,
-              duration: 0.45,
-              ease: "none",
-            },
-            0,
-          )
-          .to(
-            [domeEdgeRef.current, domeGlowRef.current],
-            {
-              opacity: 0.4,
-              duration: 0.45,
-              ease: "none",
-            },
-            0,
-          )
-          .to(
-            domeRef.current,
-            {
-              clipPath: "ellipse(88% 0% at 50% 100%)",
-              yPercent: 12,
-              opacity: 0.1,
-              duration: 1,
-              ease: "none",
-            },
-            0,
-          )
-          .to(
-            domeContentRef.current,
-            {
-              y: 42,
-              opacity: 0,
-              filter: "blur(1px)",
-              duration: 0.85,
-              ease: "none",
-            },
-            0.1,
-          )
-          .to(
-            domeShadowRef.current,
-            {
-              opacity: 0,
-              scaleX: 0.8,
-              y: 16,
-              duration: 0.55,
-              ease: "none",
-            },
-            0.45,
-          )
-          .to(
-            [domeEdgeRef.current, domeGlowRef.current],
-            {
-              opacity: 0,
-              duration: 0.55,
-              ease: "none",
-            },
-            0.45,
-          )
-      }
-    },
-    { scope: rootRef },
-  )
-
   return (
-    <section ref={rootRef} className="relative h-[calc(100svh-4.3rem)] overflow-hidden px-4 md:px-8">
-      <MagicBackground />
-
-      <div className="relative mx-auto h-full w-[min(1200px,92vw)]">
-        <div className="relative z-20 mx-auto flex h-full w-full max-w-5xl flex-col items-center justify-center pb-50 pt-8 text-center md:pb-56">
-          <h1 className="mt-2 font-(family-name:--font-heading) text-5xl font-semibold leading-[1.02] text-slate-950 md:text-7xl">
-            {headlineLines.map((line, lineIndex) => (
-              <span key={lineIndex} className="block">
-                {line.map((word, wordIndex) => {
-                  const index = lineIndex * 10 + wordIndex
-                  return (
-                    <span key={`${lineIndex}-${word}`} className="inline-block overflow-hidden pr-2 align-top md:pr-3">
-                      <span ref={(element) => (wordRefs.current[index] = element)} className="inline-block">
-                        {word}
-                      </span>
-                    </span>
-                  )
-                })}
-              </span>
-            ))}
-          </h1>
-
-          <p ref={subtitleRef} className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-slate-600">
-            <Balancer>
-              Students complete AI-guided curricula, sponsors fund outcomes through escrow, and each verified completion triggers
-              transparent on-chain proof plus guaranteed USDC rewards.
-            </Balancer>
-          </p>
-
-          <div ref={ctaRef} className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" className="group">
-              Start Learning
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-            <Button variant="secondary" size="lg">
-              Become a Sponsor
-            </Button>
-          </div>
-        </div>
-
-        <div
-          ref={domeRef}
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto w-full"
-        >
-          <div
-            ref={domeShadowRef}
-            className="absolute inset-x-0 bottom-18 mx-auto h-24 w-5/6 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(51,65,85,0.34)_0%,rgba(100,116,139,0.16)_42%,rgba(148,163,184,0)_78%)] blur-2xl"
-          />
-
-          <svg viewBox="0 0 980 320" className="h-[33.35rem] w-full md:h-[39.1rem]" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="domeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
-                <stop offset="100%" stopColor="rgba(247,250,252,0.98)" />
-              </linearGradient>
-              <filter id="domeEdgeShadow" x="-20%" y="-120%" width="140%" height="260%" filterUnits="objectBoundingBox">
-                <feDropShadow dx="0" dy="-2" stdDeviation="3.6" floodColor="rgba(30,41,59,0.32)" />
-                <feDropShadow dx="0" dy="-10" stdDeviation="12" floodColor="rgba(100,116,139,0.24)" />
-              </filter>
-            </defs>
-            <path d="M0 320 Q 490 -78 980 320 L980 320 L0 320 Z" fill="url(#domeFill)" />
-            <path
-              ref={domeGlowRef}
-              d="M0 320 Q 490 -62 980 320"
-              fill="none"
-              stroke="rgba(255,255,255,0.72)"
-              strokeWidth="1.4"
-            />
-            <path
-              ref={domeEdgeRef}
-              d="M0 320 Q 490 -62 980 320"
-              fill="none"
-              stroke="rgba(100,116,139,0.62)"
-              strokeWidth="2.4"
-              filter="url(#domeEdgeShadow)"
-            />
-          </svg>
-
-          <div
-            ref={domeContentRef}
-            className="absolute inset-x-0 bottom-14 mx-auto flex max-w-xl flex-col items-center text-center md:bottom-20"
-          >
-            <p className="text-lg font-semibold text-slate-800 md:text-xl">Learn. Verify. Earn USDC.</p>
-
-            <div className="mt-3 grid w-full max-w-md grid-cols-3 gap-2">
-              {domePillars.map((item) => {
-                const Icon = item.icon
-                return (
-                  <div key={item.label} className="rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-slate-700">
-                    <div className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                      <Icon className="size-3.5" />
-                    </div>
-                    <p className="text-[11px] font-medium leading-none">{item.label}</p>
-                  </div>
-                )
-              })}
-            </div>
-
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">
-              AI tutoring, anti-cheat verification, and guaranteed micro-rewards
-              <br className="hidden sm:block" />
-              for every verified learning milestone.
-            </p>
-          </div>
-        </div>
+    <section className="relative isolate min-h-[92vh] overflow-hidden">
+      <AnimatedBackground />
+      <div className="relative z-10 mx-auto flex w-[min(1240px,94vw)] flex-col justify-center gap-16 pb-16 pt-20 lg:min-h-[92vh] lg:flex-row lg:items-center lg:gap-20 lg:pb-24 lg:pt-0">
+        <Headline />
+        <ProofCard />
       </div>
     </section>
+  )
+}
+
+/* ── Background ─────────────────────────────────────────── */
+
+function AnimatedBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+      {/* Warm cream base */}
+      <div className="absolute inset-0 bg-paper" />
+
+      {/* Large slow-drifting orbs */}
+      <motion.div
+        className="absolute -left-48 -top-24 h-[700px] w-[700px] rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, hsl(192 75% 22% / 0.10) 0%, transparent 70%)",
+        }}
+        animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div
+        className="absolute -right-64 top-1/4 h-[600px] w-[600px] rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, hsl(13 56% 50% / 0.08) 0%, transparent 65%)",
+        }}
+        animate={{ x: [0, -50, 30, 0], y: [0, 40, -20, 0] }}
+        transition={{ duration: 28, repeat: Infinity, ease: "linear", delay: 4 }}
+      />
+      <motion.div
+        className="absolute bottom-0 left-1/3 h-[500px] w-[500px] rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, hsl(148 33% 37% / 0.07) 0%, transparent 65%)",
+        }}
+        animate={{ x: [0, 60, -30, 0], y: [0, -40, 10, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 8 }}
+      />
+
+      {/* Fine dot grid */}
+      <div
+        className="absolute inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, hsl(218 39% 12%) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+
+      {/* Bottom fade-out */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-48"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent, hsl(38 32% 95%))",
+        }}
+      />
+    </div>
+  )
+}
+
+/* ── Headline ───────────────────────────────────────────── */
+
+const WORDS = [
+  { text: "Sponsors", normal: true },
+  { text: "fund" },
+  { text: "outcomes." },
+  { text: "The" },
+  { text: "chain", teal: true },
+  { text: "proves" },
+  { text: "them." },
+  { text: "UPI", teal: true },
+  { text: "settles" },
+  { text: "them —" },
+  { text: "in" },
+  { text: "seconds.", italic: true },
+]
+
+function Headline() {
+  return (
+    <div className="flex max-w-2xl flex-col gap-8 lg:max-w-[52%]">
+      {/* Kicker */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: ease.outQuart }}
+        className="flex items-center gap-3"
+      >
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-forest" />
+        </span>
+        <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.28em] text-ink-muted">
+          Live on Base Sepolia
+        </span>
+      </motion.div>
+
+      {/* Animated word-by-word headline */}
+      <h1 className="display-xl flex flex-wrap gap-x-[0.28em] gap-y-1 text-ink">
+        {WORDS.map(({ text, teal, italic }, i) => (
+          <motion.span
+            key={`${text}-${i}`}
+            initial={{ opacity: 0, y: "0.5em", filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.7, ease: ease.outQuart, delay: 0.15 + i * 0.055 }}
+            className={
+              teal
+                ? "text-teal"
+                : italic
+                  ? "display-italic"
+                  : undefined
+            }
+          >
+            {text}
+          </motion.span>
+        ))}
+      </h1>
+
+      {/* Sub-copy */}
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: ease.outQuart, delay: 0.85 }}
+        className="max-w-[54ch] text-balance text-[1.0625rem] leading-relaxed text-ink-soft"
+      >
+        Companies deposit USDC into per-bounty escrow on Base. Students learn with
+        an AI tutor, pass an anti-cheat quiz, and receive guaranteed INR payouts to
+        UPI. Every completion is a public on-chain event.
+      </motion.p>
+
+      {/* CTAs */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: ease.outQuart, delay: 1 }}
+        className="flex flex-wrap items-center gap-4"
+      >
+        <Link
+          href="/signup"
+          className="group inline-flex items-center gap-3 rounded-full bg-ink px-7 py-3.5 text-[0.9375rem] font-medium text-paper shadow-[0_16px_40px_-12px_hsl(218_39%_12%_/_0.45)] transition-all duration-300 ease-out-quart hover:-translate-y-0.5 hover:shadow-[0_22px_48px_-12px_hsl(218_39%_12%_/_0.55)]"
+        >
+          Open the platform
+          <motion.span
+            initial={{ x: 0 }}
+            whileHover={{ x: 4 }}
+            className="inline-block"
+          >
+            →
+          </motion.span>
+        </Link>
+        <Link
+          href="/learn"
+          className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
+        >
+          See active bounties ↗
+        </Link>
+      </motion.div>
+
+      {/* Live stats row */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8, delay: 1.2 }}
+        className="flex items-center gap-6 border-t border-rule pt-6"
+      >
+        <StatTicker label="Bounties live" endpoint="totalBounties" />
+        <div className="h-6 w-px bg-rule" />
+        <StatTicker label="Completions verified" endpoint="totalCompletions" accent />
+        <div className="h-6 w-px bg-rule" />
+        <StatTicker label="Paid in INR" endpoint="totalPaidInr" prefix="₹" />
+      </motion.div>
+    </div>
+  )
+}
+
+function StatTicker({
+  label,
+  endpoint,
+  accent,
+  prefix = "",
+}: {
+  label: string
+  endpoint: keyof PlatformStats
+  accent?: boolean
+  prefix?: string
+}) {
+  const [value, setValue] = useState<number | null>(null)
+  const displayed = useMotionValue(0)
+  const spring = useSpring(displayed, { stiffness: 80, damping: 20 })
+  const rounded = useTransform(spring, (v) =>
+    prefix
+      ? `${prefix}${Math.round(v).toLocaleString("en-IN")}`
+      : Math.round(v).toLocaleString("en-IN"),
+  )
+
+  useEffect(() => {
+    apiFetch<{ stats: PlatformStats }>("/activity", { token: null })
+      .then(({ stats }) => {
+        const n = stats[endpoint] as number
+        setValue(n)
+        animate(displayed, n, { duration: 2, ease: "easeOut" })
+      })
+      .catch(() => undefined)
+  }, [endpoint, displayed])
+
+  return (
+    <div>
+      <div className="eyebrow text-[0.6rem]">{label}</div>
+      <div
+        className={`tabular mt-1 font-display text-[1.375rem] font-medium leading-none ${
+          accent ? "text-teal" : "text-ink"
+        }`}
+      >
+        {value === null ? (
+          <span className="inline-block h-5 w-12 animate-pulse rounded-sm bg-rule/60" />
+        ) : (
+          <motion.span>{rounded}</motion.span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Animated proof card ────────────────────────────────── */
+
+type Step = {
+  id: string
+  label: string
+  sub: string
+  status: "done" | "active" | "pending"
+  badge?: string
+  badgeColor?: "forest" | "teal" | "amber"
+}
+
+const FLOW_STATES: Step[][] = [
+  // State 0 — quiz passed
+  [
+    { id: "quiz", label: "Quiz submitted", sub: "5 of 5 answered · 80%", status: "active", badge: "Scoring…", badgeColor: "amber" },
+    { id: "verify", label: "On-chain verification", sub: "LearningVerified event", status: "pending" },
+    { id: "payout", label: "Razorpay UPI payout", sub: "₹250 → aarav@upi", status: "pending" },
+    { id: "sbt", label: "Soulbound credential", sub: "LearnCredential.sol · Base", status: "pending" },
+  ],
+  // State 1 — verified
+  [
+    { id: "quiz", label: "Quiz passed", sub: "5 of 5 answered · 80%", status: "done", badge: "✓ Pass", badgeColor: "forest" },
+    { id: "verify", label: "On-chain verification", sub: "LearningVerified event", status: "active", badge: "Broadcasting…", badgeColor: "amber" },
+    { id: "payout", label: "Razorpay UPI payout", sub: "₹250 → aarav@upi", status: "pending" },
+    { id: "sbt", label: "Soulbound credential", sub: "LearnCredential.sol · Base", status: "pending" },
+  ],
+  // State 2 — payout in flight
+  [
+    { id: "quiz", label: "Quiz passed", sub: "5 of 5 answered · 80%", status: "done", badge: "✓ Pass", badgeColor: "forest" },
+    { id: "verify", label: "Proof recorded on-chain", sub: "0x4a3f…c8e2 · Base Sepolia", status: "done", badge: "✓ Minted", badgeColor: "forest" },
+    { id: "payout", label: "Razorpay UPI payout", sub: "₹250 → aarav@upi", status: "active", badge: "Processing…", badgeColor: "amber" },
+    { id: "sbt", label: "Soulbound credential", sub: "LearnCredential.sol · Base", status: "pending" },
+  ],
+  // State 3 — all done
+  [
+    { id: "quiz", label: "Quiz passed", sub: "5 of 5 answered · 80%", status: "done", badge: "✓ Pass", badgeColor: "forest" },
+    { id: "verify", label: "Proof recorded on-chain", sub: "0x4a3f…c8e2 · Base Sepolia", status: "done", badge: "✓ Minted", badgeColor: "forest" },
+    { id: "payout", label: "Payout confirmed", sub: "₹250 landed in UPI — 2.3s", status: "done", badge: "✓ Sent", badgeColor: "forest" },
+    { id: "sbt", label: "Soulbound credential", sub: "Token #4821 · non-transferable", status: "done", badge: "✓ Minted", badgeColor: "teal" },
+  ],
+]
+
+const STATE_DELAYS = [2400, 1800, 1800, 4000]
+
+function ProofCard() {
+  const [stateIdx, setStateIdx] = useState(0)
+  const steps = FLOW_STATES[stateIdx]!
+
+  useEffect(() => {
+    const delay = STATE_DELAYS[stateIdx] ?? 2000
+    const id = setTimeout(() => {
+      setStateIdx((i) => (i + 1) % FLOW_STATES.length)
+    }, delay)
+    return () => clearTimeout(id)
+  }, [stateIdx])
+
+  const isComplete = stateIdx === FLOW_STATES.length - 1
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.9, ease: ease.outQuart, delay: 0.4 }}
+      className="relative w-full lg:max-w-[420px]"
+    >
+      {/* Floating glow behind the card */}
+      <div
+        aria-hidden
+        className="absolute -inset-4 -z-10 rounded-2xl opacity-60 blur-2xl"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 50%, hsl(192 75% 22% / 0.18), transparent 70%)",
+        }}
+      />
+
+      <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-[0_32px_80px_-24px_hsl(218_39%_12%_/_0.18)]">
+        {/* Card header */}
+        <div className="flex items-center justify-between border-b border-rule bg-paper-deep/60 px-5 py-4">
+          <div>
+            <div className="eyebrow eyebrow-tick text-[0.625rem]">Proof-of-Learn</div>
+            <div className="mt-0.5 font-display text-[0.9375rem] font-medium text-ink">
+              Rust Foundations — completion
+            </div>
+          </div>
+          <motion.div
+            animate={isComplete ? { scale: [1, 1.12, 1] } : {}}
+            transition={{ duration: 0.5 }}
+            className={`rounded-full px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em] ${
+              isComplete
+                ? "bg-forest-soft text-forest"
+                : "bg-amber/15 text-amber"
+            }`}
+          >
+            {isComplete ? "Complete ✓" : "In progress"}
+          </motion.div>
+        </div>
+
+        {/* Steps */}
+        <div className="divide-y divide-rule/60">
+          {steps.map((step) => (
+            <StepRow key={step.id} step={step} />
+          ))}
+        </div>
+
+        {/* Reward row */}
+        <motion.div
+          animate={
+            isComplete
+              ? { backgroundColor: "hsl(148 33% 37% / 0.06)" }
+              : { backgroundColor: "hsl(38 32% 95% / 0.4)" }
+          }
+          transition={{ duration: 0.8 }}
+          className="flex items-center justify-between border-t border-rule px-5 py-4"
+        >
+          <div>
+            <div className="eyebrow text-[0.625rem]">Student reward</div>
+            <div className="mt-1 font-mono text-[0.6875rem] text-ink-muted">
+              aarav.sharma@upi
+            </div>
+          </div>
+          <motion.div
+            animate={isComplete ? { scale: [0.9, 1.06, 1] } : { scale: 0.9, opacity: 0.4 }}
+            transition={{ duration: 0.6 }}
+            className={`font-display text-[1.75rem] font-medium tabular ${
+              isComplete ? "text-ink" : "text-ink-muted"
+            }`}
+          >
+            ₹250
+          </motion.div>
+        </motion.div>
+      </div>
+
+      {/* Caption below */}
+      <div className="mt-3 text-center font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+        Live demo · replays automatically
+      </div>
+    </motion.div>
+  )
+}
+
+const BADGE_COLORS = {
+  forest: "border-forest/30 bg-forest-soft text-forest",
+  teal: "border-teal/30 bg-teal-tint text-teal",
+  amber: "border-amber/30 bg-amber/10 text-amber",
+}
+
+function StepRow({ step }: { step: Step }) {
+  const isDone = step.status === "done"
+  const isActive = step.status === "active"
+
+  return (
+    <motion.div
+      layout
+      className={`flex items-center gap-4 px-5 py-3.5 transition-colors duration-700 ${
+        isDone ? "bg-surface" : isActive ? "bg-teal-tint/30" : "bg-paper-deep/20"
+      }`}
+    >
+      {/* Icon */}
+      <div
+        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[0.625rem] transition-all duration-700 ${
+          isDone
+            ? "bg-forest text-paper"
+            : isActive
+              ? "bg-amber/20 text-amber ring-2 ring-amber/30"
+              : "bg-rule text-ink-faint"
+        }`}
+      >
+        {isDone ? (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          >
+            ✓
+          </motion.span>
+        ) : isActive ? (
+          <motion.span
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
+            className="block h-3 w-3 rounded-full border-2 border-amber border-t-transparent"
+          />
+        ) : (
+          "·"
+        )}
+      </div>
+
+      {/* Label */}
+      <div className="min-w-0 flex-1">
+        <div
+          className={`text-[0.875rem] font-medium leading-tight transition-colors duration-500 ${
+            isDone ? "text-ink" : isActive ? "text-ink-soft" : "text-ink-faint"
+          }`}
+        >
+          {step.label}
+        </div>
+        <div className="mt-0.5 truncate font-mono text-[0.6875rem] text-ink-faint">
+          {step.sub}
+        </div>
+      </div>
+
+      {/* Badge */}
+      {step.badge && (
+        <motion.span
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.16em] ${
+            BADGE_COLORS[step.badgeColor ?? "amber"]
+          }`}
+        >
+          {step.badge}
+        </motion.span>
+      )}
+    </motion.div>
   )
 }

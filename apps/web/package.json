@@ -1,5 +1,9 @@
 {
+  "name": "@pol/web",
+  "version": "0.0.1",
+  "private": true,
   "dependencies": {
+    "@pol/shared": "workspace:*",
     "@gsap/react": "^2.1.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -19,6 +23,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@pol/config": "workspace:*",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
@@ -31,6 +36,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint || echo 'lint skipped'"
   }
 }

@@ -1,4 +1,3 @@
-import { FeatureBento } from "@/components/landing/feature-bento"
 import { HeroSection } from "@/components/landing/hero-section"
 import { LearningTimeline } from "@/components/landing/learning-timeline"
 import { RoleExperiences } from "@/components/landing/role-experiences"

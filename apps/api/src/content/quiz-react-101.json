@@ -1,0 +1,146 @@
+[
+  {
+    "topic": "Components",
+    "difficulty": 1,
+    "prompt": "What is a React component, fundamentally?",
+    "choices": [
+      "A class that extends `HTMLElement`.",
+      "A JavaScript function that takes a props object and returns a tree of React elements (JSX).",
+      "A template string with interpolation.",
+      "A subclass of the DOM."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "JSX",
+    "difficulty": 1,
+    "prompt": "Why must React components be capitalized (`<Button>` not `<button>`)?",
+    "choices": [
+      "It is a stylistic preference enforced by ESLint.",
+      "JSX uses capitalization to distinguish components from native DOM elements.",
+      "Only capitalized tags can have children.",
+      "It avoids reserved-word collisions in TypeScript."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "State",
+    "difficulty": 2,
+    "prompt": "After calling `setCount(count + 1)`, can you read the new value of `count` synchronously in the same function?",
+    "choices": [
+      "Yes — state updates are synchronous.",
+      "No — state updates are batched and applied between renders, so the new value is only visible after the next render.",
+      "Only if you call `setCount` twice.",
+      "Only inside an effect."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "State",
+    "difficulty": 2,
+    "prompt": "Why prefer the function form `setCount(c => c + 1)` over `setCount(count + 1)` when updating state from async handlers?",
+    "choices": [
+      "It is shorter.",
+      "It avoids stale-closure bugs by always operating on the latest committed state.",
+      "It is the only form supported in React 19.",
+      "It bypasses re-rendering."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Effects",
+    "difficulty": 2,
+    "prompt": "What does an empty dependency array `useEffect(() => { ... }, [])` mean?",
+    "choices": [
+      "Run the effect after every render.",
+      "Run the effect once after the initial render, then never again.",
+      "Run only on unmount.",
+      "Disable the effect entirely."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Effects",
+    "difficulty": 3,
+    "prompt": "When should `useEffect` NOT be your first reach?",
+    "choices": [
+      "When fetching data.",
+      "When the work can happen directly in an event handler (a button click or form submit).",
+      "When subscribing to a websocket.",
+      "When integrating with a non-React DOM library."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Lists",
+    "difficulty": 2,
+    "prompt": "Why is using the array index as the `key` in a list usually a bug?",
+    "choices": [
+      "Indexes are non-deterministic.",
+      "When items are reordered, inserted, or deleted, React mismatches DOM nodes to data, causing state to leak between rows and animations to target the wrong elements.",
+      "Indexes are not allowed in JSX.",
+      "Indexes are slower than strings."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Forms",
+    "difficulty": 1,
+    "prompt": "What is a 'controlled' input in React?",
+    "choices": [
+      "An input wrapped in a Context Provider.",
+      "An input whose current value is held in React state and updated through `onChange`.",
+      "A read-only input.",
+      "An input that uses `defaultValue` instead of `value`."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Hooks",
+    "difficulty": 2,
+    "prompt": "When is `useReducer` typically a better choice than `useState`?",
+    "choices": [
+      "When the component is a class.",
+      "When state has multiple sub-values that update together, or when transitions deserve named actions for debuggability.",
+      "When fetching data.",
+      "When using TypeScript."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Hooks",
+    "difficulty": 2,
+    "prompt": "What does `useMemo` do, and when does it actually help?",
+    "choices": [
+      "It memoizes any function automatically.",
+      "It caches a computed value between renders; it helps when the computation is genuinely expensive (large lists, heavy math) — sprinkling it everywhere wastes effort.",
+      "It re-runs the function on every render.",
+      "It replaces `useState` for object values."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Context",
+    "difficulty": 3,
+    "prompt": "Why can a single 'app state' Context become a performance trap?",
+    "choices": [
+      "Context can't hold objects.",
+      "Every consumer re-renders when the context value changes by reference, so combining unrelated state in one context causes cascading re-renders.",
+      "Context disables state updates.",
+      "Context only works at the root."
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Performance",
+    "difficulty": 2,
+    "prompt": "What is the right first step when a React app feels slow?",
+    "choices": [
+      "Wrap every component in `React.memo`.",
+      "Use the React DevTools Profiler to identify which components are rendering and why before guessing.",
+      "Switch to a different framework.",
+      "Disable strict mode."
+    ],
+    "correctIndex": 1
+  }
+]
