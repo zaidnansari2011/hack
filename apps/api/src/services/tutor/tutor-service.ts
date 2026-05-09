@@ -1,5 +1,9 @@
 import type { ChatMessage as PrismaChatMessage, Prisma } from "@prisma/client"
-import type { ChatMessage, TutorLanguage } from "@pol/shared"
+import type {
+  ChatMessage,
+  TutorLanguage,
+  TutorPersona,
+} from "@pol/shared"
 
 import { prisma } from "@/db/prisma"
 import { Forbidden, NotFound } from "@/lib/errors"
@@ -21,6 +25,12 @@ const LANG_INSTRUCTIONS: Record<TutorLanguage, string> = {
   te: "CRITICAL: You MUST reply in Telugu using Telugu script (తెలుగులో సమాధానం ఇవ్వండి). Do not reply in English even if the question is in English. Keep only technical terms in English; everything else MUST be in Telugu. Begin your reply directly in Telugu.",
 }
 
+const PERSONA_INSTRUCTIONS: Record<TutorPersona, string> = {
+  mentor: `Voice: warm, Socratic mentor who has taught this for a decade. Lead with questions when it lets the student arrive at the answer themselves; explain directly when asked. Acknowledge what's hard. Never condescend.`,
+  examiner: `Voice: rigorous examiner. Be precise, lean on definitions, and cite the specific source chunk for every factual claim. Push back gently if the student handwaves. Treat the answer like it will be graded.`,
+  coach: `Voice: high-energy coach. Short sentences, momentum-first, celebrate small wins, name the next move. Use direct language ("you've got this", "next move:"). Stay accurate — energy never replaces correctness.`,
+}
+
 // A reinforcer message Groq sees right before generating, so the lang
 // instruction is the most recent thing in context. Sometimes the model
 // drifts back to English when system prompts are long; pinning a final
@@ -40,6 +50,7 @@ function buildSystemPrompt(args: {
   summary: string
   syllabus: SyllabusModule[]
   lang?: TutorLanguage
+  persona?: TutorPersona
 }): string {
   const syllabusBlock =
     args.syllabus.length > 0
@@ -52,6 +63,7 @@ function buildSystemPrompt(args: {
       : "(no structured syllabus available; rely on CONTEXT chunks below)"
 
   const langLine = LANG_INSTRUCTIONS[args.lang ?? "en"]
+  const personaLine = PERSONA_INSTRUCTIONS[args.persona ?? "mentor"]
 
   return `You are the Proof-of-Learn AI tutor for the curriculum "${args.title}".
 
@@ -63,6 +75,9 @@ ${syllabusBlock}
 
 LANGUAGE
 ${langLine}
+
+VOICE
+${personaLine}
 
 HOW TO ANSWER
 - Keep answers tight: 2-4 short paragraphs unless the student asks for depth.
@@ -171,6 +186,7 @@ export async function sendMessage(args: {
   userId: string
   message: string
   lang?: TutorLanguage
+  persona?: TutorPersona
 }): Promise<{ user: ChatMessage; tutor: ChatMessage }> {
   const trimmed = args.message.trim()
   if (!trimmed) throw new Error("Message cannot be empty")
@@ -218,6 +234,7 @@ export async function sendMessage(args: {
         summary: curriculum.summary,
         syllabus,
         lang: args.lang,
+        persona: args.persona,
       }),
     },
     {

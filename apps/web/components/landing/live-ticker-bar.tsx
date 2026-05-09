@@ -1,42 +1,97 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { ActivityEvent } from "@pol/shared"
 
 import { apiFetch } from "@/lib/api"
 
-const REFRESH_MS = 12_000
+const POLL_FALLBACK_MS = 12_000
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 
 /**
  * A slim always-on horizontal ticker that scrolls through recent platform
- * events. Sits below the site header, above the hero. Empty state quietly
- * falls back to a single rotating tagline so the demo never looks dead.
+ * events. Subscribes to /activity/stream over Server-Sent Events when
+ * available so new completions appear without a refresh; falls back to
+ * polling /activity if the EventSource connection fails.
  */
 export function LiveTickerBar() {
   const [events, setEvents] = useState<ActivityEvent[] | null>(null)
+  const [transport, setTransport] = useState<"sse" | "poll" | null>(null)
+  const lastTickRef = useRef<number>(0)
+  const transportRef = useRef<"sse" | "poll" | null>(null)
+  const [pulse, setPulse] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    let timer: ReturnType<typeof setTimeout> | null = null
+    let pollTimer: ReturnType<typeof setTimeout> | null = null
+    let es: EventSource | null = null
 
-    const tick = async () => {
-      try {
-        const data = await apiFetch<{ events: ActivityEvent[] }>("/activity", {
-          token: null,
-        })
-        if (!cancelled) setEvents(data.events ?? [])
-      } catch {
-        // hold last good data
-      } finally {
-        if (!cancelled) timer = setTimeout(tick, REFRESH_MS)
+    const apply = (data: { events: ActivityEvent[] }) => {
+      if (cancelled) return
+      setEvents(data.events ?? [])
+      const now = Date.now()
+      if (now - lastTickRef.current > 800) {
+        setPulse(true)
+        window.setTimeout(() => setPulse(false), 1200)
       }
+      lastTickRef.current = now
     }
-    tick()
+
+    const startPolling = () => {
+      if (transportRef.current === "poll") return
+      transportRef.current = "poll"
+      setTransport("poll")
+      const tick = async () => {
+        try {
+          const data = await apiFetch<{ events: ActivityEvent[] }>(
+            "/activity",
+            { token: null },
+          )
+          apply(data)
+        } catch {
+          // hold last good data
+        } finally {
+          if (!cancelled) pollTimer = setTimeout(tick, POLL_FALLBACK_MS)
+        }
+      }
+      tick()
+    }
+
+    if (typeof EventSource !== "undefined") {
+      try {
+        es = new EventSource(`${API_BASE}/api/v1/activity/stream`)
+        es.addEventListener("activity", (ev) => {
+          try {
+            const data = JSON.parse((ev as MessageEvent).data) as {
+              events: ActivityEvent[]
+            }
+            transportRef.current = "sse"
+            setTransport("sse")
+            apply(data)
+          } catch {
+            // bad frame — ignore
+          }
+        })
+        es.onerror = () => {
+          // SSE dropped — degrade to polling once.
+          es?.close()
+          es = null
+          if (!cancelled) startPolling()
+        }
+      } catch {
+        startPolling()
+      }
+    } else {
+      startPolling()
+    }
 
     return () => {
       cancelled = true
-      if (timer) clearTimeout(timer)
+      if (pollTimer) clearTimeout(pollTimer)
+      es?.close()
     }
   }, [])
 
@@ -46,9 +101,22 @@ export function LiveTickerBar() {
   return (
     <div className="border-b border-rule bg-paper-deep/40">
       <div className="mx-auto flex h-9 w-[min(1240px,94vw)] items-center gap-4 overflow-hidden">
-        <span className="hidden shrink-0 items-center gap-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-teal sm:inline-flex">
-          <span className="live-dot" />
-          live
+        <span
+          className="hidden shrink-0 items-center gap-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-teal sm:inline-flex"
+          title={
+            transport === "sse"
+              ? "Streaming over Server-Sent Events"
+              : transport === "poll"
+                ? "Polling fallback"
+                : "Connecting"
+          }
+        >
+          <span
+            className={`live-dot transition-transform duration-300 ${
+              pulse ? "scale-150" : "scale-100"
+            }`}
+          />
+          {transport === "sse" ? "live · streaming" : "live"}
         </span>
         <div className="relative flex flex-1 overflow-hidden">
           {list ? (

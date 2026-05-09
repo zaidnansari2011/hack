@@ -8,6 +8,7 @@ import type {
   CheckQuestion,
   EnrollmentDetail,
   TutorLanguage,
+  TutorPersona,
 } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
@@ -30,6 +31,24 @@ const LANG_LABELS: Record<TutorLanguage, string> = {
   ta: "தமிழ்",
   te: "తెలుగు",
 }
+
+const PERSONAS: { id: TutorPersona; label: string; tagline: string }[] = [
+  {
+    id: "mentor",
+    label: "Mentor",
+    tagline: "Warm, Socratic — leads you to the answer",
+  },
+  {
+    id: "examiner",
+    label: "Examiner",
+    tagline: "Rigorous — cites every claim, won't let you handwave",
+  },
+  {
+    id: "coach",
+    label: "Coach",
+    tagline: "High-energy — short sentences, momentum-first",
+  },
+]
 
 function suggestedPromptsFor(curriculum: EnrollmentDetail["curriculum"]): string[] {
   if (curriculum.syllabus.length > 0) {
@@ -76,6 +95,7 @@ export function TutorChat({
   const [error, setError] = useState<string | null>(null)
   const [groqLive, setGroqLive] = useState<boolean | null>(null)
   const [lang, setLang] = useState<TutorLanguage>("en")
+  const [persona, setPersona] = useState<TutorPersona>("mentor")
   const [listening, setListening] = useState(false)
   const [speakReplies, setSpeakReplies] = useState(false)
   const [voiceSupport, setVoiceSupport] = useState<{
@@ -98,6 +118,19 @@ export function TutorChat({
     if (typeof window === "undefined") return
     window.localStorage.setItem("pol:tutor:lang", lang)
   }, [lang])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const stored = window.localStorage.getItem("pol:tutor:persona") as
+      | TutorPersona
+      | null
+    if (stored && ["mentor", "examiner", "coach"].includes(stored))
+      setPersona(stored)
+  }, [])
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem("pol:tutor:persona", persona)
+  }, [persona])
 
   // Detect Web Speech support once on mount so we can render a clear
   // disabled state instead of failing silently on an unsupported browser.
@@ -192,6 +225,7 @@ export function TutorChat({
             enrollmentId: initialEnrollment.id,
             message: trimmed,
             lang,
+            persona,
           },
         },
       )
@@ -358,6 +392,8 @@ export function TutorChat({
           progressPct={progressPct}
           lang={lang}
           onLangChange={setLang}
+          persona={persona}
+          onPersonaChange={setPersona}
           speakReplies={speakReplies}
           onToggleSpeak={toggleSpeakReplies}
           synthesisSupported={voiceSupport.synthesis}
@@ -491,6 +527,8 @@ function ChatHeader({
   progressPct,
   lang,
   onLangChange,
+  persona,
+  onPersonaChange,
   speakReplies,
   onToggleSpeak,
   synthesisSupported,
@@ -500,6 +538,8 @@ function ChatHeader({
   progressPct: number
   lang: TutorLanguage
   onLangChange: (l: TutorLanguage) => void
+  persona: TutorPersona
+  onPersonaChange: (p: TutorPersona) => void
   speakReplies: boolean
   onToggleSpeak: () => void
   synthesisSupported: boolean
@@ -519,6 +559,24 @@ function ChatHeader({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 rounded-full border border-rule bg-paper p-1">
+          {PERSONAS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onPersonaChange(p.id)}
+              title={p.tagline}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[0.75rem] font-medium transition-colors",
+                persona === p.id
+                  ? "bg-ink text-paper"
+                  : "text-ink-faint hover:text-ink",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-1 rounded-full border border-rule bg-paper p-1">
           {(Object.keys(LANG_LABELS) as TutorLanguage[]).map((l) => (
             <button

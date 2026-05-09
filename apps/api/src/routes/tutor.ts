@@ -20,6 +20,7 @@ const sendSchema = z.object({
   enrollmentId: z.string().uuid(),
   message: z.string().min(1).max(2000),
   lang: z.enum(["en", "hi", "ta", "te"]).optional(),
+  persona: z.enum(["mentor", "examiner", "coach"]).optional(),
 })
 
 const remediateSchema = z.object({
@@ -89,6 +90,7 @@ tutorRouter.post(
         userId: req.auth!.sub,
         message: req.body.message,
         lang: req.body.lang,
+        persona: req.body.persona,
       })
       res.status(201).json(ok(result))
     } catch (err) {
