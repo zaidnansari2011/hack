@@ -24,11 +24,13 @@ const sendSchema = z.object({
 
 const remediateSchema = z.object({
   sessionId: z.string().uuid(),
+  lang: z.enum(["en", "hi", "ta", "te"]).optional(),
 })
 
 const lessonSchema = z.object({
   enrollmentId: z.string().uuid(),
   moduleIndex: z.number().int().min(0).max(31),
+  lang: z.enum(["en", "hi", "ta", "te"]).optional(),
 })
 
 const checkGetSchema = z.object({
@@ -105,6 +107,7 @@ tutorRouter.post(
       const result = await generateRemediation({
         userId: req.auth!.sub,
         sessionId: req.body.sessionId,
+        lang: req.body.lang,
       })
       res.status(201).json(ok(result))
     } catch (err) {
@@ -124,6 +127,7 @@ tutorRouter.post(
         enrollmentId: req.body.enrollmentId,
         userId: req.auth!.sub,
         moduleIndex: req.body.moduleIndex,
+        lang: req.body.lang,
       })
       res.status(201).json(ok({ tutor }))
     } catch (err) {

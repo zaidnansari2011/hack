@@ -16,9 +16,23 @@ type SyllabusModule = { module: string; summary: string; durationMinutes: number
 
 const LANG_INSTRUCTIONS: Record<TutorLanguage, string> = {
   en: "Reply in clear English.",
-  hi: "Reply in Hindi (Devanagari script). Keep technical terms (e.g. 'function', 'array') in English where the Hindi word would be more confusing than helpful.",
-  ta: "Reply in Tamil (Tamil script). Keep technical terms in English where the Tamil word would be more confusing than helpful.",
-  te: "Reply in Telugu (Telugu script). Keep technical terms in English where the Telugu word would be more confusing than helpful.",
+  hi: "CRITICAL: You MUST reply in Hindi using Devanagari script (हिंदी में जवाब दें). Do not reply in English even if the question is in English. Keep only technical terms like 'function', 'array', 'smart contract' in English; everything else MUST be in Hindi. Begin your reply directly in Hindi.",
+  ta: "CRITICAL: You MUST reply in Tamil using Tamil script (தமிழில் பதில் கொடுங்கள்). Do not reply in English even if the question is in English. Keep only technical terms in English; everything else MUST be in Tamil. Begin your reply directly in Tamil.",
+  te: "CRITICAL: You MUST reply in Telugu using Telugu script (తెలుగులో సమాధానం ఇవ్వండి). Do not reply in English even if the question is in English. Keep only technical terms in English; everything else MUST be in Telugu. Begin your reply directly in Telugu.",
+}
+
+// A reinforcer message Groq sees right before generating, so the lang
+// instruction is the most recent thing in context. Sometimes the model
+// drifts back to English when system prompts are long; pinning a final
+// reminder fixes that.
+function langReinforcer(lang: TutorLanguage | undefined): string | null {
+  if (!lang || lang === "en") return null
+  const map: Record<Exclude<TutorLanguage, "en">, string> = {
+    hi: "Reply in Hindi (Devanagari). Begin in Hindi now.",
+    ta: "Reply in Tamil. Begin in Tamil now.",
+    te: "Reply in Telugu. Begin in Telugu now.",
+  }
+  return map[lang]
 }
 
 function buildSystemPrompt(args: {
@@ -195,6 +209,7 @@ export async function sendMessage(args: {
     ? (curriculum.syllabus as unknown as SyllabusModule[])
     : []
 
+  const reinforcer = langReinforcer(args.lang)
   const groqMessages: GroqMessage[] = [
     {
       role: "system",
@@ -213,6 +228,7 @@ export async function sendMessage(args: {
       role: m.role === "tutor" ? "assistant" : "user",
       content: m.content,
     })),
+    ...(reinforcer ? [{ role: "system" as const, content: reinforcer }] : []),
   ]
 
   let tutorContent: string
@@ -258,7 +274,11 @@ const LESSON_SYSTEM_PROMPT = (args: {
   totalModules: number
   moduleName: string
   moduleSummary: string
+  lang?: TutorLanguage
 }) => `You are an expert tutor for "${args.curriculumTitle}" delivering a focused lesson on ONE module.
+
+LANGUAGE
+${LANG_INSTRUCTIONS[args.lang ?? "en"]}
 
 LESSON STRUCTURE — your reply MUST be exactly four sections in this order, separated by horizontal rules (---):
 
@@ -279,12 +299,14 @@ RULES
 - Ground every factual claim in the provided CONTEXT. If the context doesn't cover something, omit it rather than invent.
 - Keep total length under 350 words. This is a lesson, not a textbook chapter.
 - Don't say "in this lesson" or "let me explain" — just teach.
-- Module summary you must hit: "${args.moduleSummary}"`
+- Module summary you must hit: "${args.moduleSummary}"
+- Section headings (the bold lines) MUST stay in the reply language above; do NOT use English headings if the language is not English.`
 
 export async function teachModule(args: {
   enrollmentId: string
   userId: string
   moduleIndex: number
+  lang?: TutorLanguage
 }): Promise<ChatMessage> {
   const enrollment = await loadEnrollment(args)
   const curriculum = enrollment.bounty.curriculum
@@ -313,6 +335,7 @@ export async function teachModule(args: {
     })
   }
 
+  const reinforcer = langReinforcer(args.lang)
   const lessonMessages: GroqMessage[] = [
     {
       role: "system",
@@ -322,6 +345,7 @@ export async function teachModule(args: {
         totalModules: syllabus.length,
         moduleName: mod.module,
         moduleSummary: mod.summary,
+        lang: args.lang,
       }),
     },
     {
@@ -332,6 +356,7 @@ export async function teachModule(args: {
       role: "user",
       content: `Teach me module ${args.moduleIndex + 1}: ${mod.module}.`,
     },
+    ...(reinforcer ? [{ role: "system" as const, content: reinforcer }] : []),
   ]
 
   let tutorContent: string
@@ -533,7 +558,11 @@ const REMEDIATION_SYSTEM_PROMPT = (args: {
   curriculumTitle: string
   weakTopics: string[]
   scorePct: number
+  lang?: TutorLanguage
 }) => `You are an expert tutor for "${args.curriculumTitle}". The student just failed a quiz with ${args.scorePct}% and missed questions on these topics: ${args.weakTopics.join(", ")}.
+
+LANGUAGE
+${LANG_INSTRUCTIONS[args.lang ?? "en"]}
 
 WRITE A MICRO-LESSON that targets ONLY their weak spots. Format exactly:
 
@@ -549,7 +578,8 @@ One short prompt that, if they can answer it, means they've patched the gap.
 RULES
 - Total length under 300 words.
 - Don't recap the whole curriculum. Stay laser-focused on the missed topics.
-- Be encouraging but direct. The student wants to retake the quiz, not be coddled.`
+- Be encouraging but direct. The student wants to retake the quiz, not be coddled.
+- Section headings MUST stay in the reply language above; do NOT use English headings if the language is not English.`
 
 /**
  * Diagnose which topics a student missed in a quiz, build a targeted
@@ -559,6 +589,7 @@ RULES
 export async function generateRemediation(args: {
   userId: string
   sessionId: string
+  lang?: TutorLanguage
 }): Promise<{
   weakModuleIndexes: number[]
   weakTopics: string[]
@@ -643,6 +674,7 @@ export async function generateRemediation(args: {
     limit: 5,
   })
 
+  const remReinforcer = langReinforcer(args.lang)
   const messages: GroqMessage[] = [
     {
       role: "system",
@@ -650,6 +682,7 @@ export async function generateRemediation(args: {
         curriculumTitle: curriculum.title,
         weakTopics,
         scorePct: session.scorePct ?? 0,
+        lang: args.lang,
       }),
     },
     {
@@ -660,6 +693,7 @@ export async function generateRemediation(args: {
       role: "user",
       content: `I scored ${session.scorePct ?? 0}% and missed: ${weakTopics.join("; ")}. Patch my gaps so I can retake the quiz.`,
     },
+    ...(remReinforcer ? [{ role: "system" as const, content: remReinforcer }] : []),
   ]
 
   let microLesson: string
