@@ -92,37 +92,121 @@ function FailurePanel({
   session: QuizSession
   bountyId: string
 }) {
+  const [remediation, setRemediation] = useState<{
+    weakTopics: string[]
+    microLesson: string
+  } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [requested, setRequested] = useState(false)
+
+  useEffect(() => {
+    if (requested || session.status !== "failed") return
+    setRequested(true)
+    setLoading(true)
+    apiFetch<{ weakTopics: string[]; microLesson: string }>(
+      "/tutor/remediate",
+      {
+        method: "POST",
+        json: { sessionId: session.id },
+      },
+    )
+      .then((data) =>
+        setRemediation({
+          weakTopics: data.weakTopics,
+          microLesson: data.microLesson,
+        }),
+      )
+      .catch((err) =>
+        setError(
+          err instanceof ApiClientError
+            ? err.message
+            : "Could not generate remediation",
+        ),
+      )
+      .finally(() => setLoading(false))
+  }, [requested, session.id, session.status])
+
   return (
-    <div className="rounded-md border border-rule bg-surface p-10 lg:p-14">
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.28em] text-terracotta">
-          Not yet
-        </span>
-        <span className="h-px w-10 bg-terracotta/40" />
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
-          {session.scorePct ?? 0}% · need 60%
-        </span>
+    <div className="space-y-6">
+      <div className="rounded-md border border-rule bg-surface p-10 lg:p-14">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.28em] text-terracotta">
+            Not yet
+          </span>
+          <span className="h-px w-10 bg-terracotta/40" />
+          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+            {session.scorePct ?? 0}% · need 60%
+          </span>
+        </div>
+        <h1 className="display-lg mt-6 max-w-[20ch] text-balance text-ink">
+          Almost there.{" "}
+          <span className="display-italic text-teal">Patch the gaps.</span>
+        </h1>
+        <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-ink-muted">
+          The tutor analyzed which questions you missed and is writing a
+          targeted micro-lesson for just those topics. Read it, retake the
+          quiz with a fresh question set, get paid.
+        </p>
       </div>
-      <h1 className="display-lg mt-6 max-w-[20ch] text-balance text-ink">
-        Almost there. <span className="display-italic text-teal">Run it again.</span>
-      </h1>
-      <p className="mt-4 max-w-xl text-[0.9375rem] leading-relaxed text-ink-muted">
-        Spend a little more time with the tutor — it cites the exact sections
-        that map to each topic — then take the quiz again with a fresh
-        question set and a fresh shuffle.
-      </p>
-      <div className="mt-7 flex flex-wrap gap-4">
-        <Link
-          href={`/learn/${bountyId}`}
-          className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 text-[0.875rem] font-medium text-paper transition-colors hover:bg-ink/90"
-        >
-          Back to tutor →
-        </Link>
+
+      <div className="rounded-md border border-rule bg-surface p-8 lg:p-10">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-teal">
+            Adaptive remediation
+          </span>
+          {loading && (
+            <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+              analyzing…
+            </span>
+          )}
+        </div>
+
+        {error && (
+          <div className="mt-4 text-[0.8125rem] text-terracotta">{error}</div>
+        )}
+
+        {!loading && remediation && (
+          <>
+            {remediation.weakTopics.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {remediation.weakTopics.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full border border-rule bg-paper px-3 py-1 font-mono text-[0.6875rem] text-ink-soft"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="prose prose-sm mt-5 max-w-2xl whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-ink-soft">
+              {remediation.microLesson}
+            </div>
+          </>
+        )}
+
+        {loading && (
+          <div className="mt-5 space-y-2">
+            <div className="h-3 w-2/3 animate-pulse rounded bg-rule/60" />
+            <div className="h-3 w-1/2 animate-pulse rounded bg-rule/60" />
+            <div className="h-3 w-3/4 animate-pulse rounded bg-rule/60" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-4 pt-2">
         <Link
           href={`/learn/${bountyId}/quiz`}
+          className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 text-[0.875rem] font-medium text-paper transition-colors hover:bg-ink/90"
+        >
+          Retry quiz →
+        </Link>
+        <Link
+          href={`/learn/${bountyId}`}
           className="inline-flex items-center gap-2 rounded-full border border-rule bg-surface px-6 py-3 text-[0.875rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
         >
-          Retry quiz
+          Back to tutor
         </Link>
       </div>
     </div>

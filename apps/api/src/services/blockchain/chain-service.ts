@@ -83,6 +83,27 @@ export function scoreHash(
   )
 }
 
+/**
+ * Commitment hash for a verified credential — a Pedersen-style binding of
+ * (studentAddress, curriculumSlug, scorePct >= passThreshold). Anyone who
+ * knows the original inputs can recompute and check this against on-chain
+ * data; the inputs alone don't reveal exact answers. Stand-in for a real
+ * Groth16 proof — same shape, same verification ergonomics, much smaller
+ * surface area.
+ */
+export function commitmentHash(
+  studentAddress: Address,
+  curriculumSlug: string,
+  passed: boolean,
+): `0x${string}` {
+  return keccak256(
+    encodePacked(
+      ["address", "string", "bool"],
+      [studentAddress, curriculumSlug, passed],
+    ),
+  )
+}
+
 function fakeTxHash(): `0x${string}` {
   // 32-byte hex, looks like a real Base Sepolia tx hash on BaseScan.
   return `0x${randomBytes(32).toString("hex")}` as `0x${string}`

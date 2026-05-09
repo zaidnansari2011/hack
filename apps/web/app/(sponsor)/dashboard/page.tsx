@@ -128,6 +128,55 @@ export default function SponsorDashboardPage() {
 
           <section>
             <div className="flex items-baseline justify-between">
+              <h2 className="eyebrow eyebrow-tick">Unit economics</h2>
+              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+                vs ₹35,000 bootcamp seat
+              </span>
+            </div>
+            <div className="mt-5 grid gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label="Cost per verified learner"
+                value={
+                  data.analytics.costPerVerifiedLearnerInr > 0
+                    ? `₹${data.analytics.costPerVerifiedLearnerInr.toLocaleString("en-IN")}`
+                    : "—"
+                }
+                hint={
+                  data.analytics.bootcampMultiplier > 0
+                    ? `${data.analytics.bootcampMultiplier}× cheaper than bootcamps`
+                    : "First completion unlocks this"
+                }
+                accent="primary"
+              />
+              <StatCard
+                label="Completion rate"
+                value={`${data.analytics.completionRatePct}%`}
+                hint="Enrolled → quiz-passed"
+                accent="success"
+              />
+              <StatCard
+                label="Avg score"
+                value={
+                  data.analytics.averageScorePct > 0
+                    ? `${data.analytics.averageScorePct}%`
+                    : "—"
+                }
+                hint="Across all passed quizzes"
+              />
+              <StatCard
+                label="Median time to pass"
+                value={
+                  data.analytics.medianMinutesToComplete !== null
+                    ? `${data.analytics.medianMinutesToComplete} min`
+                    : "—"
+                }
+                hint="Enrol → quiz submitted"
+              />
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-baseline justify-between">
               <h2 className="eyebrow eyebrow-tick">Recent bounties</h2>
               <Link
                 href="/bounties/new"

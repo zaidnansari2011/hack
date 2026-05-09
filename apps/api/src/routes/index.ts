@@ -10,6 +10,7 @@ import { healthRouter } from "./health"
 import { payoutsRouter } from "./payouts"
 import { proofsRouter } from "./proofs"
 import { quizRouter } from "./quiz"
+import { recruitRouter } from "./recruit"
 import { tutorRouter } from "./tutor"
 
 export const apiRouter: Router = Router()
@@ -25,3 +26,4 @@ apiRouter.use("/payouts", payoutsRouter)
 apiRouter.use("/proofs", proofsRouter)
 apiRouter.use("/chain", chainRouter)
 apiRouter.use("/activity", activityRouter)
+apiRouter.use("/recruit", recruitRouter)

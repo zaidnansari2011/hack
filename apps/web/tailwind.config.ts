@@ -59,6 +59,15 @@ const config: Config = {
         "out-quart": "cubic-bezier(0.22, 1, 0.36, 1)",
         spring: "cubic-bezier(0.34, 1.36, 0.5, 1)",
       },
+      keyframes: {
+        ticker: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+      },
+      animation: {
+        ticker: "ticker 60s linear infinite",
+      },
     },
   },
   plugins: [],
