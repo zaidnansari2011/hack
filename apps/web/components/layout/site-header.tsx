@@ -4,12 +4,15 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 
-const links = [
-  { href: "#journey", label: "How It Flows" },
-  { href: "#sides", label: "Both Sides" },
-  { href: "#stack", label: "Stack" },
-  { href: "#start", label: "Start" },
-]
+import { AuthPill } from "./auth-pill"
+import { cn } from "@/lib/utils"
+
+const NAV = [
+  { href: "/#manifesto", label: "Manifesto" },
+  { href: "/#methodology", label: "Methodology" },
+  { href: "/#live", label: "Live" },
+  { href: "/#roles", label: "Roles" },
+] as const
 
 export function SiteHeader() {
   const pathname = usePathname()
