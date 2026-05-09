@@ -189,26 +189,46 @@ function RecruitInner() {
               <ul className="mt-2 divide-y divide-rule/60">
                 {data.candidates.map((c) => (
                   <li key={c.txHash}>
-                    <Link
-                      href={`/verify/${c.txHash}`}
-                      className="group flex items-center justify-between gap-4 py-4 transition-colors hover:bg-surface-soft"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="grid h-11 w-11 place-items-center rounded-full bg-ink text-[0.8125rem] font-semibold tracking-wider text-paper">
-                          {c.studentInitials || "?"}
-                        </div>
+                    <div className="flex items-center justify-between gap-4 py-4 transition-colors hover:bg-surface-soft">
+                      <div className="flex min-w-0 items-center gap-4">
+                        {c.studentAddress ? (
+                          <Link
+                            href={`/credentials/${c.studentAddress}`}
+                            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-ink text-[0.8125rem] font-semibold tracking-wider text-paper transition-transform hover:scale-105"
+                            title="View full transcript"
+                          >
+                            {c.studentInitials || "?"}
+                          </Link>
+                        ) : (
+                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-ink text-[0.8125rem] font-semibold tracking-wider text-paper">
+                            {c.studentInitials || "?"}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <div className="text-[0.9375rem] font-medium text-ink">
-                            {c.studentInitials} ·{" "}
+                            {c.studentAddress ? (
+                              <Link
+                                href={`/credentials/${c.studentAddress}`}
+                                className="hover:underline"
+                              >
+                                {c.studentInitials}
+                              </Link>
+                            ) : (
+                              c.studentInitials
+                            )}{" "}
+                            ·{" "}
                             <span className="text-ink-soft">
                               {c.curriculumTitle}
                             </span>
                           </div>
                           {c.studentAddress && (
-                            <div className="mt-0.5 font-mono text-[0.6875rem] text-ink-faint">
+                            <Link
+                              href={`/credentials/${c.studentAddress}`}
+                              className="mt-0.5 inline-block font-mono text-[0.6875rem] text-ink-faint hover:text-ink"
+                            >
                               {c.studentAddress.slice(0, 10)}…
-                              {c.studentAddress.slice(-8)}
-                            </div>
+                              {c.studentAddress.slice(-8)} ↗
+                            </Link>
                           )}
                         </div>
                       </div>
@@ -224,11 +244,14 @@ function RecruitInner() {
                             })}
                           </div>
                         </div>
-                        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint group-hover:text-ink">
+                        <Link
+                          href={`/verify/${c.txHash}`}
+                          className="rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-ink-soft transition-colors hover:border-ink/40 hover:text-ink"
+                        >
                           verify →
-                        </span>
+                        </Link>
                       </div>
-                    </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -493,11 +493,275 @@ async function main() {
     })
   }
 
+  // ─── Showcase completions ───────────────────────────────────────────────
+  // Pre-passed enrollments that populate /verify, /recruit, and
+  // /credentials/[address] so a fresh install isn't an empty room.
+  const showcaseCount = await seedShowcaseCompletions({
+    sponsorsByEmail,
+    curriculaBySlug,
+    passwordHash,
+  })
+
   console.log("✅ Seeded:")
-  console.log(`   Sponsor login: sponsor@demo.pol / demo1234`)
-  console.log(`   Student login: student@demo.pol / demo1234`)
+  console.log(`   Sponsor: sponsor@demo.pol / demo1234`)
+  console.log(`   Student: student@demo.pol / demo1234`)
   console.log(`   ${SPONSORS.length} sponsors · ${CURRICULA.length} curricula · ${BOUNTIES.length} bounties`)
+  console.log(`   ${showcaseCount} showcase credentials minted`)
   console.log(`   Demo studentUser.id=${studentUser.id}`)
+}
+
+// ─── Showcase data ─────────────────────────────────────────────────────────
+
+type ShowcasePersona = {
+  email: string
+  name: string
+  upi: string
+  curriculumSlug: string
+  bountyId: string
+  scorePct: number
+  daysAgo: number
+  durationMinutes: number
+}
+
+const SHOWCASE_PERSONAS: ShowcasePersona[] = [
+  {
+    email: "anuj.r@learners.pol",
+    name: "Anuj Reddy",
+    upi: "anuj@upi",
+    curriculumSlug: "solidity-101",
+    bountyId: "00000000-0000-0000-0000-000000000002",
+    scorePct: 92,
+    daysAgo: 1,
+    durationMinutes: 47,
+  },
+  {
+    email: "priya.iyer@learners.pol",
+    name: "Priya Iyer",
+    upi: "priya@upi",
+    curriculumSlug: "python-data-101",
+    bountyId: "00000000-0000-0000-0000-000000000003",
+    scorePct: 88,
+    daysAgo: 2,
+    durationMinutes: 53,
+  },
+  {
+    email: "vikram.s@learners.pol",
+    name: "Vikram Singh",
+    upi: "vikram@upi",
+    curriculumSlug: "rust-101",
+    bountyId: "00000000-0000-0000-0000-000000000001",
+    scorePct: 76,
+    daysAgo: 3,
+    durationMinutes: 71,
+  },
+  {
+    email: "kavya.n@learners.pol",
+    name: "Kavya Nair",
+    upi: "kavya@upi",
+    curriculumSlug: "react-101",
+    bountyId: "00000000-0000-0000-0000-000000000004",
+    scorePct: 80,
+    daysAgo: 4,
+    durationMinutes: 39,
+  },
+  {
+    email: "arjun.m@learners.pol",
+    name: "Arjun Menon",
+    upi: "arjun@upi",
+    curriculumSlug: "solidity-101",
+    bountyId: "00000000-0000-0000-0000-000000000002",
+    scorePct: 84,
+    daysAgo: 5,
+    durationMinutes: 58,
+  },
+  {
+    email: "sneha.k@learners.pol",
+    name: "Sneha Krishnan",
+    upi: "sneha@upi",
+    curriculumSlug: "python-data-101",
+    bountyId: "00000000-0000-0000-0000-000000000003",
+    scorePct: 96,
+    daysAgo: 6,
+    durationMinutes: 42,
+  },
+  {
+    email: "rohit.b@learners.pol",
+    name: "Rohit Bose",
+    upi: "rohit@upi",
+    curriculumSlug: "react-101",
+    bountyId: "00000000-0000-0000-0000-000000000004",
+    scorePct: 68,
+    daysAgo: 8,
+    durationMinutes: 64,
+  },
+  {
+    email: "meera.p@learners.pol",
+    name: "Meera Pillai",
+    upi: "meera@upi",
+    curriculumSlug: "rust-101",
+    bountyId: "00000000-0000-0000-0000-000000000001",
+    scorePct: 82,
+    daysAgo: 11,
+    durationMinutes: 88,
+  },
+]
+
+// Deterministic-looking values so reseeds produce identical credentials
+// (good for sharing /verify links across teammates).
+function pseudoTxHash(seed: string): string {
+  let h = ""
+  let s = seed
+  for (let i = 0; i < 8; i++) {
+    s = `${s}:${i}`
+    let acc = 0
+    for (let j = 0; j < s.length; j++) acc = (acc * 33 + s.charCodeAt(j)) >>> 0
+    h += acc.toString(16).padStart(8, "0")
+  }
+  return `0x${h}`
+}
+
+function pseudoAddress(seed: string): string {
+  return `0x${pseudoTxHash(seed).slice(2, 42)}`
+}
+
+async function seedShowcaseCompletions(deps: {
+  sponsorsByEmail: Map<string, { sponsorId: string; userId: string }>
+  curriculaBySlug: Map<string, string>
+  passwordHash: string
+}): Promise<number> {
+  let minted = 0
+
+  for (const p of SHOWCASE_PERSONAS) {
+    const curriculumId = deps.curriculaBySlug.get(p.curriculumSlug)
+    if (!curriculumId) continue
+
+    // Persona user + enrollment.
+    const user = await prisma.user.upsert({
+      where: { email: p.email },
+      update: {},
+      create: {
+        email: p.email,
+        passwordHash: deps.passwordHash,
+        name: p.name,
+        role: "student",
+        studentProfile: { create: { upiId: p.upi, totalEarnedInr: 0 } },
+      },
+    })
+
+    const completedAt = new Date(Date.now() - p.daysAgo * 24 * 60 * 60 * 1000)
+    const startedAt = new Date(
+      completedAt.getTime() - p.durationMinutes * 60 * 1000,
+    )
+
+    const enrollment = await prisma.enrollment.upsert({
+      where: {
+        studentId_bountyId: { studentId: user.id, bountyId: p.bountyId },
+      },
+      update: {
+        status: "completed",
+        progressPct: 100,
+        startedAt,
+        completedAt,
+      },
+      create: {
+        studentId: user.id,
+        bountyId: p.bountyId,
+        status: "completed",
+        progressPct: 100,
+        startedAt,
+        completedAt,
+      },
+    })
+
+    // Pick 5 random questions for the session record.
+    const questions = await prisma.question.findMany({
+      where: { curriculumId },
+      take: 5,
+      select: { id: true, correctIndex: true },
+    })
+    if (questions.length < 5) continue
+
+    // Build an answers payload that matches the score: round(scorePct/20)
+    // correct out of 5.
+    const correctCount = Math.round((p.scorePct / 100) * questions.length)
+    const answers = questions.map((q, i) => ({
+      questionId: q.id,
+      choiceIndex: i < correctCount ? q.correctIndex : (q.correctIndex + 1) % 4,
+    }))
+
+    // Idempotent: clear prior showcase sessions for this enrollment.
+    await prisma.quizSession.deleteMany({
+      where: { enrollmentId: enrollment.id },
+    })
+
+    const session = await prisma.quizSession.create({
+      data: {
+        enrollmentId: enrollment.id,
+        studentId: user.id,
+        status: "passed",
+        questionIds: questions.map((q) => q.id),
+        answers: answers as unknown as Prisma.InputJsonValue,
+        scorePct: p.scorePct,
+        passed: true,
+        startedAt,
+        expiresAt: new Date(startedAt.getTime() + 8 * 60 * 1000),
+        submittedAt: completedAt,
+      },
+    })
+
+    // On-chain proof — deterministic tx hash so /verify links are stable.
+    const studentAddress = pseudoAddress(`addr:${user.id}`)
+    const txHash = pseudoTxHash(`tx:${enrollment.id}:${session.id}`)
+    const scoreHash = pseudoTxHash(`score:${user.id}:${session.id}:${p.scorePct}`)
+
+    await prisma.onchainProof.deleteMany({
+      where: { enrollmentId: enrollment.id },
+    })
+    await prisma.onchainProof.create({
+      data: {
+        enrollmentId: enrollment.id,
+        curriculumId,
+        studentAddress,
+        scoreHash,
+        txHash,
+        tokenId: String(1000 + minted),
+        status: "minted",
+        createdAt: completedAt,
+        mintedAt: completedAt,
+      },
+    })
+
+    // Confirmed payout — feeds the dashboard "paid" totals.
+    const bounty = await prisma.bounty.findUnique({ where: { id: p.bountyId } })
+    if (bounty) {
+      await prisma.payout.deleteMany({
+        where: { enrollmentId: enrollment.id },
+      })
+      await prisma.payout.create({
+        data: {
+          studentId: user.id,
+          enrollmentId: enrollment.id,
+          amountInr: bounty.rewardInr,
+          status: "confirmed",
+          upiId: p.upi,
+          idempotencyKey: `showcase:${enrollment.id}`,
+          createdAt: completedAt,
+          sentAt: completedAt,
+          confirmedAt: completedAt,
+        },
+      })
+
+      // Reflect this completion in the bounty + student totals.
+      await prisma.studentProfile.update({
+        where: { userId: user.id },
+        data: { totalEarnedInr: bounty.rewardInr },
+      })
+    }
+
+    minted += 1
+  }
+
+  return minted
 }
 
 async function ingestQuestionBank(

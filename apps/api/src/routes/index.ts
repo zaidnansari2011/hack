@@ -4,6 +4,7 @@ import { activityRouter } from "./activity"
 import { authRouter } from "./auth"
 import { bountiesRouter } from "./bounties"
 import { chainRouter } from "./chain"
+import { credentialsRouter } from "./credentials"
 import { curriculaRouter } from "./curricula"
 import { enrollmentsRouter } from "./enrollments"
 import { healthRouter } from "./health"
@@ -27,3 +28,4 @@ apiRouter.use("/proofs", proofsRouter)
 apiRouter.use("/chain", chainRouter)
 apiRouter.use("/activity", activityRouter)
 apiRouter.use("/recruit", recruitRouter)
+apiRouter.use("/credentials", credentialsRouter)
