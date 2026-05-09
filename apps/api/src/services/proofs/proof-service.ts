@@ -1,15 +1,27 @@
 import { keccak256, toHex, type Address } from "viem"
 import type { OnchainProof as PrismaProof } from "@prisma/client"
-import type { OnchainProof } from "@pol/shared"
+import type { OnchainProof, VerifiedCredential } from "@pol/shared"
 
 import { prisma } from "@/db/prisma"
 import { logger } from "@/config/logger"
 import { Forbidden, NotFound } from "@/lib/errors"
 import {
+  basescanAddressUrl,
+  basescanTxUrl,
+  commitmentHash,
   mintCredential,
   releasePayout,
   scoreHash as makeScoreHash,
 } from "@/services/blockchain/chain-service"
+
+const NAME_INITIALS_RE = /\S+/g
+function initials(name: string): string {
+  const parts = name.match(NAME_INITIALS_RE) ?? []
+  return parts
+    .slice(0, 2)
+    .map((p) => (p[0] ?? "").toUpperCase())
+    .join("")
+}
 
 function toDto(p: PrismaProof): OnchainProof {
   return {
@@ -148,4 +160,75 @@ export async function getProof(args: {
   if (!proof) throw NotFound("Proof not found")
   if (proof.enrollment.studentId !== args.userId) throw Forbidden()
   return toDto(proof)
+}
+
+/**
+ * Public lookup by tx hash — drives /verify/[txHash]. Returns no PII beyond
+ * student initials. Either the release tx OR the credential mint tx will
+ * resolve, since both are recorded for the same proof in different fields.
+ */
+export async function getVerifiedCredentialByTx(
+  txHash: string,
+): Promise<VerifiedCredential> {
+  const normalized = txHash.toLowerCase().startsWith("0x")
+    ? txHash.toLowerCase()
+    : `0x${txHash.toLowerCase()}`
+
+  const proof = await prisma.onchainProof.findFirst({
+    where: { txHash: normalized },
+    include: {
+      curriculum: true,
+      enrollment: {
+        include: {
+          student: true,
+          bounty: { include: { sponsor: true } },
+        },
+      },
+    },
+  })
+  if (!proof) throw NotFound("No credential found for this transaction")
+
+  const session = await prisma.quizSession.findFirst({
+    where: { enrollmentId: proof.enrollmentId, status: "passed" },
+    orderBy: { submittedAt: "desc" },
+  })
+
+  const passed = (session?.passed ?? false) === true
+  const commitment = proof.studentAddress
+    ? commitmentHash(
+        proof.studentAddress as Address,
+        proof.curriculum.slug,
+        passed,
+      )
+    : ("0x" + "0".repeat(64))
+
+  return {
+    txHash: proof.txHash ?? normalized,
+    scoreHash: proof.scoreHash,
+    commitment,
+    tokenId: proof.tokenId,
+    status: proof.status,
+    studentAddress: proof.studentAddress,
+    studentInitials: initials(proof.enrollment.student.name),
+    scorePct: session?.scorePct ?? 0,
+    passedAt: session?.submittedAt?.toISOString() ?? proof.mintedAt?.toISOString() ?? null,
+    curriculum: {
+      slug: proof.curriculum.slug,
+      title: proof.curriculum.title,
+      summary: proof.curriculum.summary,
+    },
+    bounty: {
+      id: proof.enrollment.bountyId,
+      title: proof.enrollment.bounty.title,
+      sponsorName: proof.enrollment.bounty.sponsor.organizationName,
+      rewardInr: proof.enrollment.bounty.rewardInr,
+    },
+    chain: {
+      network: "Base Sepolia",
+      basescanTxUrl: basescanTxUrl(proof.txHash ?? normalized),
+      basescanAddressUrl: proof.studentAddress
+        ? basescanAddressUrl(proof.studentAddress)
+        : null,
+    },
+  }
 }

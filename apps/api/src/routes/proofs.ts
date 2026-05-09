@@ -2,20 +2,36 @@ import { Router } from "express"
 import { ok } from "@pol/shared"
 
 import { requireAuth, requireRole } from "@/middleware/auth"
-import { getProof } from "@/services/proofs/proof-service"
+import {
+  getProof,
+  getVerifiedCredentialByTx,
+} from "@/services/proofs/proof-service"
 
 export const proofsRouter: Router = Router()
 
-proofsRouter.use(requireAuth, requireRole("student"))
-
-proofsRouter.get("/:id", async (req, res, next) => {
+// Public lookup by tx hash — no auth, no PII beyond student initials.
+proofsRouter.get("/by-tx/:txHash", async (req, res, next) => {
   try {
-    const proof = await getProof({
-      userId: req.auth!.sub,
-      proofId: String(req.params.id),
-    })
-    res.json(ok({ proof }))
+    const credential = await getVerifiedCredentialByTx(String(req.params.txHash))
+    res.json(ok({ credential }))
   } catch (err) {
     next(err)
   }
 })
+
+proofsRouter.get(
+  "/:id",
+  requireAuth,
+  requireRole("student"),
+  async (req, res, next) => {
+    try {
+      const proof = await getProof({
+        userId: req.auth!.sub,
+        proofId: String(req.params.id),
+      })
+      res.json(ok({ proof }))
+    } catch (err) {
+      next(err)
+    }
+  },
+)

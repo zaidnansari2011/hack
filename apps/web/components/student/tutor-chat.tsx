@@ -3,11 +3,33 @@
 import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useMemo, useRef, useState } from "react"
-import type { ChatMessage, CheckQuestion, EnrollmentDetail } from "@pol/shared"
+import type {
+  ChatMessage,
+  CheckQuestion,
+  EnrollmentDetail,
+  TutorLanguage,
+} from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { ease } from "@/lib/motion"
 import { cn } from "@/lib/utils"
+
+// Maps tutor language → BCP-47 locale used by the browser's SpeechRecognition
+// and SpeechSynthesis APIs. Web Speech support varies by browser/OS but the
+// recognition languages are widely available on Chromium-based browsers.
+const LANG_LOCALES: Record<TutorLanguage, string> = {
+  en: "en-US",
+  hi: "hi-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+}
+
+const LANG_LABELS: Record<TutorLanguage, string> = {
+  en: "EN",
+  hi: "हिंदी",
+  ta: "தமிழ்",
+  te: "తెలుగు",
+}
 
 function suggestedPromptsFor(curriculum: EnrollmentDetail["curriculum"]): string[] {
   if (curriculum.syllabus.length > 0) {
@@ -53,6 +75,11 @@ export function TutorChat({
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [groqLive, setGroqLive] = useState<boolean | null>(null)
+  const [lang, setLang] = useState<TutorLanguage>("en")
+  const [listening, setListening] = useState(false)
+  const [speakReplies, setSpeakReplies] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const lastSpokenIdRef = useRef<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -62,6 +89,21 @@ export function TutorChat({
       .then((s) => setGroqLive(s.groq === "live"))
       .catch(() => setGroqLive(null))
   }, [])
+
+  // Auto-TTS the most recent tutor reply when the speak toggle is on.
+  useEffect(() => {
+    if (!speakReplies || typeof window === "undefined") return
+    const synth = window.speechSynthesis
+    if (!synth) return
+    const last = [...messages].reverse().find((m) => m.role === "tutor")
+    if (!last || last.id === lastSpokenIdRef.current) return
+    lastSpokenIdRef.current = last.id
+    const utt = new SpeechSynthesisUtterance(stripMarkdown(last.content))
+    utt.lang = LANG_LOCALES[lang]
+    utt.rate = 1.05
+    synth.cancel()
+    synth.speak(utt)
+  }, [messages, speakReplies, lang])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -118,7 +160,11 @@ export function TutorChat({
         "/tutor/messages",
         {
           method: "POST",
-          json: { enrollmentId: initialEnrollment.id, message: trimmed },
+          json: {
+            enrollmentId: initialEnrollment.id,
+            message: trimmed,
+            lang,
+          },
         },
       )
       setMessages((prev) => {
@@ -214,6 +260,40 @@ export function TutorChat({
     }
   }
 
+  function toggleListening() {
+    if (typeof window === "undefined") return
+    const SR = getSpeechRecognitionCtor()
+    if (!SR) {
+      setError("Speech input isn't supported in this browser")
+      return
+    }
+    if (listening) {
+      recognitionRef.current?.stop()
+      setListening(false)
+      return
+    }
+    const rec = new SR()
+    rec.lang = LANG_LOCALES[lang]
+    rec.interimResults = false
+    rec.continuous = false
+    rec.onresult = (e: SpeechRecognitionEventLike) => {
+      const transcript = e.results[0]?.[0]?.transcript ?? ""
+      if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript))
+    }
+    rec.onerror = () => setListening(false)
+    rec.onend = () => setListening(false)
+    recognitionRef.current = rec
+    rec.start()
+    setListening(true)
+  }
+
+  function toggleSpeakReplies() {
+    if (speakReplies && typeof window !== "undefined") {
+      window.speechSynthesis?.cancel()
+    }
+    setSpeakReplies((v) => !v)
+  }
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <div className="flex h-[calc(100vh-220px)] min-h-[560px] flex-col overflow-hidden rounded-md border border-rule bg-surface">
@@ -221,6 +301,10 @@ export function TutorChat({
           enrollment={initialEnrollment}
           groqLive={groqLive}
           progressPct={progressPct}
+          lang={lang}
+          onLangChange={setLang}
+          speakReplies={speakReplies}
+          onToggleSpeak={toggleSpeakReplies}
         />
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-8">
@@ -292,6 +376,19 @@ export function TutorChat({
               className="flex max-h-40 min-h-[44px] flex-1 resize-none rounded-sm border border-rule bg-surface-soft px-4 py-3 text-[0.9375rem] leading-relaxed text-ink transition-colors placeholder:text-ink-faint focus-visible:border-ink focus-visible:outline-none"
             />
             <button
+              type="button"
+              onClick={toggleListening}
+              title={listening ? "Stop listening" : "Speak your question"}
+              className={cn(
+                "inline-flex h-11 w-11 items-center justify-center rounded-full border text-[0.8125rem] transition-colors",
+                listening
+                  ? "border-terracotta bg-terracotta/10 text-terracotta animate-pulse"
+                  : "border-rule bg-surface text-ink-soft hover:border-ink/40 hover:text-ink",
+              )}
+            >
+              {listening ? "●" : "🎙"}
+            </button>
+            <button
               type="submit"
               disabled={pending || !input.trim() || lessonInFlight !== null}
               className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-5 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-ink/90 disabled:opacity-40"
@@ -319,20 +416,59 @@ function ChatHeader({
   enrollment,
   groqLive,
   progressPct,
+  lang,
+  onLangChange,
+  speakReplies,
+  onToggleSpeak,
 }: {
   enrollment: EnrollmentDetail
   groqLive: boolean | null
   progressPct: number
+  lang: TutorLanguage
+  onLangChange: (l: TutorLanguage) => void
+  speakReplies: boolean
+  onToggleSpeak: () => void
 }) {
   return (
-    <header className="flex items-center justify-between border-b border-rule px-8 py-5">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-rule px-8 py-5">
       <div>
         <span className="eyebrow eyebrow-tick text-[0.625rem]">AI Tutor</span>
         <h2 className="mt-1 font-display text-[1.0625rem] font-medium text-ink">
           {enrollment.curriculum.title}
         </h2>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 rounded-full border border-rule bg-paper px-1 py-1">
+          {(Object.keys(LANG_LABELS) as TutorLanguage[]).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => onLangChange(l)}
+              className={cn(
+                "rounded-full px-2.5 py-1 font-mono text-[0.6875rem] font-semibold transition-colors",
+                lang === l
+                  ? "bg-ink text-paper"
+                  : "text-ink-faint hover:text-ink",
+              )}
+            >
+              {LANG_LABELS[l]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onToggleSpeak}
+          title={speakReplies ? "Speaking replies" : "Read replies aloud"}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.18em] transition-colors",
+            speakReplies
+              ? "border-teal/40 bg-teal-soft text-teal"
+              : "border-rule bg-paper text-ink-faint hover:text-ink",
+          )}
+        >
+          <span>{speakReplies ? "🔊" : "🔇"}</span>
+          {speakReplies ? "voice on" : "voice off"}
+        </button>
         <span className="hidden tabular font-mono text-[0.6875rem] text-ink-faint sm:inline-flex">
           {progressPct}% covered
         </span>
@@ -878,4 +1014,45 @@ function CurriculumSidebar({
       </div>
     </aside>
   )
+}
+
+// ─── Voice helpers ──────────────────────────────────────────────────────────
+
+// Strip markdown tokens that read poorly when spoken aloud.
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\[\^[^\]]+\]/g, "")
+    .replace(/[*_#>`~]/g, "")
+    .replace(/\n{2,}/g, ". ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+type SpeechRecognitionResultLike = {
+  0?: { transcript: string }
+}
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<SpeechRecognitionResultLike>
+}
+type SpeechRecognitionLike = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: (e: SpeechRecognitionEventLike) => void
+  onerror: () => void
+  onend: () => void
+  start(): void
+  stop(): void
+}
+
+function getSpeechRecognitionCtor():
+  | (new () => SpeechRecognitionLike)
+  | null {
+  if (typeof window === "undefined") return null
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike
+  }
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
 }

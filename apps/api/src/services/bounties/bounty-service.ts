@@ -191,6 +191,8 @@ export async function listMyBounties(userId: string): Promise<Bounty[]> {
 }
 
 // ─── Sponsor: dashboard summary ───────────────────────────────────────────────
+import type { SponsorAnalytics } from "@pol/shared"
+
 export type SponsorDashboardSummary = {
   totalBounties: number
   activeBounties: number
@@ -198,7 +200,13 @@ export type SponsorDashboardSummary = {
   totalCommittedInr: number
   totalRemainingInr: number
   recentBounties: Bounty[]
+  analytics: SponsorAnalytics
 }
+
+// Industry-baseline cost-per-completion in INR for a bootcamp seat. Used to
+// frame our cost-per-verified-learner number on the dashboard. Not a quote —
+// a calibration anchor.
+const BOOTCAMP_BASELINE_INR = 35_000
 
 export async function getSponsorDashboard(
   userId: string,
@@ -213,15 +221,65 @@ export async function getSponsorDashboard(
 
   let totalCommitted = 0
   let totalRemaining = 0
+  let totalReleased = 0
+  let totalEnrolled = 0
   let studentsCompleted = 0
   let active = 0
 
   for (const b of rows) {
     totalCommitted += b.rewardInr * b.maxStudents
     totalRemaining += b.rewardInr * (b.maxStudents - b.completed)
+    totalReleased += b.rewardInr * b.completed
+    totalEnrolled += b.enrolled
     studentsCompleted += b.completed
     if (b.status === "active" || b.status === "funding") active += 1
   }
+
+  // ─ Analytics: cost-per-learner, completion rate, ROI multiple ─
+  const completionRatePct =
+    totalEnrolled > 0
+      ? Math.round((studentsCompleted / totalEnrolled) * 100)
+      : 0
+  const costPerVerifiedLearnerInr =
+    studentsCompleted > 0 ? Math.round(totalReleased / studentsCompleted) : 0
+  const bootcampMultiplier =
+    costPerVerifiedLearnerInr > 0
+      ? Math.round(BOOTCAMP_BASELINE_INR / costPerVerifiedLearnerInr)
+      : 0
+
+  // Score average + median time-to-complete come from quiz sessions tied to
+  // this sponsor's enrollments. Light query — fine to do on every dashboard
+  // hit; if it becomes hot we'll cache.
+  const sessions = await prisma.quizSession.findMany({
+    where: {
+      status: "passed",
+      enrollment: { bounty: { sponsorId: sponsor.id } },
+    },
+    select: {
+      scorePct: true,
+      submittedAt: true,
+      enrollment: { select: { startedAt: true } },
+    },
+  })
+  const averageScorePct =
+    sessions.length > 0
+      ? Math.round(
+          sessions.reduce((sum, s) => sum + (s.scorePct ?? 0), 0) /
+            sessions.length,
+        )
+      : 0
+  const minutes = sessions
+    .map((s) =>
+      s.submittedAt && s.enrollment.startedAt
+        ? (s.submittedAt.getTime() - s.enrollment.startedAt.getTime()) / 60_000
+        : null,
+    )
+    .filter((m): m is number => m !== null && m >= 0 && m < 60 * 24 * 30)
+    .sort((a, b) => a - b)
+  const medianMinutesToComplete =
+    minutes.length > 0
+      ? Math.round(minutes[Math.floor(minutes.length / 2)] ?? 0)
+      : null
 
   return {
     totalBounties: rows.length,
@@ -230,6 +288,15 @@ export async function getSponsorDashboard(
     totalCommittedInr: totalCommitted,
     totalRemainingInr: totalRemaining,
     recentBounties: rows.slice(0, 5).map(toBountyDto),
+    analytics: {
+      costPerVerifiedLearnerInr,
+      completionRatePct,
+      bootcampMultiplier,
+      totalDeposited: totalCommitted,
+      totalReleased,
+      averageScorePct,
+      medianMinutesToComplete,
+    },
   }
 }
 

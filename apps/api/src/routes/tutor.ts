@@ -6,6 +6,7 @@ import { z } from "zod"
 import { requireAuth, requireRole } from "@/middleware/auth"
 import { validateBody } from "@/middleware/validate"
 import {
+  generateRemediation,
   getCheckQuestion,
   getEnrollmentProgressDetail,
   getHistory,
@@ -18,6 +19,11 @@ import { groqAvailable } from "@/services/tutor/groq-client"
 const sendSchema = z.object({
   enrollmentId: z.string().uuid(),
   message: z.string().min(1).max(2000),
+  lang: z.enum(["en", "hi", "ta", "te"]).optional(),
+})
+
+const remediateSchema = z.object({
+  sessionId: z.string().uuid(),
 })
 
 const lessonSchema = z.object({
@@ -80,6 +86,25 @@ tutorRouter.post(
         enrollmentId: req.body.enrollmentId,
         userId: req.auth!.sub,
         message: req.body.message,
+        lang: req.body.lang,
+      })
+      res.status(201).json(ok(result))
+    } catch (err) {
+      next(err)
+    }
+  },
+)
+
+tutorRouter.post(
+  "/remediate",
+  requireRole("student"),
+  tutorLimit,
+  validateBody(remediateSchema),
+  async (req, res, next) => {
+    try {
+      const result = await generateRemediation({
+        userId: req.auth!.sub,
+        sessionId: req.body.sessionId,
       })
       res.status(201).json(ok(result))
     } catch (err) {

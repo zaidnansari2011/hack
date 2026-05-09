@@ -74,6 +74,7 @@ export type SponsorDashboard = {
   totalCommittedInr: number
   totalRemainingInr: number
   recentBounties: Bounty[]
+  analytics: SponsorAnalytics
 }
 
 export type ChainStatus = {
@@ -213,6 +214,71 @@ export type OnchainProof = {
   mintedAt: string | null
 }
 
+// Public-facing verify payload — no PII, just credential facts a third
+// party can audit alongside the on-chain tx.
+export type VerifiedCredential = {
+  txHash: string
+  scoreHash: string
+  commitment: string
+  tokenId: string | null
+  status: ProofStatus
+  studentAddress: string | null
+  studentInitials: string
+  scorePct: number
+  passedAt: string | null
+  curriculum: {
+    slug: string
+    title: string
+    summary: string
+  }
+  bounty: {
+    id: string
+    title: string
+    sponsorName: string
+    rewardInr: number
+  }
+  chain: {
+    network: string
+    basescanTxUrl: string
+    basescanAddressUrl: string | null
+  }
+}
+
+// ─── Recruiter portal ────────────────────────────────────────────
+export type RecruitFilter = {
+  curriculumSlug?: string
+  minScorePct?: number
+  withinDays?: number
+}
+
+export type RecruitCandidate = {
+  txHash: string
+  studentAddress: string | null
+  studentInitials: string
+  scorePct: number
+  passedAt: string
+  curriculumTitle: string
+  curriculumSlug: string
+  rewardInr: number
+}
+
+export type RecruitResults = {
+  candidates: RecruitCandidate[]
+  curricula: { slug: string; title: string; passedCount: number }[]
+  total: number
+}
+
+// ─── Sponsor analytics ───────────────────────────────────────────
+export type SponsorAnalytics = {
+  costPerVerifiedLearnerInr: number
+  completionRatePct: number
+  bootcampMultiplier: number
+  totalDeposited: number
+  totalReleased: number
+  averageScorePct: number
+  medianMinutesToComplete: number | null
+}
+
 // ─── Tutor chat ──────────────────────────────────────────────────
 export type ChatMessageMeta =
   | { kind: "lesson"; moduleIndex: number; module: string }
@@ -250,8 +316,18 @@ export type EnrollmentProgressDetail = {
 export type SendMessageRequest = {
   enrollmentId: string
   message: string
+  lang?: TutorLanguage
 }
 
 export type SendMessageResponse = {
   message: ChatMessage
+}
+
+export type TutorLanguage = "en" | "hi" | "ta" | "te"
+
+export type RemediationPlan = {
+  sessionId: string
+  weakModuleIndexes: number[]
+  weakTopics: string[]
+  microLesson: string
 }

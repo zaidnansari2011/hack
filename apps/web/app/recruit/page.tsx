@@ -1,0 +1,299 @@
+"use client"
+
+import Link from "next/link"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
+import type { RecruitResults } from "@pol/shared"
+
+import { ApiClientError, apiFetch } from "@/lib/api"
+
+const SCORE_OPTIONS = [
+  { value: "0", label: "Any score" },
+  { value: "60", label: "≥ 60%" },
+  { value: "75", label: "≥ 75%" },
+  { value: "90", label: "≥ 90%" },
+] as const
+
+const TIME_OPTIONS = [
+  { value: "", label: "All time" },
+  { value: "7", label: "Last 7 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "90", label: "Last 90 days" },
+] as const
+
+export default function RecruitPage() {
+  return (
+    <Suspense fallback={null}>
+      <RecruitInner />
+    </Suspense>
+  )
+}
+
+function RecruitInner() {
+  const searchParams = useSearchParams()
+
+  const [curriculumSlug, setCurriculumSlug] = useState<string>(
+    searchParams.get("curriculum") ?? "",
+  )
+  const [minScore, setMinScore] = useState<string>("60")
+  const [withinDays, setWithinDays] = useState<string>("")
+  const [data, setData] = useState<RecruitResults | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchResults = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const qs = new URLSearchParams()
+      if (curriculumSlug) qs.set("curriculum", curriculumSlug)
+      if (minScore && minScore !== "0") qs.set("minScore", minScore)
+      if (withinDays) qs.set("withinDays", withinDays)
+      const next = await apiFetch<RecruitResults>(
+        `/recruit${qs.toString() ? `?${qs.toString()}` : ""}`,
+        { token: null },
+      )
+      setData(next)
+    } catch (err) {
+      setError(
+        err instanceof ApiClientError
+          ? err.message
+          : "Could not run search",
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [curriculumSlug, minScore, withinDays])
+
+  useEffect(() => {
+    fetchResults()
+  }, [fetchResults])
+
+  const summary = useMemo(() => {
+    if (!data) return null
+    const slug = curriculumSlug
+    const slugLabel = slug
+      ? data.curricula.find((c) => c.slug === slug)?.title ?? slug
+      : "any curriculum"
+    const min = Number(minScore || 0)
+    const window =
+      TIME_OPTIONS.find((t) => t.value === withinDays)?.label.toLowerCase() ??
+      "all time"
+    return `${data.total} verified · ${slugLabel} · ≥ ${min}% · ${window}`
+  }, [data, curriculumSlug, minScore, withinDays])
+
+  return (
+    <main className="min-h-screen bg-paper">
+      <Header />
+      <div className="mx-auto w-[min(1180px,94vw)] py-12">
+        <div className="max-w-2xl">
+          <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-teal">
+            Verifiable talent layer
+          </span>
+          <h1 className="mt-4 font-display text-[2.5rem] font-medium leading-[1.1] tracking-tight text-ink">
+            Hire from a pool that can&rsquo;t be faked.
+          </h1>
+          <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-muted">
+            Every candidate below passed a proctored quiz, was paid in
+            real INR, and has a soulbound credential on Base Sepolia. Click
+            any row to verify the receipt yourself.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-[280px_1fr]">
+          <aside className="space-y-6">
+            <FilterBlock label="Curriculum">
+              <select
+                value={curriculumSlug}
+                onChange={(e) => setCurriculumSlug(e.target.value)}
+                className="w-full rounded-sm border border-rule bg-paper px-3 py-2 text-[0.875rem] text-ink focus:border-ink focus:outline-none"
+              >
+                <option value="">All curricula</option>
+                {(data?.curricula ?? []).map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.title} ({c.passedCount})
+                  </option>
+                ))}
+              </select>
+            </FilterBlock>
+
+            <FilterBlock label="Minimum score">
+              <div className="grid grid-cols-2 gap-1.5">
+                {SCORE_OPTIONS.map((opt) => (
+                  <PillButton
+                    key={opt.value}
+                    active={minScore === opt.value}
+                    onClick={() => setMinScore(opt.value)}
+                  >
+                    {opt.label}
+                  </PillButton>
+                ))}
+              </div>
+            </FilterBlock>
+
+            <FilterBlock label="Time window">
+              <div className="grid grid-cols-2 gap-1.5">
+                {TIME_OPTIONS.map((opt) => (
+                  <PillButton
+                    key={opt.value}
+                    active={withinDays === opt.value}
+                    onClick={() => setWithinDays(opt.value)}
+                  >
+                    {opt.label}
+                  </PillButton>
+                ))}
+              </div>
+            </FilterBlock>
+
+            <div className="rounded-md border border-rule bg-surface-soft p-4">
+              <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
+                Why this works
+              </div>
+              <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-muted">
+                Every score on this list is committed on-chain via a
+                soulbound credential. Resumes lie. Receipts don&rsquo;t.
+              </p>
+            </div>
+          </aside>
+
+          <section>
+            <div className="flex items-center justify-between border-b border-rule pb-3">
+              <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
+                {summary ?? "Searching…"}
+              </span>
+              {loading && (
+                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+                  loading
+                </span>
+              )}
+            </div>
+
+            {error && (
+              <div className="mt-6 rounded-md border border-terracotta/30 bg-terracotta/5 p-4 text-[0.8125rem] text-terracotta">
+                {error}
+              </div>
+            )}
+
+            {!error && data && data.candidates.length === 0 && (
+              <div className="mt-12 rounded-md border border-rule bg-surface p-10 text-center">
+                <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
+                  No matches
+                </div>
+                <p className="mt-3 text-[0.875rem] text-ink-muted">
+                  Try widening the score floor or the time window.
+                </p>
+              </div>
+            )}
+
+            {data && data.candidates.length > 0 && (
+              <ul className="mt-2 divide-y divide-rule/60">
+                {data.candidates.map((c) => (
+                  <li key={c.txHash}>
+                    <Link
+                      href={`/verify/${c.txHash}`}
+                      className="group flex items-center justify-between gap-4 py-4 transition-colors hover:bg-surface-soft"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="grid h-11 w-11 place-items-center rounded-full bg-ink text-[0.8125rem] font-semibold tracking-wider text-paper">
+                          {c.studentInitials || "?"}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[0.9375rem] font-medium text-ink">
+                            {c.studentInitials} ·{" "}
+                            <span className="text-ink-soft">
+                              {c.curriculumTitle}
+                            </span>
+                          </div>
+                          {c.studentAddress && (
+                            <div className="mt-0.5 font-mono text-[0.6875rem] text-ink-faint">
+                              {c.studentAddress.slice(0, 10)}…
+                              {c.studentAddress.slice(-8)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <div className="tabular font-display text-[1.25rem] font-medium leading-none text-teal">
+                            {c.scorePct}%
+                          </div>
+                          <div className="mt-1 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+                            {new Date(c.passedAt).toLocaleDateString("en-IN", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </div>
+                        </div>
+                        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint group-hover:text-ink">
+                          verify →
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function Header() {
+  return (
+    <header className="border-b border-rule bg-surface">
+      <div className="mx-auto flex h-14 w-[min(1180px,94vw)] items-center justify-between">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 text-[0.9375rem] font-medium tracking-tight text-ink"
+        >
+          <span className="inline-block h-2 w-2 rounded-full bg-teal" />
+          Proof-of-Learn
+        </Link>
+        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
+          Recruiter portal
+        </span>
+      </div>
+    </header>
+  )
+}
+
+function FilterBlock({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <div className="eyebrow eyebrow-tick mb-3 text-[0.625rem]">{label}</div>
+      {children}
+    </div>
+  )
+}
+
+function PillButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-sm border px-2.5 py-1.5 text-[0.75rem] font-medium transition-colors ${
+        active
+          ? "border-ink bg-ink text-paper"
+          : "border-rule bg-paper text-ink-soft hover:border-ink/30 hover:text-ink"
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
