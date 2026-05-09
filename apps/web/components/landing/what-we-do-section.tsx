@@ -1,115 +1,44 @@
 "use client"
 
-import { motion } from "framer-motion"
-import { GraduationCap, BriefcaseBusiness, Check } from "lucide-react"
+import { motion, useInView } from "framer-motion"
+import { useRef } from "react"
 
-const studentPoints = [
-  "Free, adaptive AI tutor trained on the full curriculum",
-  "Guaranteed USDC micro-rewards for every verified milestone",
-  "Programmable Circle wallet — no prior crypto experience needed",
-  "Transcripts and receipts retained for portfolio review",
-]
+import { ease } from "@/lib/motion"
 
-const sponsorPoints = [
-  "Escrow-backed bounties with full spend visibility",
-  "Pay only for verified, anti-cheat-proof completions",
-  "Cohort analytics: completion velocity, cost per pass, drop-off",
-  "Open-source Solidity contracts, audited and live on Base",
-]
+const TENETS = [
+  {
+    n: "01",
+    headline: "Money should follow learning, not the other way around.",
+    body:
+      "Sponsors deposit USDC into per-bounty escrow before a single student enrolls. The pool releases one student-sized payout per verified completion — never speculatively, never on a self-reported badge.",
+  },
+  {
+    n: "02",
+    headline: "If you can't see the proof, it isn't proof.",
+    body:
+      "Every passed quiz emits a public LearningVerified event on Base and mints a soulbound credential to the student's wallet. The hash is the receipt, the receipt is the credential, the credential is the audit trail.",
+  },
+  {
+    n: "03",
+    headline: "Get the rupee to UPI before the celebration ends.",
+    body:
+      "INR settles via Razorpay UPI in seconds — not days. The on-chain event and the off-chain payout fire from the same pipeline so the student feels one moment, not a queue.",
+  },
+] as const
 
 export function WhatWeDoSection() {
   return (
-    <section id="sides" className="px-4 py-24 md:px-8 md:py-32">
-      <div className="mx-auto w-[min(1200px,92vw)]">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="max-w-2xl"
-        >
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-            Built For Both Sides
-          </p>
-          <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-            One protocol, two aligned incentives.
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-slate-600 md:text-lg">
-            Students learn for real rewards. Sponsors fund measurable outcomes. The protocol keeps
-            both sides honest — without intermediaries.
-          </p>
-        </motion.div>
-
-        <div className="mt-14 grid gap-5 md:grid-cols-2">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-3xl border border-slate-200 bg-white p-10"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-900">
-                <GraduationCap className="size-5" />
-              </div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                For Students
-              </p>
-            </div>
-            <h3 className="mt-7 text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
-              Learn freely. Earn real value.
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              A guided path from first lesson to first payout, with nothing to sign up, pay, or
-              install beyond your browser.
-            </p>
-            <ul className="mt-8 space-y-4">
-              {studentPoints.map((point) => (
-                <li key={point} className="flex gap-3 text-sm text-slate-700">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-50 text-slate-900">
-                    <Check className="size-3" />
-                  </span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="relative overflow-hidden rounded-3xl border border-slate-900 bg-slate-950 p-10 text-white"
-          >
-            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-slate-700 to-transparent" />
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-white">
-                <BriefcaseBusiness className="size-5" />
-              </div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                For Sponsors
-              </p>
-            </div>
-            <h3 className="mt-7 text-2xl font-semibold tracking-tight md:text-3xl">
-              Fund outcomes. Not clicks.
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300">
-              Deposit USDC into escrow, define the curriculum and the bounty, and let the protocol
-              disburse only against verified completions.
-            </p>
-            <ul className="mt-8 space-y-4">
-              {sponsorPoints.map((point) => (
-                <li key={point} className="flex gap-3 text-sm text-slate-200">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-white">
-                    <Check className="size-3" />
-                  </span>
-                  <span>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-        </div>
+    <section
+      id="manifesto"
+      className="relative isolate border-t border-rule bg-paper-deep/40"
+    >
+      <div className="mx-auto w-[min(1240px,94vw)] py-24 lg:py-32">
+        <Header />
+        <ol className="mt-16 grid gap-px overflow-hidden rounded-md border border-rule bg-rule lg:grid-cols-3">
+          {TENETS.map((t, i) => (
+            <Tenet key={t.n} tenet={t} index={i} />
+          ))}
+        </ol>
       </div>
     </section>
   )
