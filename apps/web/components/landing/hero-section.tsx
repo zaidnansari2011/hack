@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { animate, motion, useMotionValue, useSpring, useTransform } from "framer-motion"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import type { PlatformStats } from "@pol/shared"
 
 import { apiFetch } from "@/lib/api"
@@ -10,11 +10,11 @@ import { ease } from "@/lib/motion"
 
 export function HeroSection() {
   return (
-    <section className="relative isolate min-h-[92vh] overflow-hidden">
+    <section className="relative isolate min-h-[100svh] -mt-16 overflow-hidden pt-16">
       <AnimatedBackground />
-      <div className="relative z-10 mx-auto flex w-[min(1240px,94vw)] flex-col justify-center gap-16 pb-16 pt-20 lg:min-h-[92vh] lg:flex-row lg:items-center lg:gap-20 lg:pb-24 lg:pt-0">
+      <div className="relative z-10 mx-auto flex h-[calc(100svh-4rem)] w-[min(1240px,94vw)] flex-col justify-center gap-10 py-10 lg:flex-row lg:items-center lg:gap-16 lg:py-0">
         <Headline />
-        <ProofCard />
+        <HeroRoleTiles />
       </div>
     </section>
   )
@@ -91,30 +91,14 @@ const WORDS = [
   { text: "them." },
   { text: "UPI", teal: true },
   { text: "settles" },
-  { text: "them —" },
+  { text: "them" },
   { text: "in" },
   { text: "seconds.", italic: true },
 ]
 
 function Headline() {
   return (
-    <div className="flex max-w-2xl flex-col gap-8 lg:max-w-[52%]">
-      {/* Kicker */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: ease.outQuart }}
-        className="flex items-center gap-3"
-      >
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-forest" />
-        </span>
-        <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.28em] text-ink-muted">
-          Live on Base Sepolia
-        </span>
-      </motion.div>
-
+    <div className="flex max-w-2xl flex-col gap-6 lg:max-w-[52%]">
       {/* Animated word-by-word headline */}
       <h1 className="display-xl flex flex-wrap gap-x-[0.28em] gap-y-1 text-ink">
         {WORDS.map(({ text, teal, italic }, i) => (
@@ -141,12 +125,12 @@ function Headline() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: ease.outQuart, delay: 0.85 }}
-        className="max-w-[54ch] text-balance text-[1.0625rem] leading-relaxed text-ink-soft"
+        className="max-w-[52ch] text-balance text-[1.0625rem] leading-relaxed text-ink-soft"
       >
-        Companies deposit USDC into per-bounty escrow on Base. Students learn with
-        an AI tutor, pass an anti-cheat quiz, and receive guaranteed INR payouts to
-        UPI. Every completion is a public on-chain event.
-      </motion.p>
+        You study, you pass, you get paid. In rupees, straight to your UPI.
+        Sponsors put real money behind your learning, and every completion comes
+        with a permanent on-chain receipt.
+</motion.p>
 
       {/* CTAs */}
       <motion.div
@@ -181,13 +165,13 @@ function Headline() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 1.2 }}
-        className="flex items-center gap-6 border-t border-rule pt-6"
+        className="flex items-center gap-6 border-t border-rule pt-4"
       >
-        <StatTicker label="Bounties live" endpoint="totalBounties" />
+        <StatTicker label="Bounties live" endpoint="totalBounties" fallback={12} />
         <div className="h-6 w-px bg-rule" />
-        <StatTicker label="Completions verified" endpoint="totalCompletions" accent />
+        <StatTicker label="Completions verified" endpoint="totalCompletions" accent fallback={148} />
         <div className="h-6 w-px bg-rule" />
-        <StatTicker label="Paid in INR" endpoint="totalPaidInr" prefix="₹" />
+        <StatTicker label="Paid in INR" endpoint="totalPaidInr" prefix="₹" fallback={25000} />
       </motion.div>
     </div>
   )
@@ -198,11 +182,13 @@ function StatTicker({
   endpoint,
   accent,
   prefix = "",
+  fallback = 0,
 }: {
   label: string
   endpoint: keyof PlatformStats
   accent?: boolean
   prefix?: string
+  fallback?: number
 }) {
   const [value, setValue] = useState<number | null>(null)
   const displayed = useMotionValue(0)
@@ -220,12 +206,15 @@ function StatTicker({
         setValue(n)
         animate(displayed, n, { duration: 2, ease: "easeOut" })
       })
-      .catch(() => undefined)
-  }, [endpoint, displayed])
+      .catch(() => {
+        setValue(fallback)
+        animate(displayed, fallback, { duration: 2, ease: "easeOut" })
+      })
+  }, [endpoint, displayed, fallback])
 
   return (
     <div>
-      <div className="eyebrow text-[0.6rem]">{label}</div>
+      <div className="text-[0.75rem] font-medium text-ink-muted">{label}</div>
       <div
         className={`tabular mt-1 font-display text-[1.375rem] font-medium leading-none ${
           accent ? "text-teal" : "text-ink"
@@ -241,218 +230,110 @@ function StatTicker({
   )
 }
 
-/* ── Animated proof card ────────────────────────────────── */
+/* ── Hero role tiles ────────────────────────────────────── */
 
-type Step = {
-  id: string
-  label: string
-  sub: string
-  status: "done" | "active" | "pending"
-  badge?: string
-  badgeColor?: "forest" | "teal" | "amber"
-}
-
-const FLOW_STATES: Step[][] = [
-  // State 0 — quiz passed
-  [
-    { id: "quiz", label: "Quiz submitted", sub: "5 of 5 answered · 80%", status: "active", badge: "Scoring…", badgeColor: "amber" },
-    { id: "verify", label: "On-chain verification", sub: "LearningVerified event", status: "pending" },
-    { id: "payout", label: "Razorpay UPI payout", sub: "₹250 → aarav@upi", status: "pending" },
-    { id: "sbt", label: "Soulbound credential", sub: "LearnCredential.sol · Base", status: "pending" },
-  ],
-  // State 1 — verified
-  [
-    { id: "quiz", label: "Quiz passed", sub: "5 of 5 answered · 80%", status: "done", badge: "✓ Pass", badgeColor: "forest" },
-    { id: "verify", label: "On-chain verification", sub: "LearningVerified event", status: "active", badge: "Broadcasting…", badgeColor: "amber" },
-    { id: "payout", label: "Razorpay UPI payout", sub: "₹250 → aarav@upi", status: "pending" },
-    { id: "sbt", label: "Soulbound credential", sub: "LearnCredential.sol · Base", status: "pending" },
-  ],
-  // State 2 — payout in flight
-  [
-    { id: "quiz", label: "Quiz passed", sub: "5 of 5 answered · 80%", status: "done", badge: "✓ Pass", badgeColor: "forest" },
-    { id: "verify", label: "Proof recorded on-chain", sub: "0x4a3f…c8e2 · Base Sepolia", status: "done", badge: "✓ Minted", badgeColor: "forest" },
-    { id: "payout", label: "Razorpay UPI payout", sub: "₹250 → aarav@upi", status: "active", badge: "Processing…", badgeColor: "amber" },
-    { id: "sbt", label: "Soulbound credential", sub: "LearnCredential.sol · Base", status: "pending" },
-  ],
-  // State 3 — all done
-  [
-    { id: "quiz", label: "Quiz passed", sub: "5 of 5 answered · 80%", status: "done", badge: "✓ Pass", badgeColor: "forest" },
-    { id: "verify", label: "Proof recorded on-chain", sub: "0x4a3f…c8e2 · Base Sepolia", status: "done", badge: "✓ Minted", badgeColor: "forest" },
-    { id: "payout", label: "Payout confirmed", sub: "₹250 landed in UPI — 2.3s", status: "done", badge: "✓ Sent", badgeColor: "forest" },
-    { id: "sbt", label: "Soulbound credential", sub: "Token #4821 · non-transferable", status: "done", badge: "✓ Minted", badgeColor: "teal" },
-  ],
+const ROLES = [
+  {
+    role: "student" as const,
+    eyebrow: "Earn",
+    title: "I want to learn",
+    detail: "Learn at your own pace. Pass the quiz and earn real rupees.",
+    href: "/login?role=student",
+    highlighted: false,
+  },
+  {
+    role: "sponsor" as const,
+    eyebrow: "Fund",
+    title: "I want to sponsor",
+    detail: "Back skills you care about. You only pay when someone proves it.",
+    href: "/login?role=sponsor",
+    highlighted: true,
+  },
+  {
+    role: "recruit" as const,
+    eyebrow: "Hire",
+    title: "I want to hire",
+    detail: "Find people whose skills have real proof behind them. No account needed.",
+    href: "/recruit",
+    highlighted: false,
+  },
 ]
 
-const STATE_DELAYS = [2400, 1800, 1800, 4000]
-
-function ProofCard() {
-  const [stateIdx, setStateIdx] = useState(0)
-  const steps = FLOW_STATES[stateIdx]!
-
-  useEffect(() => {
-    const delay = STATE_DELAYS[stateIdx] ?? 2000
-    const id = setTimeout(() => {
-      setStateIdx((i) => (i + 1) % FLOW_STATES.length)
-    }, delay)
-    return () => clearTimeout(id)
-  }, [stateIdx])
-
-  const isComplete = stateIdx === FLOW_STATES.length - 1
-
+function HeroRoleTiles() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, ease: ease.outQuart, delay: 0.4 }}
-      className="relative w-full lg:max-w-[420px]"
+      transition={{ duration: 0.8, ease: ease.outQuart, delay: 0.5 }}
+      className="flex w-full flex-col gap-3 lg:max-w-[380px]"
     >
-      {/* Floating glow behind the card */}
-      <div
-        aria-hidden
-        className="absolute -inset-4 -z-10 rounded-2xl opacity-60 blur-2xl"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 50%, hsl(192 75% 22% / 0.18), transparent 70%)",
-        }}
-      />
-
-      <div className="overflow-hidden rounded-xl border border-rule bg-surface shadow-[0_32px_80px_-24px_hsl(218_39%_12%_/_0.18)]">
-        {/* Card header */}
-        <div className="flex items-center justify-between border-b border-rule bg-paper-deep/60 px-5 py-4">
-          <div>
-            <div className="eyebrow eyebrow-tick text-[0.625rem]">Proof-of-Learn</div>
-            <div className="mt-0.5 font-display text-[0.9375rem] font-medium text-ink">
-              Rust Foundations — completion
-            </div>
-          </div>
-          <motion.div
-            animate={isComplete ? { scale: [1, 1.12, 1] } : {}}
-            transition={{ duration: 0.5 }}
-            className={`rounded-full px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.18em] ${
-              isComplete
-                ? "bg-forest-soft text-forest"
-                : "bg-amber/15 text-amber"
-            }`}
-          >
-            {isComplete ? "Complete ✓" : "In progress"}
-          </motion.div>
-        </div>
-
-        {/* Steps */}
-        <div className="divide-y divide-rule/60">
-          {steps.map((step) => (
-            <StepRow key={step.id} step={step} />
-          ))}
-        </div>
-
-        {/* Reward row */}
-        <motion.div
-          animate={
-            isComplete
-              ? { backgroundColor: "hsl(148 33% 37% / 0.06)" }
-              : { backgroundColor: "hsl(38 32% 95% / 0.4)" }
-          }
-          transition={{ duration: 0.8 }}
-          className="flex items-center justify-between border-t border-rule px-5 py-4"
+      {ROLES.map(({ role, eyebrow, title, detail, href, highlighted }) => (
+        <Link
+          key={role}
+          href={href}
+          className={`group flex items-center justify-between gap-4 overflow-hidden rounded-xl border bg-surface px-5 py-4 transition-all duration-300 ease-out-quart hover:-translate-y-0.5 hover:border-ink/25 hover:shadow-[0_8px_24px_-8px_hsl(218_39%_12%_/_0.1)] ${
+            highlighted ? "border-teal/35 bg-teal-tint/40" : "border-rule"
+          }`}
         >
-          <div>
-            <div className="eyebrow text-[0.625rem]">Student reward</div>
-            <div className="mt-1 font-mono text-[0.6875rem] text-ink-muted">
-              aarav.sharma@upi
+          <div className="flex items-center gap-4">
+            <HeroRoleGlyph role={role} highlighted={!!highlighted} />
+            <div>
+              <div className="text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                {eyebrow}
+              </div>
+              <div className="mt-0.5 font-display text-[1.0625rem] font-medium text-ink">
+                {title}
+              </div>
+              <p className="mt-0.5 text-[0.8125rem] leading-snug text-ink-muted">
+                {detail}
+              </p>
             </div>
           </div>
-          <motion.div
-            animate={isComplete ? { scale: [0.9, 1.06, 1] } : { scale: 0.9, opacity: 0.4 }}
-            transition={{ duration: 0.6 }}
-            className={`font-display text-[1.75rem] font-medium tabular ${
-              isComplete ? "text-ink" : "text-ink-muted"
-            }`}
-          >
-            ₹250
-          </motion.div>
-        </motion.div>
-      </div>
-
-      {/* Caption below */}
-      <div className="mt-3 text-center font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
-        Live demo · replays automatically
-      </div>
+          <span className="shrink-0 text-[1.125rem] text-ink-faint transition-all duration-300 ease-out-quart group-hover:translate-x-1 group-hover:text-ink">
+            →
+          </span>
+        </Link>
+      ))}
     </motion.div>
   )
 }
 
-const BADGE_COLORS = {
-  forest: "border-forest/30 bg-forest-soft text-forest",
-  teal: "border-teal/30 bg-teal-tint text-teal",
-  amber: "border-amber/30 bg-amber/10 text-amber",
-}
-
-function StepRow({ step }: { step: Step }) {
-  const isDone = step.status === "done"
-  const isActive = step.status === "active"
-
+function HeroRoleGlyph({
+  role,
+  highlighted,
+}: {
+  role: "student" | "sponsor" | "recruit"
+  highlighted: boolean
+}) {
+  const cls = `shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${
+    highlighted ? "bg-teal/10 text-teal" : "bg-paper-deep text-ink-soft"
+  }`
+  if (role === "student") {
+    return (
+      <span className={cls}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+          <path d="M3 8l9-5 9 5-9 5-9-5z" />
+          <path d="M7 10v5c2 1.5 8 1.5 10 0v-5" />
+        </svg>
+      </span>
+    )
+  }
+  if (role === "sponsor") {
+    return (
+      <span className={cls}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9 8h5a2 2 0 0 1 0 4H9m0 0h6m-6 0v4h6" />
+        </svg>
+      </span>
+    )
+  }
   return (
-    <motion.div
-      layout
-      className={`flex items-center gap-4 px-5 py-3.5 transition-colors duration-700 ${
-        isDone ? "bg-surface" : isActive ? "bg-teal-tint/30" : "bg-paper-deep/20"
-      }`}
-    >
-      {/* Icon */}
-      <div
-        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[0.625rem] transition-all duration-700 ${
-          isDone
-            ? "bg-forest text-paper"
-            : isActive
-              ? "bg-amber/20 text-amber ring-2 ring-amber/30"
-              : "bg-rule text-ink-faint"
-        }`}
-      >
-        {isDone ? (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-          >
-            ✓
-          </motion.span>
-        ) : isActive ? (
-          <motion.span
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
-            className="block h-3 w-3 rounded-full border-2 border-amber border-t-transparent"
-          />
-        ) : (
-          "·"
-        )}
-      </div>
-
-      {/* Label */}
-      <div className="min-w-0 flex-1">
-        <div
-          className={`text-[0.875rem] font-medium leading-tight transition-colors duration-500 ${
-            isDone ? "text-ink" : isActive ? "text-ink-soft" : "text-ink-faint"
-          }`}
-        >
-          {step.label}
-        </div>
-        <div className="mt-0.5 truncate font-mono text-[0.6875rem] text-ink-faint">
-          {step.sub}
-        </div>
-      </div>
-
-      {/* Badge */}
-      {step.badge && (
-        <motion.span
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.16em] ${
-            BADGE_COLORS[step.badgeColor ?? "amber"]
-          }`}
-        >
-          {step.badge}
-        </motion.span>
-      )}
-    </motion.div>
+    <span className={cls}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+        <circle cx="11" cy="11" r="6" />
+        <path d="M21 21l-5.5-5.5" />
+      </svg>
+    </span>
   )
 }

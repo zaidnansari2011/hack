@@ -38,14 +38,14 @@
     --forest-soft: 144 23% 90%;
 
     /* Type scale (clamp() based, fluid) */
-    --display-xl: clamp(3.4rem, 7vw, 5.6rem);
-    --display-lg: clamp(2.6rem, 5vw, 4rem);
-    --display-md: clamp(2rem, 3.5vw, 2.75rem);
-    --headline:   clamp(1.4rem, 2vw, 1.75rem);
-    --body-lg:    1.0625rem;
-    --body:       0.96875rem;
-    --small:      0.84375rem;
-    --micro:      0.6875rem;
+    --display-xl: clamp(3.2rem, 6.5vw, 5.2rem);
+    --display-lg: clamp(2.4rem, 4.5vw, 3.6rem);
+    --display-md: clamp(1.875rem, 3.2vw, 2.5rem);
+    --headline:   clamp(1.375rem, 2vw, 1.625rem);
+    --body-lg:    1.125rem;
+    --body:       1rem;
+    --small:      0.875rem;
+    --micro:      0.71875rem;
 
     /* Motion */
     --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
@@ -59,7 +59,7 @@
     --muted: var(--rule-soft);
     --muted-foreground: var(--ink-muted);
     --border: var(--rule);
-    --radius: 0.625rem;
+    --radius: 0.875rem;
   }
 
   * {
@@ -75,20 +75,20 @@
     color: hsl(var(--ink));
     font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
     font-size: var(--body);
-    line-height: 1.55;
+    line-height: 1.65;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "ss01", "cv11";
+    font-feature-settings: "ss01";
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1, h2, h3, h4, h5, h6, .font-display {
     font-family: var(--font-display), ui-serif, Georgia, serif;
     color: hsl(var(--ink));
     font-feature-settings: "ss01";
-    font-variation-settings: "opsz" 144, "SOFT" 30;
-    letter-spacing: -0.015em;
-    line-height: 1.05;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
   }
 
   /* Selection */
@@ -114,34 +114,34 @@
 }
 
 @layer utilities {
-  /* Display headlines — Fraunces with optical sizing */
+  /* Display headlines — Fraunces with high SOFT axis for gentle letterforms */
   .display-xl {
     font-family: var(--font-display), ui-serif, serif;
     font-size: var(--display-xl);
-    font-weight: 350;
-    line-height: 0.96;
-    letter-spacing: -0.03em;
-    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-weight: 370;
+    line-height: 1.03;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
   }
   .display-lg {
     font-family: var(--font-display), ui-serif, serif;
     font-size: var(--display-lg);
     font-weight: 380;
-    line-height: 0.98;
-    letter-spacing: -0.025em;
-    font-variation-settings: "opsz" 144, "SOFT" 40;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    font-variation-settings: "opsz" 144, "SOFT" 90;
   }
   .display-md {
     font-family: var(--font-display), ui-serif, serif;
     font-size: var(--display-md);
     font-weight: 400;
-    line-height: 1.04;
-    letter-spacing: -0.02em;
-    font-variation-settings: "opsz" 96, "SOFT" 30;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-variation-settings: "opsz" 96, "SOFT" 80;
   }
   .display-italic {
     font-style: italic;
-    font-variation-settings: "opsz" 144, "SOFT" 80;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
   }
 
   /* Editorial label — used as kicker copy throughout */
@@ -149,7 +149,7 @@
     font-family: var(--font-body);
     font-size: var(--micro);
     font-weight: 600;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: hsl(var(--ink-muted));
   }
@@ -234,12 +234,12 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.2rem 0.65rem;
+    padding: 0.25rem 0.75rem;
     border: 1px solid hsl(var(--rule));
     border-radius: 999px;
     font-size: var(--micro);
-    font-weight: 600;
-    letter-spacing: 0.14em;
+    font-weight: 500;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     background: hsl(var(--surface));
   }

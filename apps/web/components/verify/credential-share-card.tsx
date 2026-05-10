@@ -19,7 +19,7 @@ export function CredentialShareCard({
   showDownload?: boolean
 }) {
   const verifyUrl = useVerifyUrl(cred.txHash)
-  const shareText = `${cred.studentInitials} passed ${cred.curriculum.title} (${cred.scorePct}%) — verified on-chain · ${verifyUrl}`
+  const shareText = `${cred.studentInitials} passed ${cred.curriculum.title} (${cred.scorePct}%), verified on-chain · ${verifyUrl}`
 
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle")
   const [pdfState, setPdfState] = useState<"idle" | "working" | "err">("idle")
@@ -87,7 +87,7 @@ export function CredentialShareCard({
             </div>
             <p className="mt-2 text-[0.875rem] leading-relaxed text-ink-soft">
               Anyone with this QR or link can audit the score, on-chain
-              receipt, and cryptographic commitments below — no login.
+              receipt, and cryptographic commitments below. No login needed.
             </p>
             <div className="mt-3 break-all rounded border border-rule bg-surface-soft px-3 py-2 font-mono text-[0.6875rem] text-ink-muted">
               {verifyUrl}
@@ -124,7 +124,7 @@ export function CredentialShareCard({
                 {pdfState === "working"
                   ? "Generating…"
                   : pdfState === "err"
-                    ? "Failed — retry"
+                    ? "Failed. Try again."
                     : "Certificate PDF"}
               </button>
             )}

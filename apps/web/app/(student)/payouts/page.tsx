@@ -56,9 +56,9 @@ export default function PayoutsPage() {
             Every rupee, <span className="display-italic text-teal">on the record.</span>
           </h1>
           <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-ink-muted">
-            Every payout corresponds to a verified, on-chain completion event.
-            The Razorpay reference is your bank-side receipt; the BaseScan tx
-            hash is your portable, shareable proof.
+            Each payout is tied to a quiz you passed. Your Razorpay ID is your
+            bank receipt. The chain hash is permanent proof, shareable
+            anywhere and verifiable by anyone.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule">
@@ -96,7 +96,7 @@ export default function PayoutsPage() {
           </span>
           <h3 className="display-md mt-3 text-ink">No earnings yet.</h3>
           <p className="mt-2 max-w-md text-[0.9375rem] text-ink-muted">
-            Pass a bounty quiz and your first INR payout lands here — settled
+            Pass a bounty quiz and your first payout lands here, settled
             in seconds.
           </p>
           <Link

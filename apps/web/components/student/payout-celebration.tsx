@@ -14,7 +14,7 @@ const STATUS_COPY: Record<Payout["status"], string> = {
   queued: "Queued for the payout worker",
   processing: "Razorpay is processing the UPI transfer",
   sent: "Sent to the bank network",
-  confirmed: "Confirmed — landed in your UPI",
+  confirmed: "Confirmed. Landed in your UPI.",
   failed: "Payout failed",
 }
 
@@ -321,8 +321,8 @@ function CredentialLiveBanner({ txHash }: { txHash: string }) {
           Credential is live
         </span>
         <p className="mt-1.5 max-w-xl text-[0.875rem] leading-relaxed text-ink-soft">
-          Anyone with this link can verify your score and on-chain receipt —
-          no login required. Open the verify page for the QR code and PDF
+          Anyone with this link can verify your score and on-chain receipt.
+          No login needed. Open the verify page for the QR code and PDF
           certificate.
         </p>
       </div>

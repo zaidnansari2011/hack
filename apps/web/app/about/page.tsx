@@ -1,7 +1,7 @@
 import Link from "next/link"
 
 export const metadata = {
-  title: "About — Proof-of-Learn",
+  title: "About · Proof-of-Learn",
   description:
     "Why we built a sponsor-funded, on-chain proof-of-learning protocol settled in INR over UPI.",
 }
@@ -29,13 +29,11 @@ function Hero() {
           <span className="display-italic text-teal">Receipts don&rsquo;t.</span>
         </h1>
         <p className="mt-8 max-w-2xl text-[1.0625rem] leading-relaxed text-ink-soft">
-          Proof-of-Learn is a protocol for sponsor-funded learning where every
-          completion is a public, on-chain receipt — and every student is paid
-          in INR over UPI within seconds of passing the quiz. We built it
-          because the existing pipeline between someone learning a skill and
-          someone hiring for it is broken on both ends: students pay to be
-          taught, sponsors don&rsquo;t see whether anyone learned anything,
-          and recruiters trust a CV more than they should.
+          Proof-of-Learn pays students for actually learning. Sponsors put
+          money into escrow, students work through an AI tutor, and the moment
+          a quiz clears (usually in a single session), rupees land in their
+          UPI. No PDFs for recruiters to guess at. No promises to take on
+          faith. Just a public receipt anyone can check.
         </p>
       </div>
     </section>
@@ -49,18 +47,18 @@ function Pillars() {
         <div className="grid gap-px overflow-hidden rounded-md border border-rule bg-rule lg:grid-cols-3">
           <Pillar
             eyebrow="01"
-            title="Sponsors fund completions, not enrolments"
-            body="Every payout is gated on a passed quiz. Money is escrowed up front, released per verified completion, and refundable on what wasn't earned. Sponsors stop guessing. Students stop being the ones taking risk."
+            title="Pay for learning that actually happened"
+            body="Every bounty pays out on a passed quiz, not a sign-up. Funds sit in escrow until a student earns them, then release automatically. Sponsors stop paying for effort. Students stop taking on the financial risk of trying."
           />
           <Pillar
             eyebrow="02"
-            title="The credential is the receipt"
-            body="There is no PDF a recruiter has to trust. Every pass is a soulbound token on Base, with a score commitment hash anyone can recompute against the on-chain record. Your wallet is your transcript."
+            title="Your wallet is your transcript"
+            body="There's no certificate anyone has to take on faith. Every completed quiz becomes a soulbound token on Base with a score hash anyone can recompute. When a recruiter asks for proof, you share a link. Not a PDF."
           />
           <Pillar
             eyebrow="03"
-            title="Settlement is in INR, not promises"
-            body="The reward lands in the student's UPI within seconds of the quiz being scored. We use blockchain where it does work — escrow, proof — and rails where they do — last-mile payment. No tokens for users to manage. No bridges. No friction."
+            title="Real rupees, not tokens you have to sell"
+            body="The reward lands in UPI within seconds of the quiz being scored. We use blockchain where it genuinely helps: escrow and proof. Familiar rails for the last mile. Students never need a wallet or a token."
           />
         </div>
       </div>
@@ -97,22 +95,22 @@ function Mechanics() {
     {
       num: "T+0s",
       head: "Sponsor funds a bounty",
-      body: "USDC into the escrow contract. Each bounty pins a curriculum hash, a per-student reward, and a max-students cap. Returnable any time before completion.",
+      body: "Funds go into a contract on Base. Each bounty specifies which curriculum, how much per student, and how many seats. Whatever goes unearned is fully reclaimable.",
     },
     {
       num: "T+30m",
       head: "Student learns with the AI tutor",
-      body: "Lessons grounded in a pgvector index, citations on every claim, three personas (Mentor / Examiner / Coach), four languages, and an inline check after each module.",
+      body: "The tutor works from the curriculum directly, not the internet. Every answer has a citation. Three conversation styles, four languages, and a quick check after each section.",
     },
     {
       num: "T+8m",
       head: "Proctored quiz, time-locked",
-      body: "Per-session question rotation, choice shuffling, and a fingerprinted lock-in. The score never leaves our backend in the clear — only its commitment.",
+      body: "Questions rotate each session, choices shuffle, and the clock runs. One shot per session. The score goes on-chain as a hash, not raw data, so it can't be disputed or tampered with.",
     },
     {
       num: "T+3s",
       head: "Payout to UPI · proof on-chain",
-      body: "Razorpay sends the INR. Escrow releases the reward. The credential mints. The activity feed updates. Three transactions, one moment.",
+      body: "Razorpay sends the rupees. Escrow releases. The credential mints. Three things happen in one moment, and the activity feed lights up.",
     },
   ]
   return (
@@ -157,7 +155,7 @@ function Closing() {
           Try it
         </span>
         <h2 className="mt-6 mx-auto max-w-[20ch] font-display text-[2.25rem] font-medium leading-[1.1] tracking-tight text-ink">
-          Pick a side. Each one is a different protocol.
+          Pick your role. The experience is completely different.
         </h2>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
           <Link

@@ -12,7 +12,7 @@ const ROLES = [
     eyebrow: "For companies funding learning",
     title: "Make the rupee follow the proof.",
     body:
-      "Open a bounty in under a minute: pick a curriculum, set per-student reward and seat cap, fund the escrow on Base. The contract releases one payout per verified completion — never speculatively, never to a no-show.",
+      "Open a bounty in under a minute: pick a curriculum, set per-student reward and seat cap, fund the escrow on Base. The contract releases one payout per verified completion. Never speculatively, never to a no-show.",
     proofs: [
       "Per-bounty USDC escrow with refundable balance",
       "BaseScan-linked tx hash on every release",
@@ -25,10 +25,10 @@ const ROLES = [
     eyebrow: "For learners who want guaranteed reward",
     title: "Learn the thing. Earn the rupee. Walk with the credential.",
     body:
-      "An AI tutor walks you through curriculum chunks with citations. When you're ready, take the anti-cheat quiz. Pass with sixty percent and your INR lands in UPI in seconds — plus a soulbound credential to your wallet.",
+      "An AI tutor walks you through curriculum chunks with citations. When you're ready, take the anti-cheat quiz. Pass with sixty percent and your INR lands in UPI in seconds. Plus a soulbound credential to your wallet.",
     proofs: [
       "Tutor answers grounded in real curriculum chunks",
-      "Soulbound credential — non-transferable",
+      "Soulbound credential, non-transferable",
       "INR settles via Razorpay UPI in seconds",
     ],
     cta: { label: "Browse active bounties", href: "/learn" },
@@ -75,7 +75,7 @@ function Header() {
       </div>
       <p className="text-balance text-[1.0625rem] leading-relaxed text-ink-muted">
         Sponsors and students see different views of the same shared state.
-        Funds, bounties, completions, payouts — every record is one row away
+        Funds, bounties, completions, payouts. Every record is one row away
         from the public on-chain event that proves it.
       </p>
     </motion.div>

@@ -147,13 +147,36 @@ async function loadEnrollment(args: { enrollmentId: string; userId: string }) {
   return enrollment
 }
 
+export async function getSessionList(args: {
+  enrollmentId: string
+  userId: string
+}): Promise<{ sessionIndex: number; messageCount: number; startedAt: string }[]> {
+  await loadEnrollment(args)
+  const groups = await prisma.chatMessage.groupBy({
+    by: ["sessionIndex"],
+    where: { enrollmentId: args.enrollmentId },
+    _count: { id: true },
+    _min: { createdAt: true },
+    orderBy: { sessionIndex: "asc" },
+  })
+  return groups.map((g) => ({
+    sessionIndex: g.sessionIndex,
+    messageCount: g._count.id,
+    startedAt: g._min.createdAt?.toISOString() ?? new Date().toISOString(),
+  }))
+}
+
 export async function getHistory(args: {
   enrollmentId: string
   userId: string
+  sessionIndex?: number
 }): Promise<ChatMessage[]> {
   await loadEnrollment(args)
   const rows = await prisma.chatMessage.findMany({
-    where: { enrollmentId: args.enrollmentId },
+    where: {
+      enrollmentId: args.enrollmentId,
+      ...(args.sessionIndex !== undefined ? { sessionIndex: args.sessionIndex } : {}),
+    },
     orderBy: { createdAt: "asc" },
   })
   return rows.map(toDto)
@@ -187,6 +210,7 @@ export async function sendMessage(args: {
   message: string
   lang?: TutorLanguage
   persona?: TutorPersona
+  sessionIndex?: number
 }): Promise<{ user: ChatMessage; tutor: ChatMessage }> {
   const trimmed = args.message.trim()
   if (!trimmed) throw new Error("Message cannot be empty")
@@ -196,12 +220,14 @@ export async function sendMessage(args: {
 
   // Persist the student's message before we call the LLM, so a Groq failure
   // doesn't lose what they typed.
+  const sessionIndex = args.sessionIndex ?? 0
   const userMessage = await prisma.chatMessage.create({
     data: {
       enrollmentId: enrollment.id,
       userId: args.userId,
       role: "user",
       content: trimmed,
+      sessionIndex,
     },
   })
 
@@ -212,10 +238,9 @@ export async function sendMessage(args: {
     limit: 4,
   })
 
-  // Build conversation history for Groq (capped). We re-fetch instead of
-  // mutating an in-memory list so the system stays correct after restarts.
+  // Build conversation history for Groq — scoped to the current session.
   const history = await prisma.chatMessage.findMany({
-    where: { enrollmentId: enrollment.id },
+    where: { enrollmentId: enrollment.id, sessionIndex },
     orderBy: { createdAt: "desc" },
     take: MAX_HISTORY_MESSAGES,
   })
@@ -277,6 +302,7 @@ export async function sendMessage(args: {
       role: "tutor",
       content: tutorContent,
       citations: citations as unknown as Prisma.InputJsonValue,
+      sessionIndex,
     },
   })
 
@@ -324,6 +350,7 @@ export async function teachModule(args: {
   userId: string
   moduleIndex: number
   lang?: TutorLanguage
+  sessionIndex?: number
 }): Promise<ChatMessage> {
   const enrollment = await loadEnrollment(args)
   const curriculum = enrollment.bounty.curriculum
@@ -412,6 +439,7 @@ export async function teachModule(args: {
       role: "tutor",
       content: tutorContent,
       citations: blob as unknown as Prisma.InputJsonValue,
+      sessionIndex: args.sessionIndex ?? 0,
     },
   })
 
@@ -522,6 +550,7 @@ export async function submitCheckAnswer(args: {
   moduleIndex: number
   questionId: string
   answeredIndex: number
+  sessionIndex?: number
 }): Promise<{
   correct: boolean
   correctIndex: number
@@ -559,6 +588,7 @@ export async function submitCheckAnswer(args: {
       role: "tutor",
       content,
       citations: blob as unknown as Prisma.InputJsonValue,
+      sessionIndex: args.sessionIndex ?? 0,
     },
   })
 

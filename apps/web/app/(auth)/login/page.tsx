@@ -90,7 +90,7 @@ function LoginInner() {
   return (
     <AuthCard
       title="Welcome back"
-      subtitle="Log in to fund bounties or continue your learning."
+      subtitle="Good to see you again. Pick up right where you left off."
       footer={
         <>
           New here?{" "}

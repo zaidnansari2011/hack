@@ -1,13 +1,12 @@
 import type { Metadata } from "next"
-import { Fraunces, Geist, JetBrains_Mono } from "next/font/google"
+import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google"
 
-import { SiteFooter } from "@/components/layout/site-footer"
-import { SiteHeader } from "@/components/layout/site-header"
+import { AppShell } from "@/components/layout/app-shell"
 
 import "./globals.css"
 
-// Fraunces is a variable font; passing `weight: "variable"` is required
-// before we can use the `axes` option (opsz + SOFT for the editorial feel).
+// Fraunces: variable font with opsz + SOFT axes. SOFT at high values gives
+// rounded, gentle letterforms — far less sharp than the default.
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
@@ -17,7 +16,7 @@ const display = Fraunces({
   style: ["normal", "italic"],
 })
 
-const body = Geist({
+const body = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
@@ -32,7 +31,7 @@ const mono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Proof-of-Learn — Sponsor-funded learning, settled in seconds",
+  title: "Proof-of-Learn: Sponsor-funded learning, settled in seconds",
   description:
     "An editorial-grade proof-of-learning protocol. Sponsors deposit USDC into escrow on Base; students learn with an AI tutor; verified completions settle in INR over UPI in seconds.",
 }
@@ -45,11 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-paper text-ink antialiased">
-        <div className="relative flex min-h-screen flex-col">
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   )

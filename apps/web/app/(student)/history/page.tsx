@@ -83,9 +83,9 @@ export default function HistoryPage() {
             <span className="display-italic text-teal">learned and earned.</span>
           </h1>
           <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-ink-muted">
-            One row per bounty you've enrolled in. Completed ones move here so
-            the marketplace stays focused on what's still earnable. Each row
-            links to your on-chain proof and INR receipt.
+            Everything you've signed up for, all in one place. Completed
+            bounties move here so your active list stays clean. Each row links
+            to your on-chain proof and payment record.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-rule bg-rule">

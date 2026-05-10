@@ -17,12 +17,12 @@ const ROLES: { value: UserRole; label: string; copy: string }[] = [
   {
     value: "sponsor",
     label: "Sponsor",
-    copy: "Fund bounties, see verified completions on-chain.",
+    copy: "Back learners you believe in. Pay only when they prove it.",
   },
   {
     value: "student",
     label: "Student",
-    copy: "Learn, pass the quiz, earn ₹ to UPI in seconds.",
+    copy: "Study a curriculum, pass the quiz, earn rupees.",
   },
 ]
 
@@ -61,7 +61,7 @@ export default function SignupPage() {
   return (
     <AuthCard
       title="Create your account"
-      subtitle="Pick a role to get started — you can switch later."
+      subtitle="Let's get you started. Tell us how you'll use Proof-of-Learn."
       footer={
         <>
           Already have an account?{" "}

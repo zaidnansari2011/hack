@@ -16,28 +16,19 @@ export function QuickAccess() {
     >
       <div className="mx-auto w-[min(1240px,94vw)] px-0 py-7 lg:py-9">
         <div className="flex flex-col items-start justify-between gap-5 lg:flex-row lg:items-center">
-          <div className="max-w-md">
-            <span className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-teal">
-              Pick your view
-            </span>
-            <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-soft">
-              Three roles, three flows — see the protocol from whichever side
-              matters to you.
-            </p>
-          </div>
-          <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-3 lg:w-auto lg:flex lg:gap-3">
+          <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-3 lg:flex lg:gap-3">
             <RoleTile
               role="student"
               eyebrow="Earn"
               title="I want to learn"
-              detail="Take a curriculum, pass the quiz, get paid in INR."
+              detail="Learn at your own pace. Pass the quiz and earn real rupees."
               href="/login?role=student"
             />
             <RoleTile
               role="sponsor"
               eyebrow="Fund"
               title="I want to sponsor"
-              detail="Deposit USDC into bounties, watch verified completions."
+              detail="Back skills you care about. You only pay when someone proves it."
               href="/login?role=sponsor"
               highlighted
             />
@@ -45,7 +36,7 @@ export function QuickAccess() {
               role="recruit"
               eyebrow="Hire"
               title="I want to hire"
-              detail="Search verified-on-chain talent. No login required."
+              detail="Find people whose skills have real proof behind them. No account needed."
               href="/recruit"
             />
           </div>
@@ -73,13 +64,13 @@ function RoleTile({
   return (
     <Link
       href={href}
-      className={`group relative isolate flex flex-col justify-between overflow-hidden rounded-md border bg-surface px-4 py-3.5 transition-all duration-300 ease-out-quart hover:border-ink/30 lg:w-[18rem] ${
+      className={`group relative isolate flex flex-col justify-between overflow-hidden rounded-xl border bg-surface px-5 py-4 transition-all duration-300 ease-out-quart hover:border-ink/30 lg:w-[18rem] ${
         highlighted ? "border-teal/40 bg-teal-soft/40" : "border-rule"
       }`}
     >
       <div className="flex items-center gap-2.5">
         <RoleGlyph role={role} />
-        <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
+        <span className="text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-ink-muted">
           {eyebrow}
         </span>
       </div>
@@ -91,11 +82,8 @@ function RoleTile({
           {detail}
         </p>
       </div>
-      <div className="mt-3.5 inline-flex items-center gap-1 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-ink-soft transition-colors group-hover:text-ink">
-        Continue
-        <span className="transition-transform duration-300 ease-out-quart group-hover:translate-x-0.5">
-          →
-        </span>
+      <div className="mt-3.5 inline-flex items-center gap-1 text-[0.8125rem] font-medium text-ink-soft transition-colors group-hover:text-ink">
+        <span className="transition-transform duration-300 ease-out-quart group-hover:translate-x-0.5">→</span>
       </div>
     </Link>
   )

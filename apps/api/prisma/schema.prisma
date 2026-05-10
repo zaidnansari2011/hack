@@ -277,7 +277,9 @@ model ChatMessage {
   role         ChatRole
   content      String
   citations    Json?
+  sessionIndex Int        @default(0)
   createdAt    DateTime   @default(now())
 
   @@index([enrollmentId, createdAt])
+  @@index([enrollmentId, sessionIndex])
 }

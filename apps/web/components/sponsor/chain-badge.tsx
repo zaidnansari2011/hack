@@ -33,7 +33,7 @@ export function ChainBadge() {
           : "border-amber/40 bg-amber/10 text-amber",
       ].join(" ")}
       title={
-        live ? `Live on chain ${status.chainId}` : "Demo mode — tx hashes are simulated"
+        live ? `Live on chain ${status.chainId}` : "Demo mode, tx hashes are simulated"
       }
     >
       <span

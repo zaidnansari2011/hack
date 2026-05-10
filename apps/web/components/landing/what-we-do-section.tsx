@@ -10,19 +10,19 @@ const TENETS = [
     n: "01",
     headline: "Money should follow learning, not the other way around.",
     body:
-      "Sponsors deposit USDC into per-bounty escrow before a single student enrolls. The pool releases one student-sized payout per verified completion — never speculatively, never on a self-reported badge.",
+      "Sponsors deposit funds before anyone enrols. The pool releases exactly one payout per verified completion. Not per sign-up, not per self-reported badge. No guesswork on either side.",
   },
   {
     n: "02",
     headline: "If you can't see the proof, it isn't proof.",
     body:
-      "Every passed quiz emits a public LearningVerified event on Base and mints a soulbound credential to the student's wallet. The hash is the receipt, the receipt is the credential, the credential is the audit trail.",
+      "Every passed quiz puts a public record on Base and mints a credential to the student's wallet. It's not a certificate someone issued. It's a hash anyone can recompute. That's the difference.",
   },
   {
     n: "03",
     headline: "Get the rupee to UPI before the celebration ends.",
     body:
-      "INR settles via Razorpay UPI in seconds — not days. The on-chain event and the off-chain payout fire from the same pipeline so the student feels one moment, not a queue.",
+      "The rupees arrive via UPI in seconds, not days. The on-chain record and the payment fire from the same pipeline — the student gets paid before they've switched tabs.",
   },
 ] as const
 
@@ -63,9 +63,9 @@ function Header() {
         </h2>
       </div>
       <p className="text-balance text-[1.0625rem] leading-relaxed text-ink-muted">
-        We treat education like a financial primitive. The same standards we
-        expect from clearing systems — deterministic settlement, public
-        receipts, no creative accounting — should apply to learning rewards.
+        Learning should pay out the way finance does: on verified facts, not
+        vibes. What settles between a sponsor and a student should be as clear
+        as what settles between two banks.
       </p>
     </motion.div>
   )

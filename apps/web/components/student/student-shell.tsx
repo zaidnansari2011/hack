@@ -84,7 +84,7 @@ export function StudentShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <div className="mx-auto w-[min(1240px,94vw)] py-12">{children}</div>
+      <div className={showSubNav ? "mx-auto w-[min(1240px,94vw)] py-12" : ""}>{children}</div>
     </div>
   )
 }
