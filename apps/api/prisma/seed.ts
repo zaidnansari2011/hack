@@ -79,7 +79,7 @@ const CURRICULA: CurriculumSeed[] = [
     title: "Rust Foundations",
     summary:
       "Memory safety without a garbage collector. Learn ownership, borrowing, lifetimes, and build your first CLI.",
-    topics: ["Ownership", "Borrowing", "Lifetimes", "Traits", "Error handling"],
+    topics: ["Systems Programming", "Rust", "Backend"],
     estimatedMinutes: 90,
     contentFile: "rust-101.md",
     quizFile: "quiz-rust-101.json",
@@ -139,7 +139,7 @@ const CURRICULA: CurriculumSeed[] = [
     title: "Solidity & Smart Contract Security",
     summary:
       "Build, test, and ship audited Solidity. Storage layout, reentrancy, access control, and the Foundry workflow.",
-    topics: ["Storage", "Visibility", "Reentrancy", "Events", "ERC standards", "Foundry"],
+    topics: ["Smart Contracts", "Web3", "Security", "Solidity"],
     estimatedMinutes: 110,
     contentFile: "solidity-101.md",
     quizFile: "quiz-solidity-101.json",
@@ -199,7 +199,7 @@ const CURRICULA: CurriculumSeed[] = [
     title: "Python for Data Analysis",
     summary:
       "From messy CSV to polished chart. Pandas, group-by, matplotlib, and the Jupyter habits that prevent 3am debugging.",
-    topics: ["DataFrames", "Cleaning", "Group-by", "Visualization", "Time series"],
+    topics: ["Data Science", "Python", "Analytics", "Data Visualization"],
     estimatedMinutes: 100,
     contentFile: "python-data-101.md",
     quizFile: "quiz-python-data-101.json",
@@ -259,7 +259,7 @@ const CURRICULA: CurriculumSeed[] = [
     title: "React Fundamentals",
     summary:
       "The mental model that scales: components, state, effects done right. Stop fighting hooks; start composing them.",
-    topics: ["Components", "State", "Effects", "Hooks", "Performance"],
+    topics: ["Frontend", "React", "Web Development", "UI Engineering"],
     estimatedMinutes: 95,
     contentFile: "react-101.md",
     quizFile: "quiz-react-101.json",
@@ -321,9 +321,9 @@ const BOUNTIES: BountySeed[] = [
     id: "00000000-0000-0000-0000-000000000001",
     sponsorEmail: "sponsor@demo.pol",
     curriculumSlug: "rust-101",
-    title: "Learn Rust, earn ₹250",
+    title: "Rust Systems Engineering track",
     description:
-      "Acme is funding 100 verified Rust completions for engineering students. Pass the quiz, get ₹250 to your UPI in seconds.",
+      "Acme is funding verified Rust completions for engineering students. Master memory-safety and build a functional CLI.",
     rewardInr: 250,
     rewardUsdcMicros: 3_000_000n,
     maxStudents: 100,
@@ -335,9 +335,9 @@ const BOUNTIES: BountySeed[] = [
     id: "00000000-0000-0000-0000-000000000002",
     sponsorEmail: "grants@web3india.example",
     curriculumSlug: "solidity-101",
-    title: "Master Solidity security, earn ₹400",
+    title: "Master Solidity security",
     description:
-      "Web3 India is bootstrapping 50 audit-ready Solidity engineers. Complete the curriculum and the anti-cheat quiz to unlock ₹400 — one of our highest payouts.",
+      "Web3 India is bootstrapping 50 audit-ready Solidity engineers. Complete the curriculum and the anti-cheat verification to get your certification.",
     rewardInr: 400,
     rewardUsdcMicros: 4_800_000n,
     maxStudents: 50,
@@ -349,9 +349,9 @@ const BOUNTIES: BountySeed[] = [
     id: "00000000-0000-0000-0000-000000000003",
     sponsorEmail: "diversity@kalpataru.example",
     curriculumSlug: "python-data-101",
-    title: "Pandas & matplotlib, earn ₹300",
+    title: "Pandas & matplotlib foundations",
     description:
-      "Kalpataru is funding 200 women and non-binary learners through hands-on data analysis. Open to all — funded for the first 200.",
+      "Kalpataru is funding 200 women and non-binary learners through hands-on data analysis. Open to all students to upskill in AI.",
     rewardInr: 300,
     rewardUsdcMicros: 3_600_000n,
     maxStudents: 200,
@@ -363,9 +363,9 @@ const BOUNTIES: BountySeed[] = [
     id: "00000000-0000-0000-0000-000000000004",
     sponsorEmail: "talent@bluestack.example",
     curriculumSlug: "react-101",
-    title: "Ship React, earn ₹250",
+    title: "Ship React applications",
     description:
-      "Bluestack is hiring junior React engineers. Complete this curriculum to earn ₹250 and an interview slot — a verified credential is worth more than a resume line.",
+      "Bluestack is hiring junior React engineers. Complete this curriculum to get a verified credential and open up an interview slot for our latest cohort.",
     rewardInr: 250,
     rewardUsdcMicros: 3_000_000n,
     maxStudents: 150,

@@ -11,7 +11,7 @@ const STEPS = [
     label: "Fund",
     title: "Sponsor deposits into escrow.",
     body:
-      "A sponsor signs once: rewardPerStudent × maxStudents in USDC, locked in the ProofOfLearnEscrow contract on Base. The contract holds it until a verifier signs off, or the sponsor calls refund.",
+      "A sponsor deposits once: reward per student × number of seats, locked in a contract on Base. It sits there until a student earns it, or the sponsor reclaims what went unearned.",
     detail: "depositBounty(bountyId, curriculumHash, ...)",
   },
   {
@@ -19,7 +19,7 @@ const STEPS = [
     label: "Learn",
     title: "An AI tutor grounded in real curriculum.",
     body:
-      "Students ask questions; retrieval pulls the relevant chunks from pgvector + full-text search. Groq Llama 3.1 generates the answer — every claim cited back to a numbered section.",
+      "The student asks questions; the tutor answers from the actual curriculum, not the internet. Every answer cites the source, so the student knows exactly where it came from.",
     detail: "POST /tutor/messages — RAG over curriculum chunks",
   },
   {
@@ -27,7 +27,7 @@ const STEPS = [
     label: "Verify",
     title: "Anti-cheat quiz, scored server-side.",
     body:
-      "Five randomized MCQs from a topic-balanced bank. Per-session shuffle salt, browser fingerprint capture, single submission, time-bounded session. Sixty percent passes.",
+      "Five questions drawn fresh each session, with randomized order and a time limit. Single submission, session-bound. No peeking between attempts. Score 60% to pass.",
     detail: "deterministic Fisher-Yates over a SHA-256 keystream",
   },
   {
@@ -35,7 +35,7 @@ const STEPS = [
     label: "Settle",
     title: "₹ to UPI, proof to chain.",
     body:
-      "On pass, the verifier triggers releasePayout() and mints a soulbound LearnCredential. In parallel, Razorpay X UPI sends the rupees to the student's bank in seconds.",
+      "On a pass, the escrow releases, the credential mints, and Razorpay sends the rupees. All in the same breath. By the time you close the quiz, the money is already moving.",
     detail: "LearningVerified · CredentialMinted · Razorpay payout",
   },
 ] as const
@@ -74,7 +74,7 @@ function Header() {
     >
       <div className="eyebrow eyebrow-tick">Methodology</div>
       <h2 className="display-lg mt-5 max-w-[20ch] text-balance text-ink">
-        From an empty bounty to a verified rupee —{" "}
+        From an empty bounty to a verified rupee,{" "}
         <span className="display-italic text-teal">in four steps.</span>
       </h2>
     </motion.div>

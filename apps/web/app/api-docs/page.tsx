@@ -1,7 +1,7 @@
 import Link from "next/link"
 
 export const metadata = {
-  title: "API — Proof-of-Learn",
+  title: "API · Proof-of-Learn",
   description:
     "Public read endpoints for verifying credentials and querying the on-chain talent layer.",
 }

@@ -42,7 +42,7 @@ export function SiteHeader() {
         </Link>
 
         {onLanding && (
-          <nav className="hidden items-center gap-7 text-[0.875rem] text-ink-soft md:flex">
+          <nav className="hidden items-center gap-7 text-[0.9375rem] text-ink-soft md:flex">
             {NAV.map((item) => (
               <a
                 key={item.href}
@@ -56,10 +56,6 @@ export function SiteHeader() {
         )}
 
         <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-ink-muted lg:inline-flex">
-            <span className="live-dot" />
-            Base Sepolia
-          </span>
           <AuthPill />
         </div>
       </div>
@@ -89,7 +85,7 @@ function Wordmark() {
         <span className="font-display text-[1.0625rem] font-medium tracking-tight">
           Proof-of-Learn
         </span>
-        <span className="hidden font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-faint sm:inline">
+        <span className="hidden font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-faint sm:inline">
           /v1
         </span>
       </span>

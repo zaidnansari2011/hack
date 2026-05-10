@@ -112,7 +112,7 @@ function Header() {
       </div>
       <p className="text-balance text-[1.0625rem] leading-relaxed text-ink-muted">
         Pulled directly from Postgres + on-chain index. Every row is a real
-        platform event — bounties opening, students enrolling, quizzes
+        platform event: bounties opening, students enrolling, quizzes
         passing, rupees moving.
       </p>
     </div>
@@ -169,7 +169,7 @@ function ActivityRow({ ev }: { ev: ActivityEvent }) {
         <strong className="text-ink">{ev.studentInitials}</strong>{" "}
         <span className="text-ink-muted">passed</span>{" "}
         <strong className="text-ink">{ev.bountyTitle}</strong>{" "}
-        <span className="text-ink-faint">— {ev.curriculumTitle}</span>
+        <span className="text-ink-faint">· {ev.curriculumTitle}</span>
       </span>
     )
     right = ev.txHash ? (
@@ -190,7 +190,7 @@ function ActivityRow({ ev }: { ev: ActivityEvent }) {
         <span className="text-ink-muted">opened</span>{" "}
         <strong className="text-ink">{ev.bountyTitle}</strong>{" "}
         <span className="text-ink-faint">
-          — {ev.maxStudents.toLocaleString("en-IN")} seats × ₹
+          · {ev.maxStudents.toLocaleString("en-IN")} seats ×  ₹
           {ev.rewardInr.toLocaleString("en-IN")}
         </span>
       </span>

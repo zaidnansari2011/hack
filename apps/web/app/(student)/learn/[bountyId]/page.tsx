@@ -8,6 +8,8 @@ import type { ChatMessage, EnrollmentDetail } from "@pol/shared"
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { TutorChat } from "@/components/student/tutor-chat"
 
+type SessionSummary = { sessionIndex: number; messageCount: number; startedAt: string }
+
 type BootState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -15,6 +17,8 @@ type BootState =
       status: "ready"
       enrollment: EnrollmentDetail
       messages: ChatMessage[]
+      sessions: SessionSummary[]
+      initialSessionIndex: number
     }
 
 export default function BountyLearnPage() {
@@ -27,38 +31,50 @@ export default function BountyLearnPage() {
 
     async function boot() {
       try {
-        // 1. Try to find an existing enrollment for this bounty.
         const existing = await apiFetch<{ enrollment: EnrollmentDetail | null }>(
           `/enrollments/by-bounty/${bountyId}`,
         )
 
         let enrollment: EnrollmentDetail | null = existing.enrollment
 
-        // 2. If none, create one. (POST /enrollments is idempotent on the
-        //    backend.)
         if (!enrollment) {
           const created = await apiFetch<{ enrollment: EnrollmentDetail }>(
             "/enrollments",
             { method: "POST", json: { bountyId } },
           )
-          // The created response gives us the enrollment without bounty/curriculum
-          // joins; refetch the detail view to get the full shape.
           const detail = await apiFetch<{ enrollment: EnrollmentDetail }>(
             `/enrollments/${created.enrollment.id}`,
           )
           enrollment = detail.enrollment
         }
 
-        // 3. Load chat history.
-        const history = await apiFetch<{ messages: ChatMessage[] }>(
-          `/tutor/history/${enrollment.id}`,
+        // Try to load session list. Gracefully fall back to session 0 if the
+        // endpoint isn't available yet (e.g. migration hasn't run).
+        let sessions: SessionSummary[] = []
+        let latestSessionIndex = 0
+        try {
+          const sessionRes = await apiFetch<{ sessions: SessionSummary[] }>(
+            `/tutor/sessions/${enrollment.id}`,
+          )
+          sessions = sessionRes.sessions
+          if (sessions.length > 0) {
+            latestSessionIndex = Math.max(...sessions.map((s) => s.sessionIndex))
+          }
+        } catch {
+          // Sessions not available — treat everything as session 0.
+        }
+
+        const historyRes = await apiFetch<{ messages: ChatMessage[] }>(
+          `/tutor/history/${enrollment.id}?session=${latestSessionIndex}`,
         )
 
         if (!cancelled) {
           setState({
             status: "ready",
             enrollment,
-            messages: history.messages,
+            messages: historyRes.messages,
+            sessions,
+            initialSessionIndex: latestSessionIndex,
           })
         }
       } catch (err) {
@@ -81,23 +97,23 @@ export default function BountyLearnPage() {
 
   if (state.status === "loading") {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-64 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-[500px] animate-pulse rounded-2xl border border-slate-200/70 bg-white/60" />
+      <div className="space-y-3">
+        <div className="h-4 w-32 animate-pulse rounded-full bg-rule/40" />
+        <div className="h-[calc(100vh-130px)] animate-pulse rounded-xl border border-rule bg-surface" />
       </div>
     )
   }
 
   if (state.status === "error") {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-        <h2 className="text-base font-semibold text-red-900">
+      <div className="rounded-xl border border-rule bg-surface p-7">
+        <h2 className="font-display text-[1rem] font-medium text-terracotta">
           Couldn't open this curriculum
         </h2>
-        <p className="mt-1 text-sm text-red-700">{state.message}</p>
+        <p className="mt-2 text-[0.875rem] leading-relaxed text-ink-muted">{state.message}</p>
         <Link
           href="/learn"
-          className="mt-3 inline-block text-sm font-semibold text-red-900 underline-offset-4 hover:underline"
+          className="mt-4 inline-flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint transition-colors hover:text-ink-soft"
         >
           ← Back to bounties
         </Link>
@@ -106,19 +122,12 @@ export default function BountyLearnPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <Link
-          href="/learn"
-          className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 hover:text-slate-700"
-        >
-          ← All bounties
-        </Link>
-      </div>
-      <TutorChat
-        enrollment={state.enrollment}
-        initialMessages={state.messages}
-      />
-    </div>
+    // TutorChat uses fixed inset-0 z-50 — this wrapper is just a mount point.
+    <TutorChat
+      enrollment={state.enrollment}
+      initialMessages={state.messages}
+      initialSessions={state.sessions}
+      initialSessionIndex={state.initialSessionIndex}
+    />
   )
 }

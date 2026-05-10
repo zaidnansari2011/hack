@@ -53,11 +53,10 @@ function Narrative() {
             Pull-quote
           </span>
           <blockquote className="mt-5 font-display text-[2.25rem] leading-[1.1] tracking-tight text-ink">
-            "Mocked tests passed but the prod migration failed. We don't want
+            "Learning should leave a mark. Not just a certificate. Every payout here is tied to something you
             <span className="display-italic text-teal">
-              {" "}that bug{" "}
-            </span>
-            in education funding either."
+              {" "}actually proved.{" "}
+            </span>"
           </blockquote>
         </div>
       </div>

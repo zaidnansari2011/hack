@@ -19,7 +19,7 @@ const STATUS_VARIANT: Record<Bounty["status"], StatusVariant> = {
   closed: "neutral",
 }
 
-export function BountyRow({ bounty }: { bounty: Bounty }) {
+export function BountyRow({ bounty }: { bounty: Bounty & { curriculum?: any } }) {
   const progress = bounty.maxStudents
     ? Math.min(100, Math.round((bounty.completed / bounty.maxStudents) * 100))
     : 0
@@ -29,21 +29,33 @@ export function BountyRow({ bounty }: { bounty: Bounty }) {
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="truncate font-display text-[1rem] font-medium text-ink">
-            {bounty.title}
+            {bounty.curriculum?.title || bounty.title}
           </h3>
           <Badge variant={STATUS_VARIANT[bounty.status]}>{bounty.status}</Badge>
         </div>
         <p className="mt-0.5 line-clamp-1 text-[0.8125rem] text-ink-muted">
           {bounty.description}
         </p>
+        
+        {bounty.curriculum?.topics && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {bounty.curriculum.topics.map((t: string) => (
+              <span key={t} className="inline-flex rounded border border-rule px-1.5 py-[1px] font-mono text-[0.5625rem] uppercase tracking-wide text-ink-faint">
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
-        <div className="eyebrow text-[0.625rem]">Per completion</div>
-        <div className="tabular mt-1 font-display text-[1.125rem] font-medium text-ink">
-          ₹{bounty.rewardInr.toLocaleString("en-IN")}
-          <span className="ml-1 font-mono text-[0.6875rem] font-normal text-ink-faint">
-            ${bounty.rewardUsdc.toFixed(2)}
+        <div className="eyebrow text-[0.625rem]">Reward Pill</div>
+        <div className="mt-1 flex items-center">
+          <span className="inline-flex items-center rounded-full border border-teal/30 bg-teal/5 px-2.5 py-0.5 font-display text-[1rem] font-medium tabular text-teal">
+            ₹{bounty.rewardInr.toLocaleString("en-IN")}
+            <span className="ml-1.5 font-mono text-[0.625rem] text-teal/70">
+              ${bounty.rewardUsdc.toFixed(2)}
+            </span>
           </span>
         </div>
       </div>

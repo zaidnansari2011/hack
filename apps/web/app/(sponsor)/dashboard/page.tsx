@@ -66,7 +66,7 @@ export default function SponsorDashboardPage() {
         <div>
           <div className="eyebrow eyebrow-tick">Sponsor portal</div>
           <h1 className="display-lg mt-3 text-balance text-ink">
-            Funded ledger
+            Your impact
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <ChainBadge />
@@ -128,9 +128,9 @@ export default function SponsorDashboardPage() {
 
           <section>
             <div className="flex items-baseline justify-between">
-              <h2 className="eyebrow eyebrow-tick">Unit economics</h2>
+              <h2 className="eyebrow eyebrow-tick">How far your rupees go</h2>
               <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
-                vs ₹35,000 bootcamp seat
+                vs a ₹35,000 bootcamp seat
               </span>
             </div>
             <div className="mt-5 grid gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-4">

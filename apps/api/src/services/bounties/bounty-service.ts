@@ -185,9 +185,13 @@ export async function listMyBounties(userId: string): Promise<Bounty[]> {
 
   const rows = await prisma.bounty.findMany({
     where: { sponsorId: sponsor.id },
+    include: { curriculum: true },
     orderBy: { createdAt: "desc" },
   })
-  return rows.map(toBountyDto)
+  return rows.map((b) => ({
+    ...toBountyDto(b),
+    curriculum: toCurriculumDto(b.curriculum),
+  }))
 }
 
 // ─── Sponsor: dashboard summary ───────────────────────────────────────────────
@@ -226,6 +230,7 @@ export async function getSponsorDashboard(
 
   const rows = await prisma.bounty.findMany({
     where: { sponsorId: sponsor.id },
+    include: { curriculum: true },
     orderBy: { createdAt: "desc" },
   })
 
@@ -339,13 +344,18 @@ export async function getSponsorDashboard(
     .sort((a, b) => b.scorePct - a.scorePct)
     .slice(0, 5)
 
+  // Optimization: sponsor rows are already fetched below. But we need curriculum info.
+  // Actually, rows above don't include curriculum. Let's modify the map.
   return {
     totalBounties: rows.length,
     activeBounties: active,
     studentsCompleted,
     totalCommittedInr: totalCommitted,
     totalRemainingInr: totalRemaining,
-    recentBounties: rows.slice(0, 5).map(toBountyDto),
+    recentBounties: rows.slice(0, 5).map((b) => ({
+      ...toBountyDto(b),
+      curriculum: toCurriculumDto(b.curriculum),
+    })),
     analytics: {
       costPerVerifiedLearnerInr,
       completionRatePct,

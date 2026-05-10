@@ -90,7 +90,7 @@ export function QuizRunner({ bountyId, session }: Props) {
       setError(
         err instanceof ApiClientError
           ? err.message
-          : "Submission failed — try again",
+          : "Submission failed. Try again.",
       )
     } finally {
       setSubmitting(false)
@@ -242,7 +242,7 @@ function AntiCheatRibbon({
     },
     {
       label: "Answers shuffled per session",
-      tip: "Choice order is permuted with a session-specific seed — answer keys can't be cached",
+      tip: "Choice order is randomized per session, so answer keys can't be cached.",
     },
     {
       label: "Session fingerprint logged",
@@ -374,7 +374,7 @@ function SidePanel({
         </div>
         <p className="mt-3 text-[0.6875rem] leading-relaxed text-ink-muted">
           {expired
-            ? "Session expired — start a new quiz to retry."
+            ? "Session expired. Start a new quiz to retry."
             : "Pass with sixty percent or higher to claim the bounty."}
         </p>
       </div>

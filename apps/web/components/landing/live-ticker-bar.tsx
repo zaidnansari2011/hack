@@ -102,7 +102,7 @@ export function LiveTickerBar() {
     <div className="border-b border-rule bg-paper-deep/40">
       <div className="mx-auto flex h-9 w-[min(1240px,94vw)] items-center gap-4 overflow-hidden">
         <span
-          className="hidden shrink-0 items-center gap-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-teal sm:inline-flex"
+          className="hidden shrink-0 items-center gap-2 text-[0.75rem] font-medium text-teal sm:inline-flex"
           title={
             transport === "sse"
               ? "Streaming over Server-Sent Events"
@@ -126,8 +126,10 @@ export function LiveTickerBar() {
               ))}
             </div>
           ) : (
-            <div className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
-              connecting to Base Sepolia…
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-24 animate-pulse rounded-full bg-rule/60" />
+              <span className="inline-block h-2 w-16 animate-pulse rounded-full bg-rule/40" />
+              <span className="inline-block h-2 w-20 animate-pulse rounded-full bg-rule/50" />
             </div>
           )}
         </div>
@@ -140,9 +142,7 @@ function TickerItem({ event }: { event: ActivityEvent }) {
   if (event.kind === "completion") {
     const inner = (
       <>
-        <span className="font-mono text-[0.6875rem] font-semibold text-forest">
-          ✓ paid
-        </span>
+        <span className="text-[0.8125rem] font-semibold text-forest">✓ paid</span>
         <span className="text-[0.8125rem] text-ink-soft">
           {event.studentInitials} earned ₹
           {event.rewardInr.toLocaleString("en-IN")} ·{" "}
@@ -164,9 +164,7 @@ function TickerItem({ event }: { event: ActivityEvent }) {
   if (event.kind === "bounty_funded") {
     return (
       <span className="flex items-center gap-2">
-        <span className="font-mono text-[0.6875rem] font-semibold text-teal">
-          $ funded
-        </span>
+        <span className="text-[0.8125rem] font-semibold text-teal">$ funded</span>
         <span className="text-[0.8125rem] text-ink-soft">
           {event.sponsorName} backed{" "}
           {event.maxStudents.toLocaleString("en-IN")} seats · {event.bountyTitle}
@@ -176,9 +174,7 @@ function TickerItem({ event }: { event: ActivityEvent }) {
   }
   return (
     <span className="flex items-center gap-2">
-      <span className="font-mono text-[0.6875rem] font-semibold text-ink-faint">
-        + enrolled
-      </span>
+      <span className="text-[0.8125rem] font-medium text-ink-faint">+ enrolled</span>
       <span className="text-[0.8125rem] text-ink-soft">
         {event.studentInitials} started {event.curriculumTitle}
       </span>
