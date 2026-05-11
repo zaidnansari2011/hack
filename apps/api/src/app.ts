@@ -37,6 +37,10 @@ export function createApp(): Express {
     }),
   )
 
+  app.get("/", (_req, res) => {
+    res.json({ success: true, data: { name: "Proof-of-Learn API", version: "v1", docs: "/api/v1" } })
+  })
+
   app.use("/api/v1", apiRouter)
 
   app.use(notFoundHandler)

@@ -173,7 +173,7 @@ function Profile({ profile }: { profile: WalletProfile }) {
                   month: "short",
                   year: "numeric",
                 })
-              : "—"
+              : "·"
           }
         />
       </div>

@@ -139,7 +139,7 @@ export default function SponsorDashboardPage() {
                 value={
                   data.analytics.costPerVerifiedLearnerInr > 0
                     ? `₹${data.analytics.costPerVerifiedLearnerInr.toLocaleString("en-IN")}`
-                    : "—"
+                    : "·"
                 }
                 hint={
                   data.analytics.bootcampMultiplier > 0
@@ -159,7 +159,7 @@ export default function SponsorDashboardPage() {
                 value={
                   data.analytics.averageScorePct > 0
                     ? `${data.analytics.averageScorePct}%`
-                    : "—"
+                    : "·"
                 }
                 hint="Across all passed quizzes"
               />
@@ -168,7 +168,7 @@ export default function SponsorDashboardPage() {
                 value={
                   data.analytics.medianMinutesToComplete !== null
                     ? `${data.analytics.medianMinutesToComplete} min`
-                    : "—"
+                    : "·"
                 }
                 hint="Enrol → quiz submitted"
               />

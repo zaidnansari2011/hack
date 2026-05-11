@@ -21,7 +21,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/proofs/by-tx/:txHash",
     summary:
       "Resolve a single verified credential by its on-chain tx hash. Drives the public verify page; safe to embed anywhere.",
-    body: "—",
+    body: "·",
     response: `{
   "success": true,
   "data": {
@@ -48,7 +48,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/credentials/by-address/:address",
     summary:
       "Full transcript for a wallet. Every minted SBT, totals, and a per-curriculum chip list. The endpoint behind /credentials/[address].",
-    body: "—",
+    body: "·",
     response: `{
   "success": true,
   "data": {
@@ -94,7 +94,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/activity",
     summary:
       "Recent platform events (completions, fundings, enrolments) plus aggregate stats. Newest first.",
-    body: "—",
+    body: "·",
     response: `{
   "success": true,
   "data": {
@@ -194,7 +194,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
         <p className="text-[0.9375rem] leading-relaxed text-ink-soft">
           {endpoint.summary}
         </p>
-        {endpoint.body !== "—" && (
+        {endpoint.body !== "·" && (
           <CodeBlock label="Request" content={endpoint.body} />
         )}
         <CodeBlock label="Response" content={endpoint.response} />

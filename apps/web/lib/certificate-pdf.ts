@@ -124,7 +124,7 @@ export async function generateCertificatePdf(args: {
           month: "short",
           year: "numeric",
         })
-      : "—",
+      : "·",
     inkGray,
     inkGray,
     muted,

@@ -259,11 +259,13 @@ export function TutorChat({
   initialMessages,
   initialSessions = [],
   initialSessionIndex = 0,
+  autoTeachModuleIndex = null,
 }: {
   enrollment: EnrollmentDetail
   initialMessages: ChatMessage[]
   initialSessions?: SessionSummary[]
   initialSessionIndex?: number
+  autoTeachModuleIndex?: number | null
 }) {
   // ── Core state ──
   const [progressPct, setProgressPct] = useState(initialEnrollment.progressPct)
@@ -345,6 +347,20 @@ export function TutorChat({
       .catch(() => setGroqLive(null))
   }, [])
 
+  // ── Auto-teach a module if requested by the parent overview page ──
+  const autoTaughtRef = useRef(false)
+  useEffect(() => {
+    if (autoTaughtRef.current) return
+    if (autoTeachModuleIndex === null || autoTeachModuleIndex === undefined) return
+    const idx = autoTeachModuleIndex
+    const syllabus = initialEnrollment.curriculum.syllabus
+    if (idx < 0 || idx >= syllabus.length) return
+    autoTaughtRef.current = true
+    teachModule(idx)
+    // teachModule is stable for this purpose; deps intentionally narrow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTeachModuleIndex])
+
   // ── TTS ──
   useEffect(() => {
     if (!speakReplies || typeof window === "undefined") return
@@ -368,11 +384,26 @@ export function TutorChat({
     () => suggestedPromptsFor(initialEnrollment.curriculum),
     [initialEnrollment.curriculum],
   )
-  const lessonedModules = useMemo(() => {
-    const set = new Set<number>()
-    for (const m of messages) if (m.meta?.kind === "lesson") set.add(m.meta.moduleIndex)
-    return set
-  }, [messages])
+  // Modules the student has *mastered* (3 correct check answers in a row).
+  // Seeded from server progress fetches; the sidebar uses this to render the
+  // ✓ checkmarks. A taught-but-not-mastered module is shown as "touched".
+  const [masteredModules, setMasteredModules] = useState<Set<number>>(new Set())
+  useEffect(() => {
+    let cancelled = false
+    apiFetch<{ coveredModuleIndexes: number[]; progressPct: number }>(
+      `/tutor/progress/${initialEnrollment.id}`,
+    )
+      .then((p) => {
+        if (cancelled) return
+        setMasteredModules(new Set(p.coveredModuleIndexes))
+        setProgressPct(p.progressPct)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initialEnrollment.id])
+
   const touchedTopics = useMemo(() => {
     const set = new Set<string>()
     for (const m of messages)
@@ -382,6 +413,26 @@ export function TutorChat({
       }
     return set
   }, [messages])
+
+  // Modules the student has opened at least once (a lesson exists in their
+  // chat history for that module). Module N lives in sessionIndex N + 1,
+  // so any session with idx >= 1 and at least one message means the module
+  // was viewed. Seeded from the sessions list on mount and updated locally
+  // whenever the student opens / teaches a new module.
+  const viewedModules = useMemo(() => {
+    const set = new Set<number>()
+    for (const s of sessions) {
+      if (s.sessionIndex >= 1 && s.messageCount > 0) {
+        set.add(s.sessionIndex - 1)
+      }
+    }
+    // The currently active module's session may have just received its first
+    // message before sessions was refreshed; include it from local messages.
+    for (const m of messages) {
+      if (m.meta?.kind === "lesson") set.add(m.meta.moduleIndex)
+    }
+    return set
+  }, [sessions, messages])
 
   // ── API handlers ──
 
@@ -419,13 +470,53 @@ export function TutorChat({
     }
   }
 
-  async function teachModule(moduleIndex: number) {
+  // Each module owns its own chat. We map moduleIndex N → sessionIndex N + 1.
+  // sessionIndex 0 stays reserved for free-form/general chat across the whole
+  // course, so it stays out of the per-module numbering.
+  const sessionIndexForModule = (moduleIndex: number) => moduleIndex + 1
+
+  async function teachModule(moduleIndex: number, opts?: { force?: boolean }) {
     if (lessonInFlight !== null || pending) return
+    const target = sessionIndexForModule(moduleIndex)
     setError(null); setPendingCheck(null); setLessonInFlight(moduleIndex)
     try {
+      // If we are not already in this module's chat, switch to it first.
+      // Load any existing history for that session so the user sees prior
+      // turns for this module, not a blank slate that hides earlier lessons.
+      let history: ChatMessage[] = messages
+      if (target !== sessionIndex) {
+        setSessionLoading(true)
+        try {
+          const hist = await apiFetch<{ messages: ChatMessage[] }>(
+            `/tutor/history/${initialEnrollment.id}?session=${target}`,
+          )
+          history = hist.messages
+          setMessages(hist.messages)
+        } catch {
+          history = []
+          setMessages([])
+        } finally {
+          setSessionLoading(false)
+        }
+        setSessionIndex(target)
+        setSessions((prev) =>
+          prev.some((s) => s.sessionIndex === target)
+            ? prev
+            : [...prev, { sessionIndex: target, messageCount: 0, startedAt: new Date().toISOString() }],
+        )
+      }
+
+      // Don't regenerate a lesson if one already exists in this module's
+      // chat. The student is just revisiting. Pass { force: true } to
+      // override (e.g. a future "re-teach this module" button).
+      const alreadyTaught = history.some(
+        (m) => m.meta?.kind === "lesson" && m.meta.moduleIndex === moduleIndex,
+      )
+      if (alreadyTaught && !opts?.force) return
+
       const res = await apiFetch<{ tutor: ChatMessage }>("/tutor/lesson", {
         method: "POST",
-        json: { enrollmentId: initialEnrollment.id, moduleIndex, lang: tutorLang, sessionIndex },
+        json: { enrollmentId: initialEnrollment.id, moduleIndex, lang: tutorLang, sessionIndex: target },
       })
       setMessages((prev) => [...prev, res.tutor])
       const prog = await apiFetch<{ coveredModuleIndexes: number[]; progressPct: number }>(
@@ -457,12 +548,30 @@ export function TutorChat({
     if (!pendingCheck || pendingCheck.submitting) return
     setPendingCheck({ ...pendingCheck, submitting: true })
     try {
-      const res = await apiFetch<{ correct: boolean; correctIndex: number; message: ChatMessage }>(
+      const res = await apiFetch<{
+        correct: boolean
+        correctIndex: number
+        message: ChatMessage
+        streak?: number
+        threshold?: number
+        mastered?: boolean
+        justMastered?: boolean
+      }>(
         "/tutor/check/submit",
         { method: "POST", json: { enrollmentId: initialEnrollment.id, moduleIndex: pendingCheck.question.moduleIndex, questionId: pendingCheck.question.questionId, answeredIndex, sessionIndex } },
       )
       setMessages((prev) => [...prev, res.message])
       setPendingCheck(null)
+      // After every check answer, refresh progress + mastered set so the
+      // sidebar checkmarks and the % indicator stay truthful.
+      apiFetch<{ coveredModuleIndexes: number[]; progressPct: number }>(
+        `/tutor/progress/${initialEnrollment.id}`,
+      )
+        .then((p) => {
+          setMasteredModules(new Set(p.coveredModuleIndexes))
+          setProgressPct(p.progressPct)
+        })
+        .catch(() => {})
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "Couldn't submit your answer")
       setPendingCheck({ ...pendingCheck, submitting: false })
@@ -486,6 +595,28 @@ export function TutorChat({
     const nextIndex = Math.max(...sessions.map((s) => s.sessionIndex)) + 1
     setSessions((prev) => [...prev, { sessionIndex: nextIndex, messageCount: 0, startedAt: new Date().toISOString() }])
     setSessionIndex(nextIndex); setMessages([]); setPendingCheck(null); setError(null)
+  }
+
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  async function clearContext() {
+    if (clearing) return
+    setClearing(true); setError(null)
+    try {
+      await apiFetch<{ deleted: number }>("/tutor/session/clear", {
+        method: "POST",
+        json: { enrollmentId: initialEnrollment.id, sessionIndex },
+      })
+      setMessages([]); setPendingCheck(null)
+      setSessions((prev) => prev.map((s) =>
+        s.sessionIndex === sessionIndex ? { ...s, messageCount: 0, startedAt: new Date().toISOString() } : s,
+      ))
+      setConfirmClear(false)
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Could not clear this chat")
+    } finally {
+      setClearing(false)
+    }
   }
 
   function toggleSpeakReplies() {
@@ -540,7 +671,9 @@ export function TutorChat({
         <CurriculumSidebar
           enrollment={initialEnrollment}
           progressPct={progressPct}
-          lessonedModules={lessonedModules}
+          lessonedModules={masteredModules}
+          viewedModules={viewedModules}
+          activeModuleIndex={sessionIndex > 0 ? sessionIndex - 1 : null}
           touchedTopics={touchedTopics}
           lessonInFlight={lessonInFlight}
           onTeach={teachModule}
@@ -574,10 +707,17 @@ export function TutorChat({
           onToggleSidebar={() => setSidebarOpen((v) => !v)}
           codeOpen={codeOpen}
           onToggleCode={() => setCodeOpen((v) => !v)}
+          onClearChat={() => setConfirmClear(true)}
+          canClearChat={messages.length > 0 && !clearing}
         />
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 sm:px-8">
-          {isFirstTurn ? (
+          {isFirstTurn && (lessonInFlight !== null || sessionLoading) ? (
+            <ModuleSwitchingLoader
+              moduleIndex={lessonInFlight}
+              curriculum={initialEnrollment.curriculum}
+            />
+          ) : isFirstTurn ? (
             <CourseOverviewPanel
               onPick={send}
               onTeach={teachModule}
@@ -683,10 +823,71 @@ export function TutorChat({
           onClose={() => setCodeOpen(false)}
           onAskAI={(code) => {
             const ld = langById(codeLang)
-            send(`Review my ${ld.label} code — is the logic correct? Any improvements?\n\`\`\`${ld.fence}\n${code}\n\`\`\``)
+            send(`Review my ${ld.label} code. Is the logic correct? Any improvements?\n\`\`\`${ld.fence}\n${code}\n\`\`\``)
           }}
           pending={pending}
         />
+      </div>
+
+      {confirmClear && (
+        <ConfirmClearModal
+          onCancel={() => (clearing ? null : setConfirmClear(false))}
+          onConfirm={clearContext}
+          working={clearing}
+        />
+      )}
+    </div>
+  )
+}
+
+function ConfirmClearModal({
+  onCancel,
+  onConfirm,
+  working,
+}: {
+  onCancel: () => void
+  onConfirm: () => void
+  working: boolean
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 px-4 backdrop-blur-sm"
+      onClick={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-rule bg-paper p-6 shadow-xl"
+      >
+        <div className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-faint">
+          Reset this chat
+        </div>
+        <h3 className="mt-2 font-display text-[1.125rem] font-medium text-ink">
+          Clear all messages in this chat?
+        </h3>
+        <p className="mt-2 text-[0.875rem] leading-relaxed text-ink-muted">
+          This wipes the conversation history for the current session, so the tutor starts fresh.
+          Your progress on completed modules stays. This cannot be undone.
+        </p>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={working}
+            className="inline-flex items-center rounded-xl border border-rule bg-surface px-4 py-2 text-[0.8125rem] font-medium text-ink-soft transition-colors hover:border-ink/20 hover:text-ink disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={working}
+            className="inline-flex items-center rounded-xl bg-terracotta px-4 py-2 text-[0.8125rem] font-medium text-paper transition-colors hover:opacity-90 disabled:opacity-50"
+          >
+            {working ? "Clearing…" : "Clear chat"}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -699,6 +900,7 @@ function ChatHeader({
   speakReplies, onToggleSpeak, synthesisSupported,
   sessions, sessionIndex, sessionLoading, onSwitchSession, onNewSession,
   sidebarOpen, onToggleSidebar, codeOpen, onToggleCode,
+  onClearChat, canClearChat,
 }: {
   enrollment: EnrollmentDetail
   groqLive: boolean | null
@@ -719,6 +921,8 @@ function ChatHeader({
   onToggleSidebar: () => void
   codeOpen: boolean
   onToggleCode: () => void
+  onClearChat: () => void
+  canClearChat: boolean
 }) {
   return (
     <header className="shrink-0 border-b border-rule-soft px-4 pb-2.5 pt-3">
@@ -813,8 +1017,65 @@ function ChatHeader({
           {speakReplies ? <SpeakerWaveIcon className="h-2.5 w-2.5" /> : <SpeakerOffIcon className="h-2.5 w-2.5" />}
           {speakReplies ? "on" : "off"}
         </button>
+
+        <button
+          type="button"
+          onClick={onClearChat}
+          disabled={!canClearChat}
+          title="Clear this chat"
+          className={cn(
+            "ml-auto inline-flex h-6 items-center gap-1 rounded-full border px-2.5 font-mono text-[0.55rem] font-semibold uppercase tracking-[0.14em] transition-colors",
+            canClearChat
+              ? "border-rule bg-paper text-ink-faint hover:border-terracotta/40 hover:text-terracotta"
+              : "cursor-not-allowed border-rule text-ink-faint opacity-40",
+          )}
+        >
+          Clear chat
+        </button>
       </div>
     </header>
+  )
+}
+
+// ─── ModuleSwitchingLoader ────────────────────────────────────────────────────
+// Shown when we are switching into a module's chat and the lesson has not yet
+// arrived. Prevents the course-overview panel from flashing back in during the
+// brief window where messages.length === 0 and a teach call is in flight.
+
+function ModuleSwitchingLoader({
+  moduleIndex,
+  curriculum,
+}: {
+  moduleIndex: number | null
+  curriculum: EnrollmentDetail["curriculum"]
+}) {
+  const mod = moduleIndex !== null ? curriculum.syllabus[moduleIndex] : null
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: ease.outQuart }}
+      className="mx-auto flex max-w-2xl flex-col items-start gap-4 py-10"
+    >
+      <span className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-teal">
+        {moduleIndex !== null ? `Preparing module ${moduleIndex + 1}` : "Loading chat"}
+      </span>
+      {mod && (
+        <h2 className="display-md display-italic text-balance text-ink">{mod.module}</h2>
+      )}
+      <div className="flex items-center gap-2 pt-1">
+        <Dot delay="0ms" /><Dot delay="120ms" /><Dot delay="240ms" />
+        <span className="ml-2 font-mono text-[0.6875rem] text-ink-faint">
+          the tutor is writing your lesson…
+        </span>
+      </div>
+      <div className="mt-4 w-full space-y-3">
+        <div className="h-3 w-2/3 animate-pulse rounded-full bg-rule/40" />
+        <div className="h-3 w-full animate-pulse rounded-full bg-rule/30" />
+        <div className="h-3 w-5/6 animate-pulse rounded-full bg-rule/30" />
+        <div className="h-3 w-4/6 animate-pulse rounded-full bg-rule/20" />
+      </div>
+    </motion.div>
   )
 }
 
@@ -929,7 +1190,7 @@ function MessageBubble({ message, onCheck, canCheck }: {
           T
         </div>
       )}
-      <div className={cn("max-w-[82%] space-y-2", isUser && "items-end")}>
+      <div className={cn(isLesson ? "max-w-[92%] space-y-3" : "max-w-[82%] space-y-2", isUser && "items-end")}>
         {isLesson && message.meta?.kind === "lesson" && (
           <div className="flex items-center gap-2 px-1">
             <span className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-teal">
@@ -945,14 +1206,14 @@ function MessageBubble({ message, onCheck, canCheck }: {
           </div>
         )}
         <div className={cn(
-          "px-5 py-4 text-[0.9375rem] leading-relaxed",
-          isUser ? "rounded-2xl bg-ink text-paper" : "rounded-xl border border-rule bg-surface-soft text-ink",
+          isUser
+            ? "rounded-2xl bg-ink px-5 py-4 text-[0.9375rem] leading-relaxed text-paper"
+            : isLesson
+            ? "rounded-2xl border border-rule bg-paper px-7 py-6 text-[0.9375rem] leading-[1.75] text-ink shadow-[0_1px_0_0_hsl(var(--rule))]"
+            : "rounded-xl border border-rule bg-surface-soft px-5 py-4 text-[0.9375rem] leading-relaxed text-ink",
         )}>
           <FormattedContent text={message.content} />
         </div>
-        {!isUser && message.citations && message.citations.length > 0 && (
-          <Citations citations={message.citations} />
-        )}
         {isLesson && message.meta?.kind === "lesson" && (
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <button
@@ -1111,9 +1372,24 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
 
 // ─── CurriculumSidebar ────────────────────────────────────────────────────────
 
-function CurriculumSidebar({ enrollment, progressPct, lessonedModules, touchedTopics, lessonInFlight, onTeach }: {
-  enrollment: EnrollmentDetail; progressPct: number; lessonedModules: Set<number>
-  touchedTopics: Set<string>; lessonInFlight: number | null; onTeach: (i: number) => void
+function CurriculumSidebar({
+  enrollment,
+  progressPct,
+  lessonedModules,
+  viewedModules,
+  activeModuleIndex,
+  touchedTopics: _touchedTopics,
+  lessonInFlight,
+  onTeach,
+}: {
+  enrollment: EnrollmentDetail
+  progressPct: number
+  lessonedModules: Set<number>
+  viewedModules: Set<number>
+  activeModuleIndex: number | null
+  touchedTopics: Set<string>
+  lessonInFlight: number | null
+  onTeach: (i: number) => void
 }) {
   const progress = Math.min(100, Math.max(0, progressPct))
   const done = lessonedModules.size
@@ -1126,12 +1402,26 @@ function CurriculumSidebar({ enrollment, progressPct, lessonedModules, touchedTo
         <h3 className="mt-1 font-display text-[0.9375rem] font-medium leading-snug text-ink">{enrollment.curriculum.title}</h3>
         <div className="mt-3">
           <div className="mb-1.5 flex items-baseline justify-between">
-            <span className="font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-ink-faint">Progress</span>
+            <span className="font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-ink-faint">Mastered</span>
             <span className="tabular font-mono text-[0.5625rem] text-ink-faint">{done}/{total}</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-rule/50">
             <motion.div className="h-full rounded-full bg-teal" initial={false} animate={{ width: `${progress}%` }} transition={{ duration: 0.7, ease: ease.outQuart }} />
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-ink-faint">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal" />
+            mastered
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
+            viewed
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-rule" />
+            new
+          </span>
         </div>
       </div>
 
@@ -1139,9 +1429,9 @@ function CurriculumSidebar({ enrollment, progressPct, lessonedModules, touchedTo
         {enrollment.curriculum.syllabus.length > 0 ? (
           <ol className="py-1">
             {enrollment.curriculum.syllabus.map((m, i) => {
-              const slug = m.module.toLowerCase().replace(/\s+/g, "-")
               const lessoned = lessonedModules.has(i)
-              const touched = !lessoned && touchedTopics.has(slug)
+              const viewed = !lessoned && viewedModules.has(i)
+              const isActive = activeModuleIndex === i
               const loading = lessonInFlight === i
               return (
                 <li key={m.module}>
@@ -1150,21 +1440,36 @@ function CurriculumSidebar({ enrollment, progressPct, lessonedModules, touchedTo
                     onClick={() => onTeach(i)}
                     disabled={lessonInFlight !== null}
                     className={cn(
-                      "group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all duration-150",
-                      lessoned ? "bg-teal-tint/40" : touched ? "bg-surface-soft/60" : "hover:bg-surface-soft",
+                      "group relative flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all duration-150",
+                      lessoned ? "bg-teal-tint/40" : viewed ? "bg-amber/5" : "hover:bg-surface-soft",
                       lessonInFlight !== null && !loading && "cursor-not-allowed opacity-35",
                     )}
                   >
+                    {isActive && (
+                      <span className="absolute inset-y-1 left-0 w-0.5 rounded-r-full bg-teal" />
+                    )}
                     <div className="flex h-5 w-5 shrink-0 items-center justify-center">
-                      {lessoned
-                        ? <CheckIcon className="h-3.5 w-3.5 text-teal" />
-                        : loading
-                        ? <span className="font-mono text-[0.5625rem] text-ink-faint">…</span>
-                        : <span className="tabular font-mono text-[0.5625rem] text-ink-faint/60">{String(i + 1).padStart(2, "0")}</span>}
+                      {lessoned ? (
+                        <CheckIcon className="h-3.5 w-3.5 text-teal" />
+                      ) : loading ? (
+                        <span className="font-mono text-[0.5625rem] text-ink-faint">…</span>
+                      ) : viewed ? (
+                        <EyeIcon className="h-3.5 w-3.5 text-amber" />
+                      ) : (
+                        <span className="tabular font-mono text-[0.5625rem] text-ink-faint/60">{String(i + 1).padStart(2, "0")}</span>
+                      )}
                     </div>
-                    <span className={cn("min-w-0 flex-1 truncate font-display text-[0.8rem] leading-snug", lessoned ? "text-ink" : "text-ink-soft group-hover:text-ink")}>
+                    <span className={cn(
+                      "min-w-0 flex-1 truncate font-display text-[0.8rem] leading-snug",
+                      lessoned ? "text-ink" : viewed ? "text-ink" : "text-ink-soft group-hover:text-ink",
+                    )}>
                       {m.module}
                     </span>
+                    {viewed && (
+                      <span className="shrink-0 rounded-full bg-amber/15 px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-amber">
+                        viewed
+                      </span>
+                    )}
                     <span className="shrink-0 tabular font-mono text-[0.5625rem] text-ink-faint/60">{m.durationMinutes}m</span>
                   </button>
                 </li>
@@ -1215,7 +1520,7 @@ function FormattedContent({ text }: { text: string }) {
           return (
             <pre
               key={i}
-              className="my-3 overflow-x-auto rounded-lg border border-rule bg-paper-deep p-4 font-mono text-[0.75rem] leading-relaxed text-ink-soft"
+              className="my-5 overflow-x-auto rounded-xl border border-rule bg-paper-deep px-5 py-4 font-mono text-[0.8125rem] leading-[1.7] text-ink-soft"
             >
               <code>{inner}</code>
             </pre>
@@ -1243,9 +1548,27 @@ function MarkdownBlocks({ text }: { text: string }) {
         const trimmed = block.trim()
         if (!trimmed) return null
 
-        // Horizontal rule — three or more dashes on their own line.
+        // Horizontal rule: separates major lesson sections. Give it real air.
         if (/^---+$/.test(trimmed)) {
-          return <hr key={i} className="my-3 border-t border-rule" />
+          return <hr key={i} className="my-6 border-t border-rule-soft" />
+        }
+
+        // Blockquote: lines that begin with "> ". Render as an indented,
+        // bordered quote pulled directly from the curriculum source.
+        if (trimmed.split("\n").every((l) => /^>\s?/.test(l))) {
+          const quote = trimmed
+            .split("\n")
+            .map((l) => l.replace(/^>\s?/, ""))
+            .join("\n")
+            .trim()
+          return (
+            <blockquote
+              key={i}
+              className="my-4 border-l-2 border-teal/40 bg-surface-soft/50 px-4 py-3 text-[0.9375rem] leading-[1.7] text-ink-soft"
+            >
+              <InlineMarkdown text={quote} />
+            </blockquote>
+          )
         }
 
         // Unordered list: lines starting with "- " or "* ".
@@ -1257,10 +1580,10 @@ function MarkdownBlocks({ text }: { text: string }) {
           return (
             <ul
               key={i}
-              className="my-2 list-disc space-y-1 pl-5 text-[0.9375rem] leading-relaxed"
+              className="my-4 list-disc space-y-2 pl-6 text-[0.9375rem] leading-[1.7] marker:text-ink-faint"
             >
               {items.map((it, j) => (
-                <li key={j}>
+                <li key={j} className="pl-1">
                   <InlineMarkdown text={it} />
                 </li>
               ))}
@@ -1277,10 +1600,10 @@ function MarkdownBlocks({ text }: { text: string }) {
           return (
             <ol
               key={i}
-              className="my-2 list-decimal space-y-1 pl-5 text-[0.9375rem] leading-relaxed"
+              className="my-4 list-decimal space-y-2 pl-6 text-[0.9375rem] leading-[1.7] marker:font-mono marker:text-[0.75rem] marker:text-ink-faint"
             >
               {items.map((it, j) => (
-                <li key={j}>
+                <li key={j} className="pl-1">
                   <InlineMarkdown text={it} />
                 </li>
               ))}
@@ -1294,7 +1617,7 @@ function MarkdownBlocks({ text }: { text: string }) {
           return (
             <h4
               key={i}
-              className="mt-3 font-display text-[1rem] font-medium text-ink"
+              className="mt-7 font-display text-[1.0625rem] font-semibold tracking-tight text-ink"
             >
               <InlineMarkdown text={h2[1] ?? ""} />
             </h4>
@@ -1305,17 +1628,80 @@ function MarkdownBlocks({ text }: { text: string }) {
           return (
             <h3
               key={i}
-              className="mt-3 font-display text-[1.0625rem] font-medium text-ink"
+              className="mt-7 font-display text-[1.1875rem] font-semibold tracking-tight text-ink"
             >
               <InlineMarkdown text={h1[1] ?? ""} />
             </h3>
           )
         }
 
+        // Section heading: a single line that is entirely bold (and short),
+        // e.g. **Ownership: the core idea**. The lesson prompt emits these.
+        // Render as a real heading so it gets the spacing it deserves.
+        const headingMatch = trimmed.match(/^\*\*([^*\n]+)\*\*\s*:?\s*$/)
+        if (headingMatch && !trimmed.includes("\n")) {
+          return (
+            <h3
+              key={i}
+              className="font-display text-[1.0625rem] font-semibold tracking-tight text-ink [&:not(:first-child)]:mt-7"
+            >
+              {headingMatch[1]}
+            </h3>
+          )
+        }
+
+        // Plain prose. If the model returned multiple sentences joined by
+        // single newlines (instead of blank-line paragraph breaks), split
+        // them apart so the lesson does not become a wall of text.
+        const lines = trimmed.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+        if (lines.length > 1) {
+          return (
+            <div key={i} className="[&:not(:first-child)]:mt-4 space-y-4">
+              {lines.map((line, j) => (
+                <p
+                  key={j}
+                  className="text-[0.9375rem] leading-[1.75] text-ink-soft"
+                >
+                  <InlineMarkdown text={line} />
+                </p>
+              ))}
+            </div>
+          )
+        }
+
+        // A single paragraph that has grown into one long block. If it
+        // contains more than ~3 sentences, split on sentence boundaries so
+        // the reader still gets visual breathing room.
+        if (trimmed.length > 280) {
+          const sentences = trimmed
+            .split(/(?<=[.!?])\s+(?=[A-Z(])/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+          if (sentences.length >= 3) {
+            // Group every 2 sentences into a paragraph for a natural rhythm.
+            const groups: string[] = []
+            for (let k = 0; k < sentences.length; k += 2) {
+              groups.push(sentences.slice(k, k + 2).join(" "))
+            }
+            return (
+              <div key={i} className="[&:not(:first-child)]:mt-4 space-y-4">
+                {groups.map((g, j) => (
+                  <p
+                    key={j}
+                    className="text-[0.9375rem] leading-[1.75] text-ink-soft"
+                  >
+                    <InlineMarkdown text={g} />
+                  </p>
+                ))}
+              </div>
+            )
+          }
+        }
+
         return (
           <p
             key={i}
-            className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed [&:not(:first-child)]:mt-2"
+            className="text-[0.9375rem] leading-[1.75] text-ink-soft [&:not(:first-child)]:mt-4"
           >
             <InlineMarkdown text={trimmed} />
           </p>
@@ -1374,13 +1760,13 @@ function InlineMarkdown({ text }: { text: string }) {
         switch (t.type) {
           case "bold":
             return (
-              <strong key={i} className="font-medium text-ink">
+              <strong key={i} className="font-bold text-ink">
                 {t.value}
               </strong>
             )
           case "italic":
             return (
-              <em key={i} className="italic">
+              <em key={i} className="italic text-ink">
                 {t.value}
               </em>
             )
@@ -1398,18 +1784,6 @@ function InlineMarkdown({ text }: { text: string }) {
         }
       })}
     </>
-  )
-}
-
-function Citations({ citations }: { citations: NonNullable<ChatMessage["citations"]> }) {
-  return (
-    <div className="flex flex-wrap gap-1.5 pl-1">
-      {citations.map((c) => (
-        <span key={c.chunkId} title={`relevance ${c.score.toFixed(3)}`} className="inline-flex items-center gap-1.5 rounded-full border border-rule bg-surface px-2.5 py-0.5 font-mono text-[0.625rem] uppercase tracking-[0.12em] text-ink-faint">
-          <span className="text-teal">§</span>{c.source.split("#").pop() ?? c.source}
-        </span>
-      ))}
-    </div>
   )
 }
 
@@ -1475,6 +1849,15 @@ function PanelLeftIcon({ className, open }: { className?: string; open: boolean 
 
 function CheckIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M20 6 9 17l-5-5" /></svg>
+}
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
 }
 
 function PlusIcon({ className }: { className?: string }) {

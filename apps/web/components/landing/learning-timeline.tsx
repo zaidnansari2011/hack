@@ -20,7 +20,7 @@ const STEPS = [
     title: "An AI tutor grounded in real curriculum.",
     body:
       "The student asks questions; the tutor answers from the actual curriculum, not the internet. Every answer cites the source, so the student knows exactly where it came from.",
-    detail: "POST /tutor/messages — RAG over curriculum chunks",
+    detail: "POST /tutor/messages · RAG over curriculum chunks",
   },
   {
     n: "03",

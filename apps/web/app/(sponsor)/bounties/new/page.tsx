@@ -384,7 +384,7 @@ function SuccessPanel({ bounty }: { bounty: Bounty }) {
                   {tx.slice(0, 10)}…{tx.slice(-8)} ↗
                 </a>
               ) : (
-                "—"
+                "·"
               )
             }
           />

@@ -6,6 +6,7 @@ import { z } from "zod"
 import { requireAuth, requireRole } from "@/middleware/auth"
 import { validateBody } from "@/middleware/validate"
 import {
+  clearSession,
   generateRemediation,
   getCheckQuestion,
   getEnrollmentProgressDetail,
@@ -40,6 +41,11 @@ const lessonSchema = z.object({
 const checkGetSchema = z.object({
   enrollmentId: z.string().uuid(),
   moduleIndex: z.number().int().min(0).max(31),
+})
+
+const clearSessionSchema = z.object({
+  enrollmentId: z.string().uuid(),
+  sessionIndex: z.number().int().min(0).max(99),
 })
 
 const checkSubmitSchema = z.object({
@@ -196,6 +202,24 @@ tutorRouter.post(
         sessionIndex: req.body.sessionIndex,
       })
       res.status(201).json(ok(result))
+    } catch (err) {
+      next(err)
+    }
+  },
+)
+
+tutorRouter.post(
+  "/session/clear",
+  requireRole("student"),
+  validateBody(clearSessionSchema),
+  async (req, res, next) => {
+    try {
+      const result = await clearSession({
+        enrollmentId: req.body.enrollmentId,
+        userId: req.auth!.sub,
+        sessionIndex: req.body.sessionIndex,
+      })
+      res.json(ok(result))
     } catch (err) {
       next(err)
     }
