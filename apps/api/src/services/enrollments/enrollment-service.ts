@@ -115,10 +115,12 @@ function bountyDto(b: {
   status: string
   escrowTxHash: string | null
   createdAt: Date
+  sponsor?: { organizationName: string } | null
 }): Bounty {
   return {
     id: b.id,
     sponsorId: b.sponsorId,
+    sponsorName: b.sponsor?.organizationName ?? null,
     title: b.title,
     description: b.description,
     curriculumId: b.curriculumId,
@@ -141,6 +143,8 @@ function curriculumDto(c: {
   title: string
   summary: string
   topics: string[]
+  category: string
+  difficulty: string
   syllabus: Prisma.JsonValue
   estimatedMinutes: number
   thumbnailUrl: string | null
@@ -154,6 +158,8 @@ function curriculumDto(c: {
     title: c.title,
     summary: c.summary,
     topics: c.topics,
+    category: c.category as Curriculum["category"],
+    difficulty: c.difficulty as Curriculum["difficulty"],
     syllabus,
     estimatedMinutes: c.estimatedMinutes,
     thumbnail: c.thumbnailUrl,

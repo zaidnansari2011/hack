@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Emergency recognition",
+    "difficulty": 1,
+    "prompt": "Which combination of signs is a clear indication to call an ambulance immediately?",
+    "choices": [
+      "A mild headache and stiff neck",
+      "Sudden one-sided facial droop, arm weakness, and slurred speech",
+      "A small bruise after a fall",
+      "Hiccups lasting more than 5 minutes"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "CPR",
+    "difficulty": 2,
+    "prompt": "What is the recommended chest compression rate during adult CPR?",
+    "choices": [
+      "30–50 per minute",
+      "60–80 per minute",
+      "100–120 per minute",
+      "150–180 per minute"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "CPR",
+    "difficulty": 1,
+    "prompt": "If you are untrained in rescue breaths, what should you do for an adult cardiac arrest?",
+    "choices": [
+      "Wait for paramedics — do nothing",
+      "Hands-only chest compressions are nearly as effective for the first 8 minutes",
+      "Try to give rescue breaths anyway",
+      "Move the victim to a hospital yourself"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Wound care",
+    "difficulty": 1,
+    "prompt": "What is the most important first action to control everyday bleeding from a cut?",
+    "choices": [
+      "Apply a tourniquet immediately",
+      "Pour hydrogen peroxide into the wound",
+      "Direct firm pressure with a clean cloth, held for at least 10 minutes",
+      "Bandage tightly and wait"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Burns",
+    "difficulty": 2,
+    "prompt": "What is the correct first-aid treatment for a thermal burn?",
+    "choices": [
+      "Apply butter or toothpaste to seal the burn",
+      "Cool with running water for about 20 minutes; do not use ice",
+      "Pop the blisters to release pressure",
+      "Cover with a wool cloth"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Choking",
+    "difficulty": 2,
+    "prompt": "For a choking adult who is conscious and cannot speak, after back blows the next step is:",
+    "choices": [
+      "Give them water to drink",
+      "Abdominal thrusts (Heimlich manoeuvre)",
+      "Pat them on the back lightly",
+      "Wait for them to recover on their own"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Public health",
+    "difficulty": 1,
+    "prompt": "Which simple behaviour has the greatest impact on preventing childhood diarrhoeal disease?",
+    "choices": [
+      "Daily multivitamins",
+      "Hand washing with soap for around 20 seconds",
+      "Annual blood tests",
+      "Drinking warm water only"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Public health",
+    "difficulty": 2,
+    "prompt": "What does 'herd immunity' from vaccination primarily protect?",
+    "choices": [
+      "Healthy vaccinated adults",
+      "Animals on farms",
+      "Infants too young to be vaccinated and people who are immunocompromised",
+      "International travellers exclusively"
+    ],
+    "correctIndex": 2
+  }
+]

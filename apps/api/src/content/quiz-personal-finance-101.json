@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Budgeting",
+    "difficulty": 1,
+    "prompt": "In the 50-30-20 rule for budgeting, what does the 20% slice represent?",
+    "choices": [
+      "Discretionary entertainment spending",
+      "Essential needs like rent and utilities",
+      "Savings and debt repayment",
+      "Taxes deducted at source"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Emergency fund",
+    "difficulty": 1,
+    "prompt": "An emergency fund is best parked in which type of instrument?",
+    "choices": [
+      "An equity mutual fund for higher long-term returns",
+      "A liquid mutual fund or high-yield savings account",
+      "A 5-year fixed deposit with lock-in",
+      "Direct stocks of stable large-cap companies"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Emergency fund",
+    "difficulty": 2,
+    "prompt": "Why should an emergency fund cover 3-6 months of essential expenses specifically?",
+    "choices": [
+      "It's the average time the stock market takes to recover from a crash",
+      "Tax rules in India favour this duration for liquid savings",
+      "It's the typical buffer needed to handle medical, job-loss, or family emergencies without selling investments at a loss",
+      "Banks require this much to issue an overdraft facility"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Tax",
+    "difficulty": 2,
+    "prompt": "Roughly when does the old tax regime tend to be cheaper than the new regime for an Indian salaried employee?",
+    "choices": [
+      "Always — the old regime has lower base rates",
+      "When eligible deductions (80C, 80D, HRA, etc.) total more than around ₹2.5–3 lakhs",
+      "Only for taxpayers earning under ₹5 lakhs per year",
+      "Never — the new regime is always cheaper after FY 2023-24"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Investing",
+    "difficulty": 1,
+    "prompt": "Why are SIPs (Systematic Investment Plans) particularly suited to equity index investing?",
+    "choices": [
+      "They guarantee a fixed monthly return",
+      "They allow you to time market tops and bottoms",
+      "They automate rupee-cost-averaging — buying more units when prices are low, fewer when high",
+      "They are tax-free under Section 80C"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Investing",
+    "difficulty": 2,
+    "prompt": "What is the main reason a low-cost index fund typically beats most actively managed funds over 20+ years?",
+    "choices": [
+      "Index funds get preferential tax treatment",
+      "Active managers cannot beat the index",
+      "The lower expense ratio (0.1–0.3% vs ~1.5–2%) compounds dramatically over decades",
+      "Index funds are exempt from market volatility"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Insurance",
+    "difficulty": 1,
+    "prompt": "Which life insurance product does the curriculum recommend for someone with financial dependents?",
+    "choices": [
+      "Endowment plan with guaranteed returns",
+      "Pure term life insurance",
+      "ULIP that combines insurance with mutual funds",
+      "Money-back policy with periodic payouts"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Insurance",
+    "difficulty": 2,
+    "prompt": "If your employer already provides health insurance, why might you still buy a personal floater policy?",
+    "choices": [
+      "Personal policies have higher claim limits in India",
+      "Employer cover ends when you change jobs and pre-existing conditions become harder to insure as you age",
+      "Personal policies are required by IRDAI regulation",
+      "Employer policies don't cover hospitalisation"
+    ],
+    "correctIndex": 1
+  }
+]

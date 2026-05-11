@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Funnel",
+    "difficulty": 1,
+    "prompt": "Which stage of the marketing funnel typically optimises for impressions and reach rather than direct revenue?",
+    "choices": [
+      "Conversion",
+      "Retention",
+      "Awareness",
+      "Advocacy"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Funnel",
+    "difficulty": 2,
+    "prompt": "If your funnel shows 10,000 ad views, 500 clicks, 50 sign-ups, and 5 paying customers — which improvement gives the highest revenue uplift first?",
+    "choices": [
+      "Doubling ad views to 20,000",
+      "Fixing the sign-up to paid conversion (currently 10%)",
+      "Raising click rate from 5% to 5.5%",
+      "Adding more advocacy campaigns"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "SEO",
+    "difficulty": 1,
+    "prompt": "Why are long-tail search queries valuable for SEO even though they have lower volume?",
+    "choices": [
+      "Google rewards sites that target rare keywords with manual SEO boosts",
+      "They have much higher purchase intent and are easier to rank for",
+      "They are less competitive only because they are spam",
+      "They convert at the same rate as head terms"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "SEO",
+    "difficulty": 2,
+    "prompt": "What is the most realistic time horizon to expect meaningful SEO results from a new domain?",
+    "choices": [
+      "1–2 weeks if content is good enough",
+      "1–2 months with daily publishing",
+      "6–12 months of consistent, useful content",
+      "It cannot be measured"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Paid ads",
+    "difficulty": 2,
+    "prompt": "Roughly what LTV-to-CAC ratio indicates a sustainable paid acquisition business?",
+    "choices": [
+      "1.0× — break-even is enough",
+      "At least 3×, with anything below 2× usually losing money",
+      "5× minimum, otherwise the channel is unviable",
+      "It doesn't matter as long as CAC is decreasing"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Paid ads",
+    "difficulty": 1,
+    "prompt": "Which platform is best characterised as 'capturing demand' from people actively searching?",
+    "choices": [
+      "Meta Ads (Facebook/Instagram)",
+      "Google Search Ads",
+      "LinkedIn newsfeed ads",
+      "YouTube pre-roll"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Email",
+    "difficulty": 2,
+    "prompt": "Why have email open rates become a less reliable metric in recent years?",
+    "choices": [
+      "Most email clients block tracking pixels",
+      "Apple Mail's privacy protections auto-load images and inflate open rates",
+      "GDPR made open tracking illegal",
+      "ESPs no longer report opens"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Analytics",
+    "difficulty": 2,
+    "prompt": "What is the honest answer to 'which channel deserves credit for this sale?' in multi-touch attribution?",
+    "choices": [
+      "The last channel touched — always",
+      "The first channel touched — always",
+      "All of them in some proportion; pick one model and stay consistent",
+      "Whichever channel had the lowest CPC"
+    ],
+    "correctIndex": 2
+  }
+]

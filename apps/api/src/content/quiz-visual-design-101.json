@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Hierarchy",
+    "difficulty": 1,
+    "prompt": "Which technique typically creates stronger visual hierarchy than simply enlarging a heading?",
+    "choices": [
+      "Switching from a sans-serif to a serif",
+      "Increasing surrounding whitespace and breathing room",
+      "Adding a drop shadow",
+      "Bolding every word in the design"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Typography",
+    "difficulty": 1,
+    "prompt": "What is the recommended line height range for readable body text?",
+    "choices": [
+      "0.9–1.1×",
+      "1.2–1.3×",
+      "1.5–1.7×",
+      "2.0–2.5×"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Typography",
+    "difficulty": 2,
+    "prompt": "What's a sensible 'measure' (line length) for body copy?",
+    "choices": [
+      "20–30 characters per line",
+      "45–75 characters per line",
+      "100–120 characters per line",
+      "150+ characters per line"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Colour",
+    "difficulty": 2,
+    "prompt": "What is the WCAG AA minimum contrast ratio for normal body text against its background?",
+    "choices": [
+      "1.5:1",
+      "3:1",
+      "4.5:1",
+      "7:1"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Colour",
+    "difficulty": 1,
+    "prompt": "Which describes a 'restrained palette' approach to product design?",
+    "choices": [
+      "Use as many colours as possible to differentiate brand",
+      "One neutral scale, one brand accent, and muted semantic colours for success/warning/error",
+      "Pure black on pure white only",
+      "A different palette per page"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Spacing",
+    "difficulty": 1,
+    "prompt": "What is the main benefit of standardising spacing on an 8-point grid?",
+    "choices": [
+      "It is the only grid Apple permits",
+      "Decisions become faster and components compose without odd leftover gaps",
+      "It reduces file size",
+      "It makes the design legally accessible"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Spacing",
+    "difficulty": 2,
+    "prompt": "How does the 'rule of proximity' guide spacing decisions?",
+    "choices": [
+      "Items closer together appear to belong together; greater spacing signals separation between groups",
+      "All items should be equally spaced for symmetry",
+      "Proximity should match the user's zoom level",
+      "It only applies to physical signage"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Iconography",
+    "difficulty": 2,
+    "prompt": "What is one of the most common amateur mistakes with iconography?",
+    "choices": [
+      "Using vector files",
+      "Mixing icons from multiple families with different stroke weights and styles",
+      "Aligning icons to the baseline",
+      "Using line icons instead of filled icons"
+    ],
+    "correctIndex": 1
+  }
+]

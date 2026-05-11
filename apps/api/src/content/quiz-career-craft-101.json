@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Resume",
+    "difficulty": 1,
+    "prompt": "Roughly how long do recruiters typically spend on a resume in the first pass?",
+    "choices": [
+      "Around 8 seconds",
+      "Around 2 minutes",
+      "Around 10 minutes",
+      "It depends entirely on the candidate's photograph"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Resume",
+    "difficulty": 2,
+    "prompt": "Which bullet is the strongest example of impact?",
+    "choices": [
+      "'Worked on the dashboard.'",
+      "'Was responsible for many improvements.'",
+      "'Reduced dashboard load time from 8s to 1.2s, used by 3000 daily users.'",
+      "'Did dashboard stuff.'"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Cover letter",
+    "difficulty": 1,
+    "prompt": "What is recommended as the length of an effective cover letter?",
+    "choices": [
+      "Under 200 words, with three short paragraphs",
+      "Exactly 500 words",
+      "Two full pages, single-spaced",
+      "One sentence"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Interview prep",
+    "difficulty": 1,
+    "prompt": "Roughly how many ready-to-tell project stories should you prepare before an interview?",
+    "choices": [
+      "Zero — improvise everything",
+      "Six to eight, each tagged with the skills they demonstrate",
+      "Exactly two stories of equal length",
+      "Twenty or more"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Behavioural questions",
+    "difficulty": 2,
+    "prompt": "What does the STAR shape stand for in answering behavioural interview questions?",
+    "choices": [
+      "Story, Time, Acknowledgement, Reframe",
+      "Situation, Task, Action, Result",
+      "Skills, Tactics, Achievement, Resume",
+      "Setup, Trouble, Audience, Reply"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Behavioural questions",
+    "difficulty": 2,
+    "prompt": "Why is 'I' generally a stronger signal than 'we' in behavioural answers?",
+    "choices": [
+      "It's grammatically required",
+      "Interviewers want to know what *you* specifically did, not what the whole team did",
+      "Teams are not allowed in interview stories",
+      "'We' is considered impolite in English"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Negotiation",
+    "difficulty": 2,
+    "prompt": "Why is it usually better to ask for an offer in writing before accepting?",
+    "choices": [
+      "It allows time to review the full package and is the norm in professional negotiation",
+      "Indian law requires it",
+      "It signals that you don't want the job",
+      "Written offers have higher base salaries automatically"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Negotiation",
+    "difficulty": 1,
+    "prompt": "After stating your number in a negotiation, what is the most useful next action?",
+    "choices": [
+      "Justify it further with three more reasons",
+      "Stop talking — silence is your strongest tool",
+      "Apologise for asking",
+      "Lower the number proactively"
+    ],
+    "correctIndex": 1
+  }
+]

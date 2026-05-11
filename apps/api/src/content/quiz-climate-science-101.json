@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Greenhouse effect",
+    "difficulty": 1,
+    "prompt": "Roughly what would Earth's average surface temperature be without the natural greenhouse effect?",
+    "choices": [
+      "About +15°C — unchanged",
+      "About −18°C",
+      "About +35°C",
+      "About 0°C"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "CO₂",
+    "difficulty": 1,
+    "prompt": "Pre-industrial atmospheric CO₂ was around 280 ppm. Roughly what is it today?",
+    "choices": [
+      "Around 250 ppm — actually slightly lower",
+      "Around 320 ppm",
+      "Over 420 ppm",
+      "Over 800 ppm"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Extremes",
+    "difficulty": 2,
+    "prompt": "Why does even a small rise in global average temperature produce disproportionately large effects?",
+    "choices": [
+      "Average temperatures change the rotational speed of the Earth",
+      "Averages hide tails — extreme heat events that were once-in-a-century become once-in-a-decade",
+      "Insurance regulations require a buffer",
+      "All ecosystems are equally sensitive at any temperature"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Carbon cycle",
+    "difficulty": 2,
+    "prompt": "Roughly how much of CO₂ emissions today will still be in the atmosphere 1000 years from now?",
+    "choices": [
+      "Essentially none — CO₂ decays in decades",
+      "Around 20%",
+      "Around 50%",
+      "All of it — CO₂ is permanent"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Feedback loops",
+    "difficulty": 2,
+    "prompt": "What is the 'albedo feedback' in climate science?",
+    "choices": [
+      "Cloud cover reflecting sunlight back to space",
+      "Melting Arctic sea ice exposing dark ocean, which absorbs more heat and accelerates warming",
+      "Plants reflecting more light when warmed",
+      "Methane breaking down faster in heat"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Mitigation",
+    "difficulty": 1,
+    "prompt": "Which sector is generally the highest-leverage area for decarbonisation globally?",
+    "choices": [
+      "Personal beauty products",
+      "Electricity generation (grid decarbonisation)",
+      "Pet food manufacturing",
+      "Office stationery"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Personal impact",
+    "difficulty": 2,
+    "prompt": "Which dietary change typically has the largest per-rupee climate impact in India?",
+    "choices": [
+      "Switching from filter coffee to instant",
+      "Replacing rice with bread",
+      "Reducing beef and lamb consumption, which are 10–20× higher emissions than poultry or plants",
+      "Drinking more bottled water"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Adaptation",
+    "difficulty": 2,
+    "prompt": "Why is adaptation (heat action plans, water-secure agriculture, flood resilience) increasingly important even alongside mitigation?",
+    "choices": [
+      "Mitigation has been declared infeasible",
+      "Even with net-zero by 2050, we are committed to roughly 1.5°C of warming, so coping with already-locked-in change is necessary",
+      "Adaptation is purely a cost-cutting exercise",
+      "Indian states are not allowed to mitigate"
+    ],
+    "correctIndex": 1
+  }
+]

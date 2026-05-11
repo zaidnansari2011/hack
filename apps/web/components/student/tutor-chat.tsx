@@ -1200,20 +1200,202 @@ function CurriculumSidebar({ enrollment, progressPct, lessonedModules, touchedTo
 
 // ─── Shared small components ──────────────────────────────────────────────────
 
+// Renders the tutor's markdown-ish output. Handles ```code fences```,
+// **bold**, *italic*, `inline code`, --- horizontal rules, and numbered/
+// bulleted lists. Strips [^citation-id] markers since those are surfaced
+// separately by the Citations pills below the message.
 function FormattedContent({ text }: { text: string }) {
-  const parts = text.split(/(```[\s\S]*?```)/g)
+  // 1) Split out code fences so we don't apply inline markdown inside them.
+  const fenced = text.split(/(```[\s\S]*?```)/g)
   return (
     <>
-      {parts.map((part, i) => {
-        if (part.startsWith("```")) {
-          const inner = part.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "")
+      {fenced.map((chunk, i) => {
+        if (chunk.startsWith("```")) {
+          const inner = chunk.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "")
           return (
-            <pre key={i} className="my-3 overflow-x-auto rounded-lg border border-rule bg-paper-deep p-4 font-mono text-[0.75rem] leading-relaxed text-ink-soft">
+            <pre
+              key={i}
+              className="my-3 overflow-x-auto rounded-lg border border-rule bg-paper-deep p-4 font-mono text-[0.75rem] leading-relaxed text-ink-soft"
+            >
               <code>{inner}</code>
             </pre>
           )
         }
-        return <span key={i} className="whitespace-pre-wrap">{part}</span>
+        return <MarkdownBlocks key={i} text={chunk} />
+      })}
+    </>
+  )
+}
+
+// Strip citation markers like [^abc123-def] / [^source] before display.
+// The Citations pills below the message already render these.
+function stripInlineCitations(s: string): string {
+  return s.replace(/\[\^[^\]]+\]/g, "").replace(/\s{2,}/g, " ")
+}
+
+function MarkdownBlocks({ text }: { text: string }) {
+  const cleaned = stripInlineCitations(text)
+  // Split into blocks by blank lines; each block becomes its own paragraph/list/hr.
+  const blocks = cleaned.split(/\n{2,}/)
+  return (
+    <>
+      {blocks.map((block, i) => {
+        const trimmed = block.trim()
+        if (!trimmed) return null
+
+        // Horizontal rule — three or more dashes on their own line.
+        if (/^---+$/.test(trimmed)) {
+          return <hr key={i} className="my-3 border-t border-rule" />
+        }
+
+        // Unordered list: lines starting with "- " or "* ".
+        if (/^([-*])\s+/.test(trimmed.split("\n")[0] ?? "")) {
+          const items = trimmed
+            .split("\n")
+            .map((l) => l.replace(/^([-*])\s+/, ""))
+            .filter(Boolean)
+          return (
+            <ul
+              key={i}
+              className="my-2 list-disc space-y-1 pl-5 text-[0.9375rem] leading-relaxed"
+            >
+              {items.map((it, j) => (
+                <li key={j}>
+                  <InlineMarkdown text={it} />
+                </li>
+              ))}
+            </ul>
+          )
+        }
+
+        // Ordered list: lines starting with "1. ", "2. ", etc.
+        if (/^\d+\.\s+/.test(trimmed.split("\n")[0] ?? "")) {
+          const items = trimmed
+            .split("\n")
+            .map((l) => l.replace(/^\d+\.\s+/, ""))
+            .filter(Boolean)
+          return (
+            <ol
+              key={i}
+              className="my-2 list-decimal space-y-1 pl-5 text-[0.9375rem] leading-relaxed"
+            >
+              {items.map((it, j) => (
+                <li key={j}>
+                  <InlineMarkdown text={it} />
+                </li>
+              ))}
+            </ol>
+          )
+        }
+
+        // Heading via #/## (rarely emitted by our prompt, but support it).
+        const h2 = trimmed.match(/^##\s+(.+)$/)
+        if (h2) {
+          return (
+            <h4
+              key={i}
+              className="mt-3 font-display text-[1rem] font-medium text-ink"
+            >
+              <InlineMarkdown text={h2[1] ?? ""} />
+            </h4>
+          )
+        }
+        const h1 = trimmed.match(/^#\s+(.+)$/)
+        if (h1) {
+          return (
+            <h3
+              key={i}
+              className="mt-3 font-display text-[1.0625rem] font-medium text-ink"
+            >
+              <InlineMarkdown text={h1[1] ?? ""} />
+            </h3>
+          )
+        }
+
+        return (
+          <p
+            key={i}
+            className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed [&:not(:first-child)]:mt-2"
+          >
+            <InlineMarkdown text={trimmed} />
+          </p>
+        )
+      })}
+    </>
+  )
+}
+
+// Inline markdown — **bold**, *italic*, _italic_, `code`. Process in order:
+// inline-code first (so its contents aren't re-parsed), then bold, then italic.
+function InlineMarkdown({ text }: { text: string }) {
+  // Tokenize into a flat array preserving the original text.
+  type Token =
+    | { type: "text"; value: string }
+    | { type: "bold"; value: string }
+    | { type: "italic"; value: string }
+    | { type: "code"; value: string }
+
+  const tokens: Token[] = [{ type: "text", value: text }]
+
+  const apply = (
+    re: RegExp,
+    asType: Token["type"],
+  ): void => {
+    const next: Token[] = []
+    for (const t of tokens) {
+      if (t.type !== "text") {
+        next.push(t)
+        continue
+      }
+      let lastIndex = 0
+      let m: RegExpExecArray | null
+      re.lastIndex = 0
+      while ((m = re.exec(t.value)) !== null) {
+        if (m.index > lastIndex) {
+          next.push({ type: "text", value: t.value.slice(lastIndex, m.index) })
+        }
+        next.push({ type: asType, value: m[1] ?? "" })
+        lastIndex = m.index + m[0].length
+      }
+      if (lastIndex < t.value.length) {
+        next.push({ type: "text", value: t.value.slice(lastIndex) })
+      }
+    }
+    tokens.splice(0, tokens.length, ...next)
+  }
+
+  apply(/`([^`]+)`/g, "code")
+  apply(/\*\*([^*]+)\*\*/g, "bold")
+  apply(/(?:^|(?<=\s))[*_]([^*_\n]+)[*_](?=\s|$|[.,;:!?)])/g, "italic")
+
+  return (
+    <>
+      {tokens.map((t, i) => {
+        switch (t.type) {
+          case "bold":
+            return (
+              <strong key={i} className="font-medium text-ink">
+                {t.value}
+              </strong>
+            )
+          case "italic":
+            return (
+              <em key={i} className="italic">
+                {t.value}
+              </em>
+            )
+          case "code":
+            return (
+              <code
+                key={i}
+                className="rounded bg-paper-deep px-1.5 py-0.5 font-mono text-[0.8125rem] text-ink"
+              >
+                {t.value}
+              </code>
+            )
+          default:
+            return <span key={i}>{t.value}</span>
+        }
       })}
     </>
   )
@@ -1254,7 +1436,14 @@ function Dot({ delay }: { delay: string }) {
 // ─── Voice helpers ─────────────────────────────────────────────────────────────
 
 function stripMarkdown(s: string): string {
-  return s.replace(/```[\s\S]*?```/g, "").replace(/\[\^[^\]]+\]/g, "").replace(/[*_#>`~]/g, "").replace(/\n{2,}/g, ". ").replace(/\s+/g, " ").trim()
+  return s
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\[\^[^\]]+\]/g, "")
+    .replace(/^---+$/gm, "")
+    .replace(/[*_#>`~]/g, "")
+    .replace(/\n{2,}/g, ". ")
+    .replace(/\s+/g, " ")
+    .trim()
 }
 
 type SpeechRecognitionResultLike = { 0?: { transcript: string } }

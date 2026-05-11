@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Anxiety",
+    "difficulty": 1,
+    "prompt": "What does research suggest is a useful way to reframe pre-talk nerves?",
+    "choices": [
+      "Telling yourself 'I am calm' repeatedly",
+      "Reframing the same physiological state as 'excitement' instead of 'nervousness'",
+      "Drinking strong coffee right before going on",
+      "Avoiding looking at the audience"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Structure",
+    "difficulty": 1,
+    "prompt": "Within roughly what window should an audience understand why they should keep paying attention to your talk?",
+    "choices": [
+      "The first 10 seconds",
+      "The first 90 seconds",
+      "The first 10 minutes",
+      "It doesn't matter — the closing carries everything"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Storytelling",
+    "difficulty": 2,
+    "prompt": "What three elements make a memorable story for an audience?",
+    "choices": [
+      "Music, lights, props",
+      "A person, a struggle, and a turn",
+      "Three jokes evenly spaced",
+      "A villain, a hero, and a sidekick"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Delivery",
+    "difficulty": 2,
+    "prompt": "What is the typical adjustment an amateur speaker should make to speaking pace?",
+    "choices": [
+      "Speed up by 20% — audiences get bored",
+      "Slow down by about 20% from what feels natural",
+      "Match the speed of native English on TV news",
+      "Speak in a monotone for authority"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Delivery",
+    "difficulty": 1,
+    "prompt": "Where should you pause for emphasis?",
+    "choices": [
+      "Before the important sentence, to build suspense — then immediately after speaking",
+      "Right after important sentences, so the line lands",
+      "Between every two words",
+      "Never — pauses signal weakness"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Q&A",
+    "difficulty": 1,
+    "prompt": "Why should you repeat a question from the audience before answering?",
+    "choices": [
+      "To correct the questioner's wording",
+      "So everyone can hear it and you have a beat to think",
+      "To pad the running time",
+      "To assert dominance"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Q&A",
+    "difficulty": 2,
+    "prompt": "What is the most credible response when you don't know the answer to a question?",
+    "choices": [
+      "Pretend you understood and answer something adjacent",
+      "Say 'I don't know' followed by 'I'll find out' or 'what's your best guess?'",
+      "Skip to the next question",
+      "Blame the previous speaker"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Slides",
+    "difficulty": 1,
+    "prompt": "What is the role of slides in a strong talk?",
+    "choices": [
+      "They are your full script — you read them aloud",
+      "They are cues for the audience to support what you're saying, not a script",
+      "They replace the speaker entirely",
+      "They should contain every detail of the talk for legal records"
+    ],
+    "correctIndex": 1
+  }
+]

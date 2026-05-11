@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Research basics",
+    "difficulty": 1,
+    "prompt": "Roughly how many well-chosen user interviews surface ~85% of usability problems in a flow, per Jakob Nielsen's classic finding?",
+    "choices": [
+      "Two",
+      "Five",
+      "Twenty",
+      "Two hundred"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Interviews",
+    "difficulty": 2,
+    "prompt": "Which type of interview question generally produces the most reliable signal?",
+    "choices": [
+      "Hypothetical future questions ('would you use a feature that…')",
+      "Past behaviour questions ('tell me about the last time you booked a flight')",
+      "Closed yes/no questions",
+      "Leading questions that confirm your hypothesis"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Interviews",
+    "difficulty": 1,
+    "prompt": "Why is sitting in silence for ~4 seconds after a user finishes a sentence useful?",
+    "choices": [
+      "It signals authority and dominance in the conversation",
+      "Users almost always add a more honest follow-up if you let the pause sit",
+      "It gives the interviewer time to think of the next leading question",
+      "Audio recordings need silence between speakers to be legal"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Usability testing",
+    "difficulty": 2,
+    "prompt": "What's the difference between a usability 'task' and 'asking for feedback'?",
+    "choices": [
+      "Tasks are scripted; feedback is improvised",
+      "Tasks ask the user to do something specific so you can observe what happens; feedback elicits opinions that often don't predict behaviour",
+      "Tasks require a paid moderator",
+      "There is no meaningful difference"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Usability testing",
+    "difficulty": 1,
+    "prompt": "If a user gets stuck on a task, what is the correct response from the moderator?",
+    "choices": [
+      "Show them where to click so they can continue",
+      "Wait, observe without helping, and let the design's failure surface",
+      "Apologise and end the session",
+      "Mark the user as 'not a fit' and recruit another"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Surveys",
+    "difficulty": 2,
+    "prompt": "Which is the clearest example of a double-barrelled question?",
+    "choices": [
+      "How likely are you to recommend us on a scale of 0–10?",
+      "Is our product easy to use and helpful?",
+      "What is your age?",
+      "How did you hear about us?"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Surveys",
+    "difficulty": 1,
+    "prompt": "Why is Net Promoter Score (NPS) more useful as a trend than as an absolute number?",
+    "choices": [
+      "Its absolute value depends heavily on the population sampled and the wording, making cross-company comparisons unreliable",
+      "It's only valid in the United States",
+      "It can only be calculated for SaaS products",
+      "Trends are easier to invoice clients for"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Synthesis",
+    "difficulty": 1,
+    "prompt": "What is the goal of affinity mapping after a round of research?",
+    "choices": [
+      "Group similar observations into clusters and identify recurring themes",
+      "Rank users by reliability",
+      "Validate the design team's preferences",
+      "Generate a list of personal opinions to bring to the design review"
+    ],
+    "correctIndex": 0
+  }
+]
