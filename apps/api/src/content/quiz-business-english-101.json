@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Email",
+    "difficulty": 1,
+    "prompt": "Which subject line is most likely to get an action from a busy reader?",
+    "choices": [
+      "Quick question",
+      "Important — please read",
+      "Need budget approval for Q3 hires by Fri",
+      "Following up on my last email"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Email",
+    "difficulty": 1,
+    "prompt": "What is the recommended approach for emails with three or more points?",
+    "choices": [
+      "Use one long paragraph for context",
+      "Bullet points beat paragraphs once you have three or more items",
+      "Split into three separate emails",
+      "Send as a PDF attachment"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Meetings",
+    "difficulty": 2,
+    "prompt": "What three columns belong in a useful meeting agenda?",
+    "choices": [
+      "Topic, owner, and time-box",
+      "Speaker, slide deck, and feedback",
+      "Date, attendees, and notes",
+      "Purpose, vision, and outcomes"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Meetings",
+    "difficulty": 2,
+    "prompt": "In a 'traffic light' status update, what does amber mean?",
+    "choices": [
+      "We have already shipped",
+      "On track but watch a specific risk",
+      "There is a serious problem and help is needed",
+      "Cancelled and rescheduled"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Presenting",
+    "difficulty": 2,
+    "prompt": "What does the Pyramid Principle recommend for a business presentation?",
+    "choices": [
+      "Build context first, save the conclusion for the very end",
+      "Lead with the conclusion, then provide supporting reasons and evidence",
+      "Present three competing options without picking one",
+      "Use ten slides per main idea"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Cross-cultural",
+    "difficulty": 1,
+    "prompt": "Which is the most reliable way to confirm shared understanding on a multinational call?",
+    "choices": [
+      "Wait for the other party to object if anything is unclear",
+      "Ask 'do you understand?' at the end",
+      "Restate the key decision and ask 'to make sure I have this right, you want X by Y — correct?'",
+      "Send a follow-up survey afterwards"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Cross-cultural",
+    "difficulty": 2,
+    "prompt": "Why should you avoid English idioms like 'low-hanging fruit' or 'ballpark figure' in multinational meetings?",
+    "choices": [
+      "They are considered rude in formal English",
+      "Non-native speakers may take them literally or miss them entirely",
+      "They have been banned by ISO communication standards",
+      "They cause email spam filters to trigger"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Negotiation",
+    "difficulty": 2,
+    "prompt": "Which phrase tends to surface the underlying constraint or reasoning behind a counter-party's position?",
+    "choices": [
+      "'That's not acceptable.'",
+      "'Help me understand…'",
+      "'I'll have to escalate this.'",
+      "'Final offer.'"
+    ],
+    "correctIndex": 1
+  }
+]

@@ -32,16 +32,21 @@ function toCurriculumDto(c: PrismaCurriculum): Curriculum {
     title: c.title,
     summary: c.summary,
     topics: c.topics,
+    category: c.category as Curriculum["category"],
+    difficulty: c.difficulty as Curriculum["difficulty"],
     syllabus,
     estimatedMinutes: c.estimatedMinutes,
     thumbnail: c.thumbnailUrl,
   }
 }
 
-function toBountyDto(b: PrismaBounty): Bounty {
+function toBountyDto(
+  b: PrismaBounty & { sponsor?: { organizationName: string } | null },
+): Bounty {
   return {
     id: b.id,
     sponsorId: b.sponsorId,
+    sponsorName: b.sponsor?.organizationName ?? null,
     title: b.title,
     description: b.description,
     curriculumId: b.curriculumId,
@@ -154,7 +159,7 @@ export async function listBounties(args?: {
         ? { id: { notIn: excludedBountyIds } }
         : {}),
     },
-    include: { curriculum: true },
+    include: { curriculum: true, sponsor: { select: { organizationName: true } } },
     orderBy: { createdAt: "desc" },
   })
   return rows.map((b) => ({
@@ -169,7 +174,7 @@ export async function getBounty(id: string): Promise<
 > {
   const b = await prisma.bounty.findUnique({
     where: { id },
-    include: { curriculum: true },
+    include: { curriculum: true, sponsor: { select: { organizationName: true } } },
   })
   if (!b) throw NotFound("Bounty not found")
   return {
@@ -185,7 +190,7 @@ export async function listMyBounties(userId: string): Promise<Bounty[]> {
 
   const rows = await prisma.bounty.findMany({
     where: { sponsorId: sponsor.id },
-    include: { curriculum: true },
+    include: { curriculum: true, sponsor: { select: { organizationName: true } } },
     orderBy: { createdAt: "desc" },
   })
   return rows.map((b) => ({
@@ -230,7 +235,7 @@ export async function getSponsorDashboard(
 
   const rows = await prisma.bounty.findMany({
     where: { sponsorId: sponsor.id },
-    include: { curriculum: true },
+    include: { curriculum: true, sponsor: { select: { organizationName: true } } },
     orderBy: { createdAt: "desc" },
   })
 

@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Soil health",
+    "difficulty": 1,
+    "prompt": "Which set of properties is characteristic of healthy soil?",
+    "choices": [
+      "Pale, dry, gritty, with no smell",
+      "Dark, crumbly, faintly sweet-smelling, holds together when squeezed",
+      "Bright orange clay that holds water tightly",
+      "White and powdery"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Soil health",
+    "difficulty": 2,
+    "prompt": "Which practice helps build soil rather than degrade it over time?",
+    "choices": [
+      "Frequent deep tillage every season",
+      "Burning crop residue after harvest",
+      "Cover cropping with nitrogen-fixing legumes like dhaincha between cash crop cycles",
+      "Continuous monoculture of the same cash crop"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Irrigation",
+    "difficulty": 1,
+    "prompt": "Roughly what irrigation efficiency does drip irrigation achieve compared to flood irrigation?",
+    "choices": [
+      "Drip is less efficient than flood",
+      "Both are about equal",
+      "Drip achieves 90%+ vs flood's 30–50%",
+      "Drip irrigation only works for paddy rice"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Irrigation",
+    "difficulty": 2,
+    "prompt": "What is the role of mulching in water-smart irrigation?",
+    "choices": [
+      "It increases evaporation to cool the crop",
+      "It reduces evaporation from the soil surface by 30–50%",
+      "It eliminates the need for any irrigation",
+      "It increases pest populations to balance the ecosystem"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "IPM",
+    "difficulty": 2,
+    "prompt": "In Integrated Pest Management, when are chemical pesticides recommended?",
+    "choices": [
+      "Routinely, on a fixed weekly schedule",
+      "Only as a last resort, after monitoring shows the economic threshold has been crossed",
+      "Never, under any circumstances",
+      "Only at night so beneficial insects aren't affected"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "IPM",
+    "difficulty": 2,
+    "prompt": "How do pheromone traps help control tomato fruit borer?",
+    "choices": [
+      "They kill all insects in the field indiscriminately",
+      "They attract male moths, breaking the reproduction cycle",
+      "They sterilise the soil",
+      "They produce a smell that deters birds"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Crop rotation",
+    "difficulty": 2,
+    "prompt": "Roughly how much nitrogen does a legume crop fix biologically per hectare in a rotation?",
+    "choices": [
+      "Around 5–10 kg per hectare",
+      "Around 60–80 kg per hectare",
+      "Around 300 kg per hectare",
+      "Legumes do not fix nitrogen"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Markets",
+    "difficulty": 1,
+    "prompt": "What problem do Farmer Producer Organisations (FPOs) primarily solve for smallholders?",
+    "choices": [
+      "They eliminate the need for fertilizer",
+      "They aggregate volume, share processing, and cut out middlemen — improving market access and prices",
+      "They are a tax avoidance scheme",
+      "They guarantee monsoon rainfall"
+    ],
+    "correctIndex": 1
+  }
+]

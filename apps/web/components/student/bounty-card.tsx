@@ -3,6 +3,11 @@
 import Link from "next/link"
 import type { Bounty, Curriculum } from "@pol/shared"
 
+import {
+  CATEGORY_META,
+  DIFFICULTY_META,
+} from "@/lib/bounty-filters"
+
 export function BountyCard({
   bounty,
 }: {
@@ -12,6 +17,8 @@ export function BountyCard({
 
   const full = seatsLeft === 0
   const scarce = seatsLeft > 0 && seatsLeft <= 15
+  const cat = CATEGORY_META[bounty.curriculum.category]
+  const diff = DIFFICULTY_META[bounty.curriculum.difficulty]
 
   return (
     <Link
@@ -23,6 +30,16 @@ export function BountyCard({
           : "border-rule hover:border-ink/20 hover:shadow-[0_4px_24px_-8px_hsl(218_39%_12%_/_0.10)]"
         }`}
     >
+      {/* Category + difficulty row */}
+      <div className="mb-3 flex items-center gap-2 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+        <span className="inline-flex items-center gap-1.5 text-ink-soft">
+          <CategoryDot tone={cat.tone} />
+          {cat.label}
+        </span>
+        <span aria-hidden>·</span>
+        <span>{diff.label}</span>
+      </div>
+
       {/* Title + reward pill */}
       <div className="flex items-start justify-between gap-4">
         <h3 className="font-display text-[1.25rem] font-medium leading-snug tracking-tight text-ink">
@@ -33,16 +50,26 @@ export function BountyCard({
         </span>
       </div>
 
+      {/* Sponsor */}
+      {bounty.sponsorName && (
+        <p className="mt-1 font-mono text-[0.6875rem] uppercase tracking-wide text-ink-faint">
+          {bounty.sponsorName}
+        </p>
+      )}
+
       {/* Short description */}
       <p className="mt-3 line-clamp-2 text-[0.875rem] leading-relaxed text-ink-muted">
         {bounty.description}
       </p>
 
-      {/* Curriculum Topics */}
+      {/* Topic tags */}
       {bounty.curriculum.topics && (
         <div className="mt-4 flex flex-wrap gap-1.5">
-          {bounty.curriculum.topics.map((t: string) => (
-            <span key={t} className="inline-flex rounded border border-rule px-1.5 py-[1px] font-mono text-[0.5625rem] uppercase tracking-wide text-ink-faint">
+          {bounty.curriculum.topics.slice(0, 4).map((t: string) => (
+            <span
+              key={t}
+              className="inline-flex rounded border border-rule px-1.5 py-[1px] font-mono text-[0.5625rem] uppercase tracking-wide text-ink-faint"
+            >
               {t}
             </span>
           ))}
@@ -69,5 +96,20 @@ export function BountyCard({
         )}
       </div>
     </Link>
+  )
+}
+
+function CategoryDot({ tone }: { tone: string }) {
+  const bg =
+    {
+      ink: "bg-ink",
+      teal: "bg-teal",
+      amber: "bg-amber",
+      terracotta: "bg-terracotta",
+      forest: "bg-forest",
+      mint: "bg-forest",
+    }[tone] ?? "bg-ink"
+  return (
+    <span aria-hidden className={`inline-block h-1.5 w-1.5 rounded-full ${bg}`} />
   )
 }

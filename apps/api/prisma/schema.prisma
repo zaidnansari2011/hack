@@ -68,6 +68,8 @@ model Curriculum {
   title            String
   summary          String
   topics           String[]
+  category         String   @default("engineering")
+  difficulty       String   @default("intermediate")
   // Structured syllabus: array of { module, summary, durationMinutes }.
   // Stored as JSON so the shape can evolve without a migration per tweak.
   syllabus         Json     @default("[]")
@@ -80,6 +82,9 @@ model Curriculum {
   bounties  Bounty[]
   questions Question[]
   proofs    OnchainProof[]
+
+  @@index([category])
+  @@index([difficulty])
 }
 
 // CurriculumChunk.embedding is a vector(384) column managed via raw SQL.

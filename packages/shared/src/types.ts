@@ -37,6 +37,7 @@ export type AuthResponse = {
 export type Bounty = {
   id: string
   sponsorId: string
+  sponsorName: string | null
   title: string
   description: string
   curriculumId: string
@@ -141,12 +142,27 @@ export type SyllabusModule = {
   durationMinutes: number
 }
 
+export type CurriculumCategory =
+  | "engineering"
+  | "data-ai"
+  | "business"
+  | "design"
+  | "languages"
+  | "health"
+  | "science"
+  | "soft-skills"
+  | "agriculture"
+
+export type CurriculumDifficulty = "beginner" | "intermediate" | "advanced"
+
 export type Curriculum = {
   id: string
   slug: string
   title: string
   summary: string
   topics: string[]
+  category: CurriculumCategory
+  difficulty: CurriculumDifficulty
   syllabus: SyllabusModule[]
   estimatedMinutes: number
   thumbnail: string | null

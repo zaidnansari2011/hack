@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "What LLMs do",
+    "difficulty": 1,
+    "prompt": "At the most fundamental level, an LLM like ChatGPT is best described as:",
+    "choices": [
+      "A search engine indexed in real time",
+      "A statistical pattern matcher trained to predict the next token in a sequence",
+      "A symbolic reasoner like classical AI",
+      "A database of facts curated by humans"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Hallucination",
+    "difficulty": 1,
+    "prompt": "What does it mean when an LLM 'hallucinates'?",
+    "choices": [
+      "Its hardware is malfunctioning",
+      "It produces plausible-sounding output that isn't grounded in fact and presents it confidently",
+      "It refuses to answer a question",
+      "It outputs random letters"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Hallucination",
+    "difficulty": 2,
+    "prompt": "Which is the safest practice when an LLM gives you a specific citation or statistic?",
+    "choices": [
+      "Trust it — citations are usually fetched from a verified database",
+      "Treat it as a guess until you have verified it against a primary source",
+      "Cite it as authoritative without checking",
+      "Ask the model again — agreement on a second try guarantees accuracy"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Prompting",
+    "difficulty": 2,
+    "prompt": "Which prompting technique tends to produce the largest quality improvement in practical use?",
+    "choices": [
+      "Adding emojis to the prompt",
+      "Few-shot prompting — showing the model 1–3 examples of the format you want",
+      "Always asking in capital letters",
+      "Asking the same question many times in a row"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Prompting",
+    "difficulty": 1,
+    "prompt": "Which instruction does an LLM tend to honour most reliably?",
+    "choices": [
+      "Format instructions like 'three bullet points, each under 15 words'",
+      "Instructions to 'always be 100% accurate'",
+      "Instructions to invent new facts that don't exist",
+      "Instructions to forget its training"
+    ],
+    "correctIndex": 0
+  },
+  {
+    "topic": "Jobs",
+    "difficulty": 2,
+    "prompt": "Which is the most accurate framing of AI's impact on work in 2026?",
+    "choices": [
+      "AI is replacing entire job categories within months",
+      "AI is replacing specific tasks within roles rather than most jobs wholesale; roles that involve human trust, novel physical work, or high-end creative judgement are slowest to change",
+      "AI has had essentially no measurable effect on work yet",
+      "AI only affects engineering jobs"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Privacy",
+    "difficulty": 1,
+    "prompt": "What is a reasonable default privacy assumption when using a consumer cloud AI tool?",
+    "choices": [
+      "Whatever you paste is private by default and cannot be retained",
+      "Anything you paste may be retained and potentially used for training; sensitive data should not be pasted into consumer tools",
+      "Indian users are exempt from data retention",
+      "Only voice input is retained — typed input is not"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Bias",
+    "difficulty": 2,
+    "prompt": "Why do LLMs trained on internet text exhibit bias against minority groups, certain dialects, or genders?",
+    "choices": [
+      "The hardware introduces random bias",
+      "Models inherit the patterns of their training data, which over-represents certain perspectives and reproduces stereotypes baked into that data",
+      "Engineers deliberately encode bias",
+      "There is no measurable bias in modern LLMs"
+    ],
+    "correctIndex": 1
+  }
+]

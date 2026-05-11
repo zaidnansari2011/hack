@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "Definitions",
+    "difficulty": 1,
+    "prompt": "Which best describes the difference between stress and anxiety?",
+    "choices": [
+      "They are synonyms",
+      "Stress responds to a specific present demand; anxiety is anticipation of future threat that can persist after the trigger is gone",
+      "Anxiety is acute; stress is chronic",
+      "Stress only affects men; anxiety only affects women"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Definitions",
+    "difficulty": 2,
+    "prompt": "Roughly how long must low mood and functional interference persist before depression is considered as a clinical possibility?",
+    "choices": [
+      "A few hours",
+      "Two days",
+      "Two weeks or more",
+      "Six months minimum"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Recognition",
+    "difficulty": 1,
+    "prompt": "Which is a warning sign suggesting someone may be struggling and worth checking in on?",
+    "choices": [
+      "Going to bed at a consistent time",
+      "Withdrawing from people they used to enjoy spending time with",
+      "Drinking water throughout the day",
+      "Exercising three times a week"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Conversation",
+    "difficulty": 2,
+    "prompt": "Which response best supports someone who has just shared a difficult feeling?",
+    "choices": [
+      "'Things will get better, don't worry.'",
+      "'At least you don't have it as bad as some people.'",
+      "'That sounds really hard. I'm glad you told me.'",
+      "'You should try yoga.'"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Suicide risk",
+    "difficulty": 2,
+    "prompt": "Asking someone directly whether they are thinking about hurting themselves is generally considered to:",
+    "choices": [
+      "Plant the idea and increase risk",
+      "Be illegal in India without medical training",
+      "Show you can handle the answer; it does not plant the idea",
+      "Be unnecessary if the person seems calm"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "topic": "Interventions",
+    "difficulty": 1,
+    "prompt": "Which intervention has the largest evidence base for anxiety and depression in 6–12 sessions?",
+    "choices": [
+      "Past-life regression",
+      "Cognitive Behavioural Therapy (CBT)",
+      "Acupuncture only",
+      "Crystal healing"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Self-care",
+    "difficulty": 1,
+    "prompt": "Which 'boring basic' habit has effect sizes on mild depression that can rival medication?",
+    "choices": [
+      "Strict calorie counting",
+      "30 minutes of walking or aerobic activity most days",
+      "Daily multivitamins",
+      "Cold showers"
+    ],
+    "correctIndex": 1
+  },
+  {
+    "topic": "Helplines (India)",
+    "difficulty": 1,
+    "prompt": "Which is a free mental-health crisis helpline operating in India?",
+    "choices": [
+      "iCall (9152987821) and Vandrevala (1860-2662-345)",
+      "Any local astrologer",
+      "111 only",
+      "The income tax helpline"
+    ],
+    "correctIndex": 0
+  }
+]
