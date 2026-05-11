@@ -142,7 +142,7 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
                   dateStyle: "medium",
                   timeStyle: "short",
                 })
-              : "—"
+              : "·"
           }
         />
       </div>

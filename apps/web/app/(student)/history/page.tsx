@@ -295,7 +295,7 @@ function EmptyState() {
       </span>
       <h3 className="display-md mt-3 text-ink">No history yet.</h3>
       <p className="mt-2 max-w-md text-[0.9375rem] text-ink-muted">
-        Pick a bounty, learn the curriculum, pass the quiz — your first
+        Pick a bounty, learn the curriculum, pass the quiz. Your first
         completion (and ₹ payout) will show up here.
       </p>
       <Link

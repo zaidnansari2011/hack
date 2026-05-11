@@ -166,6 +166,21 @@ export async function getSessionList(args: {
   }))
 }
 
+export async function clearSession(args: {
+  enrollmentId: string
+  userId: string
+  sessionIndex: number
+}): Promise<{ deleted: number }> {
+  await loadEnrollment(args)
+  const result = await prisma.chatMessage.deleteMany({
+    where: {
+      enrollmentId: args.enrollmentId,
+      sessionIndex: args.sessionIndex,
+    },
+  })
+  return { deleted: result.count }
+}
+
 export async function getHistory(args: {
   enrollmentId: string
   userId: string
@@ -318,32 +333,48 @@ const LESSON_SYSTEM_PROMPT = (args: {
   moduleName: string
   moduleSummary: string
   lang?: TutorLanguage
-}) => `You are an expert tutor for "${args.curriculumTitle}" delivering a focused lesson on ONE module.
+}) => `You are a patient, plain-spoken tutor for "${args.curriculumTitle}". You are teaching ONE module right now: "${args.moduleName}".
 
 LANGUAGE
 ${LANG_INSTRUCTIONS[args.lang ?? "en"]}
 
-LESSON STRUCTURE — your reply MUST be exactly four sections in this order, separated by horizontal rules (---):
+WRITE LIKE A HUMAN
+Use plain words and flowing paragraphs that read like a real teacher talking to a curious learner. Reach for everyday analogies before reaching for jargon, and when you do use a technical term, define it the first time it appears. Avoid throat-clearing phrases like "in this lesson" or "let me explain"; just begin teaching. Never use em dashes ("—"); use commas, periods, semicolons, or parentheses instead.
 
-1. **${args.moduleName} — the idea in one paragraph**
-   Lead with the single most important sentence. Then 2-3 sentences expanding it. No throat-clearing.
+FORMATTING FOR READABILITY
+This is non-negotiable. Make the lesson skimmable as well as deep:
+- **Split into short paragraphs.** Each paragraph holds ONE small idea and is at most TWO or THREE sentences long. After at most three sentences you MUST end the paragraph and start a new one. Walls of text are a failure mode and will be rejected.
+- **Use a blank line between paragraphs.** That means TWO newline characters in your output, not one. Every paragraph break is a blank line. Never separate paragraphs with a single line break; always use a full blank line. Inside a section you should produce three to six short paragraphs separated by blank lines, never one long paragraph.
+- **Bold the key terms.** Every time you introduce a term, a rule, or the single most important phrase in a paragraph, wrap it in **double asterisks**. Aim for two to four bolded phrases per section, not one and not ten.
+- **Use *italics* for emphasis** on a small word or phrase that the learner should pause on, for example: *not* the way you would expect, or the *real* reason this works.
+- **Use bullet lists** when you are enumerating three or more parallel items (rules, steps, gotchas). Lists are for parallel items only, never for prose disguised as a list.
+- **Use \`inline code\`** for any identifier, keyword, operator, file path, or value the learner would type literally.
+- **Use fenced code blocks** for any example longer than a single token. Pick the right language tag (\`\`\`python, \`\`\`ts, \`\`\`solidity, etc.).
+- **Use blockquotes** ("> ...") only when quoting the curriculum CONTEXT verbatim, followed by a [^source] citation.
+
+LESSON SHAPE
+Write the reply as four flowing sections, in this order, separated by horizontal rules (---). Each section should contain multiple short paragraphs:
+
+1. **${args.moduleName}: the core idea**
+   Open with one sentence on its own that names the single most important thing to remember; bold the key phrase inside it. Then in a new paragraph, unpack the idea with an everyday analogy. In a third paragraph, explain why this concept matters in the wider picture of the course.
 
 2. **How it actually works**
-   The mechanic, with one concrete example or short code snippet from the CONTEXT. Cite chunks inline as [^source].
+   Walk through the mechanic, but split it across multiple short paragraphs, one per step or sub-idea. Include at least one concrete example. Where appropriate include a short code snippet inside a fenced block drawn from the CONTEXT. Bold the action verb or rule in each step. Cite source chunks inline as [^source] when you draw from them.
 
 3. **The most common mistake**
-   What people get wrong about this module — name the trap and the fix.
+   First paragraph: describe the trap, with the trap itself bolded. Second paragraph: the fix, with the fix bolded. Optionally a third paragraph on why the fix works.
 
 4. **Check yourself**
-   One short question (no more than 20 words) the student should be able to answer if they understood. Don't reveal the answer.
+   One short question (under 25 words) the learner can answer only if they really understood. Do not reveal the answer. Bold the verb of the question (Explain, Predict, Compare, etc.).
 
 RULES
-- Module ${args.moduleNumber} of ${args.totalModules}. Don't drift to other modules — stay in this one.
-- Ground every factual claim in the provided CONTEXT. If the context doesn't cover something, omit it rather than invent.
-- Keep total length under 350 words. This is a lesson, not a textbook chapter.
-- Don't say "in this lesson" or "let me explain" — just teach.
-- Module summary you must hit: "${args.moduleSummary}"
-- Section headings (the bold lines) MUST stay in the reply language above; do NOT use English headings if the language is not English.`
+- This is module ${args.moduleNumber} of ${args.totalModules}. Stay inside it. Do not preview later modules.
+- Ground every factual claim in the CONTEXT. If the context does not cover something, leave it out instead of inventing.
+- Be generous with depth: aim for roughly 500 to 800 words total. Longer is fine if the depth is real, not filler.
+- **Cover every sub-topic that appears in the CONTEXT chunks** for this module. Before you finish, mentally check that each distinct concept you saw in the chunks has been explained at least once in the lesson. Do not skip a chunk to save space; if a chunk is in the context, the lesson must address it.
+- Module summary you must fully cover: "${args.moduleSummary}". Treat every clause of that summary as a checklist item the lesson must hit.
+- The "Check yourself" question MUST be directly answerable from material you just taught in sections 1 to 3. Do not ask about anything you did not cover. The question is the natural test of the most important takeaway above, not a tangent.
+- Section headings (the bold lines) MUST be in the reply language above. Do not use English headings if the reply language is not English.`
 
 export async function teachModule(args: {
   enrollmentId: string
@@ -403,20 +434,34 @@ export async function teachModule(args: {
     ...(reinforcer ? [{ role: "system" as const, content: reinforcer }] : []),
   ]
 
+  const lang = args.lang ?? "en"
+  const cacheKey = lessonCacheKey(curriculum.id, args.moduleIndex, lang)
+  const cached = lessonCache.get(cacheKey)
+
   let tutorContent: string
-  if (groqAvailable()) {
+  if (cached) {
+    // Reuse the canonical lesson so every student sees the same teaching
+    // for this module. Per-student chat rows still get created; only the
+    // content text is shared.
+    tutorContent = cached
+  } else if (groqAvailable()) {
     try {
       const completion = await groqChat({
         messages: lessonMessages,
-        temperature: 0.4,
-        maxTokens: 900,
+        temperature: 0.2,
+        maxTokens: 1800,
+        seed: stableSeed(curriculum.id, args.moduleIndex, lang),
       })
       tutorContent = completion.content
+      lessonCache.set(cacheKey, tutorContent)
     } catch {
-      tutorContent = lessonFallback(mod, chunks)
+      tutorContent = lessonFallback(mod, chunks, curriculum.title)
     }
   } else {
-    tutorContent = lessonFallback(mod, chunks)
+    tutorContent = lessonFallback(mod, chunks, curriculum.title)
+    // Fallback is a pure function of (curriculum, module, chunks); caching
+    // keeps the no-key path consistent across users too.
+    lessonCache.set(cacheKey, tutorContent)
   }
 
   const citations: Citation[] = chunks.slice(0, 4).map((c) => ({
@@ -443,31 +488,69 @@ export async function teachModule(args: {
     },
   })
 
-  // Bump progress: covered modules / total. Idempotent — re-teaching the same
-  // module doesn't push past where the student already is.
-  const covered = await coveredModuleIndexes(enrollment.id)
-  covered.add(args.moduleIndex)
-  const newPct = Math.round((covered.size / syllabus.length) * 100)
-  if (newPct !== enrollment.progressPct) {
-    await prisma.enrollment.update({
-      where: { id: enrollment.id },
-      data: { progressPct: newPct },
-    })
-  }
-
+  // Teaching alone no longer counts as progress. A module is marked complete
+  // only once the student passes MASTERY_THRESHOLD consecutive check questions
+  // for it (see submitCheckAnswer). This keeps "% done" honest.
   return toDto(tutorMessage)
+}
+
+// Number of consecutive correct check answers required before a module is
+// considered mastered and counted toward enrollment progress.
+const MASTERY_THRESHOLD = 3
+
+// Canonical lesson cache. The first student to teach a given module locks in
+// the lesson text; every subsequent student sees the exact same lesson for
+// that (curriculum, module, language) tuple. Lives in process memory; resets
+// on API restart. Keep generation deterministic (low temperature + stable
+// seed) so even cache misses produce text that does not drift between users.
+const lessonCache = new Map<string, string>()
+function lessonCacheKey(curriculumId: string, moduleIndex: number, lang: TutorLanguage): string {
+  return `${curriculumId}::${moduleIndex}::${lang}`
+}
+function stableSeed(curriculumId: string, moduleIndex: number, lang: TutorLanguage): number {
+  // Tiny deterministic 31-bit hash. Different (curriculum, module, lang)
+  // tuples get different seeds, but a given tuple always gets the same seed.
+  const s = `${curriculumId}:${moduleIndex}:${lang}`
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = (h * 16777619) >>> 0
+  }
+  return h & 0x7fffffff
 }
 
 function lessonFallback(
   mod: SyllabusModule,
   chunks: RetrievedChunk[],
+  curriculumTitle?: string,
 ): string {
-  const top = chunks[0]
-  if (!top) {
-    return `**${mod.module} — the idea in one paragraph**\n\n${mod.summary}\n\n---\n\n**How it actually works**\n\n(Curriculum chunks for this module aren't available right now. Try asking a free-form question and I'll search across the full curriculum.)\n\n---\n\n**The most common mistake**\n\nSkipping this module on the assumption you already know it. The check below will tell you fast.\n\n---\n\n**Check yourself**\n\n${mod.summary.split(".")[0]} — can you say it back in your own words?`
+  if (chunks.length === 0) {
+    return `**${mod.module}: the core idea**\n\n${mod.summary} The reason this matters is that almost everything else in this course either depends on it or extends it, so getting a clear mental model now saves a lot of confusion later.\n\n---\n\n**How it actually works**\n\nThe curriculum chunks for this module are not loaded right now, so I cannot show you a worked example with citations. You can still ask me a free-form question and I will pull from the wider curriculum, or move on to a module whose content is available and circle back.\n\n---\n\n**The most common mistake**\n\nThe biggest trap learners fall into here is assuming they already know the idea because it sounds familiar from somewhere else. The fix is to read the next module's intro first and ask yourself whether this module's idea actually shows up there. If you cannot point to it, you do not yet own it.\n\n---\n\n**Check yourself**\n\n${mod.summary.split(".")[0]}. Can you say it back in your own words without looking?`
   }
-  const snippet = top.content.replace(/\s+/g, " ").slice(0, 360)
-  return `**${mod.module} — the idea in one paragraph**\n\n${mod.summary}\n\n---\n\n**How it actually works**\n\n> ${snippet}…\n\n[^${top.source}]\n\n---\n\n**The most common mistake**\n\nMisreading the section above as optional. The mechanic in the snippet is what every later concept builds on.\n\n---\n\n**Check yourself**\n\nIn one sentence: what does this module solve that the previous one couldn't?`
+
+  function cleanChunk(c: RetrievedChunk, limit = 600): string {
+    return c.content.replace(/\s+/g, " ").trim().slice(0, limit)
+  }
+
+  const top = chunks[0]
+  const second = chunks[1]
+  const third = chunks[2]
+
+  const coreIdea = `**${mod.module}: the core idea**\n\n${mod.summary} Think of this module as one piece of a larger puzzle inside "${curriculumTitle ?? "this course"}": the ideas you pick up here become the working vocabulary you will use in every later section. The single most important thing to take away is the sentence above; if you can say it back to yourself in your own words and connect it to a concrete example you have seen, you are already past the hardest part.`
+
+  const mechanic = `**How it actually works**\n\nLet me walk through this the way I would on a whiteboard. The core mechanic, drawn straight from the curriculum, looks like this:\n\n> ${cleanChunk(top)}…\n\n[^${top.source}]\n\nThe key word in that passage is the one that names the operation or the rule. Read it twice. The reason that detail matters is that everything else in the module is just a variation on the same move; once you can spot it, the rest reads as repetition. ${
+    second
+      ? `Another angle from the same material:\n\n> ${cleanChunk(second, 360)}…\n\n[^${second.source}]\n\nNotice how the two passages agree on the underlying idea even though they describe it differently. That is a good sign you have the right mental model.`
+      : ""
+  }`
+
+  const mistake = `**The most common mistake**\n\nThe trap learners fall into here is treating this module as a definition to memorise rather than a tool to use. They read the passage above, nod, and move on, only to get stuck the moment a problem demands they apply it under slightly different framing. The fix is small but real: after you read each chunk, write a one-sentence example of your own that uses the idea. Not a copy of the curriculum's example, your own. ${
+    third ? `Concretely, the source notes that:\n\n> ${cleanChunk(third, 320)}…\n\n[^${third.source}]\n\nIf you cannot reproduce that point in your own words, that is the gap to close before moving on.` : ""
+  }`
+
+  const check = `**Check yourself**\n\nIn one or two sentences, explain how the mechanic in this module would behave in a situation you choose yourself. If you have to look back at the snippet above to answer, that is fine, but try once without.`
+
+  return [coreIdea, mechanic, mistake, check].join("\n\n---\n\n")
 }
 
 // ─── Inline check ─────────────────────────────────────────────────────────────
@@ -495,45 +578,87 @@ export async function getCheckQuestion(args: {
   }
   const mod = syllabus[args.moduleIndex] as SyllabusModule
 
-  // Pull questions tagged with the same `topic` as the module name. Real
-  // module names in syllabi are richer than question.topic tags ("Functions
-  // and Visibility" vs "Visibility"), so we match on any meaningful token
-  // shared between the two strings. Falls back to any curriculum question
-  // only if no token-overlap match exists.
   const STOPWORDS = new Set([
-    "and",
-    "or",
-    "the",
-    "a",
-    "an",
-    "of",
-    "in",
-    "with",
-    "for",
-    "to",
-    "&",
+    "and", "or", "the", "a", "an", "of", "in", "with", "for", "to", "&",
   ])
   const moduleTokens = mod.module
     .toLowerCase()
     .split(/[\s/&\-]+/)
     .filter((t) => t.length >= 3 && !STOPWORDS.has(t))
 
+  // Pull the same chunks the lesson would teach from. The source slugs of
+  // these chunks form the canonical "what the student was taught" signal.
+  const moduleSlug = mod.module.toLowerCase().replace(/\s+/g, "-")
+  let lessonChunks = await retrieveModuleChunks({
+    curriculumId: curriculum.id,
+    moduleSlug,
+  })
+  if (lessonChunks.length === 0) {
+    lessonChunks = await retrieveChunks({
+      curriculumId: curriculum.id,
+      query: `${mod.module} ${mod.summary}`,
+      limit: 4,
+    })
+  }
+  const lessonSourceSlugs = new Set<string>()
+  for (const c of lessonChunks) {
+    const last = c.source.split("#").pop()
+    if (last) lessonSourceSlugs.add(last.toLowerCase())
+  }
+
   const allForCurriculum = await prisma.question.findMany({
     where: { curriculumId: curriculum.id },
+    orderBy: { id: "asc" },
   })
 
-  let candidates = allForCurriculum.filter((q) => {
+  // Score each question by how well its topic aligns with (a) the module
+  // name tokens, and (b) the source slugs the lesson actually drew from.
+  // Higher score wins; ties broken by stable id sort.
+  type Scored = { q: (typeof allForCurriculum)[number]; score: number }
+  const scored: Scored[] = allForCurriculum.map((q) => {
     const topicLower = (q.topic ?? "").toLowerCase()
-    return moduleTokens.some((tok) => topicLower.includes(tok))
+    let score = 0
+    for (const tok of moduleTokens) {
+      if (topicLower.includes(tok)) score += 2
+    }
+    for (const slug of lessonSourceSlugs) {
+      if (topicLower.includes(slug) || slug.includes(topicLower)) score += 3
+    }
+    return { q, score }
   })
+  scored.sort((a, b) => b.score - a.score || a.q.id.localeCompare(b.q.id))
+
+  let candidates = scored.filter((s) => s.score > 0).map((s) => s.q)
   if (candidates.length === 0) {
-    // Last resort: any question on this curriculum.
     candidates = allForCurriculum
   }
   if (candidates.length === 0) {
     throw NotFound("No questions seeded for this curriculum")
   }
-  const pick = candidates[Math.floor(Math.random() * candidates.length)]!
+
+  // Figure out which questions the student has already been asked for this
+  // module so we rotate through fresh ones first. "Want another check
+  // question?" should not show the same Q twice in a row when we have more
+  // material on the shelf.
+  const priorRows = await prisma.chatMessage.findMany({
+    where: { enrollmentId: enrollment.id, role: "tutor" },
+    orderBy: { createdAt: "desc" },
+    select: { citations: true },
+    take: 300,
+  })
+  const askedIds = new Set<string>()
+  for (const r of priorRows) {
+    const meta = unwrapMeta(r.citations as Prisma.JsonValue)
+    if (meta?.kind === "check" && meta.moduleIndex === args.moduleIndex) {
+      askedIds.add(meta.questionId)
+    }
+  }
+  const unseen = candidates.filter((q) => !askedIds.has(q.id))
+  const pool = unseen.length > 0 ? unseen : candidates
+  // Deterministic pick: first in the (already module-aligned) sorted pool.
+  // That gives the student a stable, content-aligned question first, then
+  // cycles to the next one on each subsequent check.
+  const pick = pool[0]!
 
   return {
     questionId: pick.id,
@@ -555,6 +680,10 @@ export async function submitCheckAnswer(args: {
   correct: boolean
   correctIndex: number
   message: ChatMessage
+  streak: number
+  threshold: number
+  mastered: boolean
+  justMastered: boolean
 }> {
   const enrollment = await loadEnrollment(args)
   const question = await prisma.question.findUnique({
@@ -577,9 +706,45 @@ export async function submitCheckAnswer(args: {
   }
   const blob: CitationsBlob = { meta }
 
-  const content = correct
-    ? `**Correct.** "${choices[question.correctIndex]}" — that's the one. Ready for the next module?`
-    : `**Not quite.** You picked "${choices[args.answeredIndex] ?? "—"}". The right answer is "${choices[question.correctIndex]}". Want me to re-teach this module, or push on?`
+  // Persist the new check answer first so the streak calculation includes it.
+  // After this insert, we recompute the consecutive-correct run for this
+  // module by scanning prior check messages in reverse chronological order.
+  const recentRows = await prisma.chatMessage.findMany({
+    where: { enrollmentId: enrollment.id, role: "tutor" },
+    orderBy: { createdAt: "desc" },
+    select: { citations: true },
+    take: 200,
+  })
+  let priorStreak = 0
+  for (const r of recentRows) {
+    const m = unwrapMeta(r.citations as Prisma.JsonValue)
+    if (!m || m.kind !== "check" || m.moduleIndex !== args.moduleIndex) continue
+    if (m.correct === true) priorStreak++
+    else break
+  }
+  const streak = correct ? priorStreak + 1 : 0
+
+  // Was this module already mastered before this answer? Mastery is sticky:
+  // once achieved, a subsequent wrong answer does not undo it.
+  const masteredBefore = await masteredModuleIndexes(enrollment.id)
+  const wasMastered = masteredBefore.has(args.moduleIndex)
+  const justMastered = !wasMastered && streak >= MASTERY_THRESHOLD
+  const mastered = wasMastered || justMastered
+
+  // Build the tutor response message.
+  let content: string
+  if (correct && justMastered) {
+    content = `**Mastered.** That is ${MASTERY_THRESHOLD} correct in a row on this module. You clearly understand it. This module is now marked complete and your progress has moved up. Ready to pick a new module?`
+  } else if (correct && mastered) {
+    content = `**Still correct.** This module is already marked mastered, so feel free to move on whenever you are ready. Picking a new module from the syllabus will switch the chat over.`
+  } else if (correct) {
+    const remaining = MASTERY_THRESHOLD - streak
+    content = `**Correct.** That is ${streak} of ${MASTERY_THRESHOLD} right in a row. ${remaining} more correct answer${remaining === 1 ? "" : "s"} and this module is marked complete. Want another check question?`
+  } else {
+    const pickedText = choices[args.answeredIndex] ?? "(nothing)"
+    const rightText = choices[question.correctIndex]
+    content = `**Not quite.** You picked "${pickedText}". The right answer is "${rightText}". Your streak resets to zero, so you will need ${MASTERY_THRESHOLD} correct answers in a row to mark this module complete. Want me to re-teach the module, or try another check?`
+  }
 
   const message = await prisma.chatMessage.create({
     data: {
@@ -592,10 +757,31 @@ export async function submitCheckAnswer(args: {
     },
   })
 
+  // Bump progressPct if this answer just promoted the module to mastered.
+  if (justMastered) {
+    const syllabus = enrollment.bounty.curriculum.syllabus as unknown as SyllabusModule[]
+    const masteredNow = new Set(masteredBefore)
+    masteredNow.add(args.moduleIndex)
+    const total = Array.isArray(syllabus) ? syllabus.length : 0
+    if (total > 0) {
+      const newPct = Math.round((masteredNow.size / total) * 100)
+      if (newPct !== enrollment.progressPct) {
+        await prisma.enrollment.update({
+          where: { id: enrollment.id },
+          data: { progressPct: newPct },
+        })
+      }
+    }
+  }
+
   return {
     correct,
     correctIndex: question.correctIndex,
     message: toDto(message),
+    streak,
+    threshold: MASTERY_THRESHOLD,
+    mastered,
+    justMastered,
   }
 }
 
@@ -791,17 +977,36 @@ export async function generateRemediation(args: {
   }
 }
 
-async function coveredModuleIndexes(enrollmentId: string): Promise<Set<number>> {
+// A module is mastered once the student has achieved MASTERY_THRESHOLD
+// consecutive correct check answers for it at any point in their history.
+// Mastery is sticky: a later wrong answer does not undo it.
+async function masteredModuleIndexes(enrollmentId: string): Promise<Set<number>> {
   const rows = await prisma.chatMessage.findMany({
     where: { enrollmentId, role: "tutor" },
+    orderBy: { createdAt: "asc" },
     select: { citations: true },
   })
-  const set = new Set<number>()
+  const streaks: Record<number, number> = {}
+  const mastered = new Set<number>()
   for (const r of rows) {
     const meta = unwrapMeta(r.citations as Prisma.JsonValue)
-    if (meta?.kind === "lesson") set.add(meta.moduleIndex)
+    if (!meta || meta.kind !== "check") continue
+    const m = meta.moduleIndex
+    if (meta.correct === true) {
+      streaks[m] = (streaks[m] ?? 0) + 1
+      if ((streaks[m] ?? 0) >= MASTERY_THRESHOLD) mastered.add(m)
+    } else {
+      streaks[m] = 0
+    }
   }
-  return set
+  return mastered
+}
+
+// Alias kept for backwards compatibility with existing API callers. The
+// "covered" set now reflects mastered modules, which is what progress should
+// have always meant.
+async function coveredModuleIndexes(enrollmentId: string): Promise<Set<number>> {
+  return masteredModuleIndexes(enrollmentId)
 }
 
 export async function getEnrollmentProgressDetail(args: {

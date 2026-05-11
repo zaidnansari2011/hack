@@ -14,6 +14,7 @@ export type GroqCompletionOptions = {
   temperature?: number
   maxTokens?: number
   model?: string
+  seed?: number
 }
 
 type GroqResponse = {
@@ -35,13 +36,14 @@ export async function groqChat(
     throw ExternalServiceError("GROQ_API_KEY is not configured")
   }
 
-  const body = {
+  const body: Record<string, unknown> = {
     model: opts.model ?? env.GROQ_MODEL,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.4,
     max_tokens: opts.maxTokens ?? 800,
     stream: false,
   }
+  if (opts.seed !== undefined) body.seed = opts.seed
 
   const res = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
     method: "POST",

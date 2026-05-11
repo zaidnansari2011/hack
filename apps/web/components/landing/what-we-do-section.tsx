@@ -22,7 +22,7 @@ const TENETS = [
     n: "03",
     headline: "Get the rupee to UPI before the celebration ends.",
     body:
-      "The rupees arrive via UPI in seconds, not days. The on-chain record and the payment fire from the same pipeline — the student gets paid before they've switched tabs.",
+      "The rupees arrive via UPI in seconds, not days. The on-chain record and the payment fire from the same pipeline, so the student gets paid before they've switched tabs.",
   },
 ] as const
 

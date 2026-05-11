@@ -136,7 +136,7 @@ export default function PayoutsPage() {
                 <Badge variant={STATUS_VARIANT[p.status]}>{p.status}</Badge>
 
                 <code className="truncate font-mono text-[0.6875rem] text-ink-faint">
-                  {p.razorpayPayoutId ?? "—"}
+                  {p.razorpayPayoutId ?? "·"}
                 </code>
 
                 <div className="text-right font-mono text-[0.6875rem] text-ink-faint">
