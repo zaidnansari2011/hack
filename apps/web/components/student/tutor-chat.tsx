@@ -14,6 +14,14 @@ import type {
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { ease } from "@/lib/motion"
 import { cn } from "@/lib/utils"
+import {
+  buildLearningPath,
+  loadNotes,
+  masteryProgress,
+  rememberPosition,
+  saveNotes,
+  type Note,
+} from "@/lib/learning-path"
 
 // ─── Tutor language / persona ─────────────────────────────────────────────────
 
@@ -294,6 +302,8 @@ export function TutorChat({
   // ── Layout state ──
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [codeOpen, setCodeOpen] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [notes, setNotes] = useState<Note[]>([])
   const sidebarResize = useResizePanel(256, 160, 520)
   const codeResize = useResizePanel(420, 280, 720)
 
@@ -330,6 +340,35 @@ export function TutorChat({
   }, [])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("pol:tutor:lang", tutorLang) }, [tutorLang])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("pol:tutor:persona", persona) }, [persona])
+
+  // ── Notes (localStorage, per enrollment) ──
+  useEffect(() => {
+    setNotes(loadNotes(initialEnrollment.id))
+  }, [initialEnrollment.id])
+  const addNote = (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setNotes((prev) => {
+      const next: Note[] = [
+        ...prev,
+        {
+          id: `n-${Date.now()}`,
+          text: trimmed,
+          moduleIndex: sessionIndex > 0 ? sessionIndex - 1 : null,
+          createdAt: new Date().toISOString(),
+        },
+      ]
+      saveNotes(initialEnrollment.id, next)
+      return next
+    })
+  }
+  const removeNote = (id: string) => {
+    setNotes((prev) => {
+      const next = prev.filter((n) => n.id !== id)
+      saveNotes(initialEnrollment.id, next)
+      return next
+    })
+  }
 
   // ── Voice support ──
   useEffect(() => {
@@ -478,6 +517,7 @@ export function TutorChat({
   async function teachModule(moduleIndex: number, opts?: { force?: boolean }) {
     if (lessonInFlight !== null || pending) return
     const target = sessionIndexForModule(moduleIndex)
+    rememberPosition(initialEnrollment.id, moduleIndex)
     setError(null); setPendingCheck(null); setLessonInFlight(moduleIndex)
     try {
       // If we are not already in this module's chat, switch to it first.
@@ -677,6 +717,7 @@ export function TutorChat({
           touchedTopics={touchedTopics}
           lessonInFlight={lessonInFlight}
           onTeach={teachModule}
+          onOpenNotes={() => setNotesOpen(true)}
         />
       </div>
 
@@ -836,7 +877,135 @@ export function TutorChat({
           working={clearing}
         />
       )}
+
+      <NotesPanel
+        open={notesOpen}
+        notes={notes}
+        syllabus={initialEnrollment.curriculum.syllabus}
+        onClose={() => setNotesOpen(false)}
+        onAdd={addNote}
+        onRemove={removeNote}
+      />
     </div>
+  )
+}
+
+function NotesPanel({
+  open,
+  notes,
+  syllabus,
+  onClose,
+  onAdd,
+  onRemove,
+}: {
+  open: boolean
+  notes: Note[]
+  syllabus: { module: string }[]
+  onClose: () => void
+  onAdd: (text: string) => void
+  onRemove: (id: string) => void
+}) {
+  const [draft, setDraft] = useState("")
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[60] flex justify-end"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+        >
+          <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
+          <motion.div
+            className="relative z-10 flex h-full w-[min(420px,90vw)] flex-col border-l border-rule bg-surface"
+            initial={{ x: 40 }}
+            animate={{ x: 0 }}
+            exit={{ x: 40 }}
+            transition={{ duration: 0.24, ease: ease.outQuart }}
+          >
+            <div className="flex items-center justify-between border-b border-rule px-5 py-4">
+              <div>
+                <h3 className="font-display text-[1.0625rem] font-medium text-ink">My notes</h3>
+                <p className="text-[0.75rem] text-ink-muted">{notes.length} saved · stays on this device</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close notes"
+                className="grid h-7 w-7 place-items-center rounded-full border border-rule text-ink-faint transition-colors hover:border-ink/30 hover:text-ink"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="border-b border-rule p-4">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Jot something down, or highlight tutor text and click Save selection."
+                rows={3}
+                className="w-full resize-none rounded-lg border border-rule bg-paper px-3 py-2 text-[0.875rem] text-ink placeholder:text-ink-faint focus:border-ink/30 focus:outline-none"
+              />
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sel = window.getSelection?.()?.toString() ?? ""
+                    if (sel.trim()) { onAdd(sel); }
+                  }}
+                  className="text-[0.75rem] text-ink-faint underline-offset-4 transition-colors hover:text-ink hover:underline"
+                >
+                  Save selection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onAdd(draft); setDraft("") }}
+                  disabled={!draft.trim()}
+                  className="rounded-full bg-ink px-4 py-1.5 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-ink/85 disabled:opacity-40"
+                >
+                  Add note
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {notes.length === 0 ? (
+                <p className="mt-8 text-center text-[0.875rem] text-ink-faint">
+                  No notes yet. Anything you save shows up here.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {[...notes].reverse().map((n) => (
+                    <li
+                      key={n.id}
+                      className="group rounded-lg border border-rule bg-paper p-3"
+                    >
+                      <p className="whitespace-pre-wrap text-[0.875rem] leading-relaxed text-ink">{n.text}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="font-mono text-[0.625rem] text-ink-faint">
+                          {n.moduleIndex !== null && syllabus[n.moduleIndex]
+                            ? syllabus[n.moduleIndex].module
+                            : "General"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onRemove(n.id)}
+                          className="text-[0.6875rem] text-ink-faint opacity-0 transition-opacity hover:text-terracotta group-hover:opacity-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -1185,11 +1354,6 @@ function MessageBubble({ message, onCheck, canCheck }: {
       transition={{ duration: 0.4, ease: ease.outQuart }}
       className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
     >
-      {!isUser && (
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-soft font-display text-[0.75rem] font-medium text-teal">
-          T
-        </div>
-      )}
       <div className={cn(isLesson ? "max-w-[92%] space-y-3" : "max-w-[82%] space-y-2", isUser && "items-end")}>
         {isLesson && message.meta?.kind === "lesson" && (
           <div className="flex items-center gap-2 px-1">
@@ -1381,6 +1545,7 @@ function CurriculumSidebar({
   touchedTopics: _touchedTopics,
   lessonInFlight,
   onTeach,
+  onOpenNotes,
 }: {
   enrollment: EnrollmentDetail
   progressPct: number
@@ -1390,10 +1555,17 @@ function CurriculumSidebar({
   touchedTopics: Set<string>
   lessonInFlight: number | null
   onTeach: (i: number) => void
+  onOpenNotes: () => void
 }) {
+  const syllabus = enrollment.curriculum.syllabus
+  const { nodes, currentIndex, allMastered } = buildLearningPath(
+    syllabus,
+    lessonedModules,
+    viewedModules,
+    activeModuleIndex,
+  )
+  const { done, total } = masteryProgress(syllabus, lessonedModules)
   const progress = Math.min(100, Math.max(0, progressPct))
-  const done = lessonedModules.size
-  const total = enrollment.curriculum.syllabus.length
 
   return (
     <aside className="flex h-full flex-col overflow-hidden">
@@ -1402,76 +1574,135 @@ function CurriculumSidebar({
         <h3 className="mt-1 font-display text-[0.9375rem] font-medium leading-snug text-ink">{enrollment.curriculum.title}</h3>
         <div className="mt-3">
           <div className="mb-1.5 flex items-baseline justify-between">
-            <span className="font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-ink-faint">Mastered</span>
+            <span className="font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-ink-faint">Completed</span>
             <span className="tabular font-mono text-[0.5625rem] text-ink-faint">{done}/{total}</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-rule/50">
-            <motion.div className="h-full rounded-full bg-teal" initial={false} animate={{ width: `${progress}%` }} transition={{ duration: 0.7, ease: ease.outQuart }} />
+            <motion.div className="h-full rounded-full bg-forest" initial={false} animate={{ width: `${progress}%` }} transition={{ duration: 0.7, ease: ease.outQuart }} />
           </div>
         </div>
+        {currentIndex !== null && (
+          <button
+            type="button"
+            onClick={() => onTeach(currentIndex)}
+            disabled={lessonInFlight !== null}
+            className="mt-3 flex w-full items-center justify-between gap-2 rounded-lg border border-forest/30 bg-forest/5 px-3 py-2 text-left transition-colors hover:border-forest/50 disabled:opacity-40"
+          >
+            <span className="min-w-0">
+              <span className="block font-mono text-[0.5rem] uppercase tracking-[0.16em] text-forest">Resume</span>
+              <span className="block truncate text-[0.75rem] font-medium text-ink">
+                {nodes[currentIndex].title}
+              </span>
+            </span>
+            <span className="shrink-0 text-forest">→</span>
+          </button>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-ink-faint">
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal" />
-            mastered
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-forest" />
+            completed
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber" />
-            viewed
+            seen
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-rule" />
+            <span className="inline-block h-1.5 w-1.5 rounded-full border border-rule bg-surface" />
             new
           </span>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {enrollment.curriculum.syllabus.length > 0 ? (
-          <ol className="py-1">
-            {enrollment.curriculum.syllabus.map((m, i) => {
-              const lessoned = lessonedModules.has(i)
-              const viewed = !lessoned && viewedModules.has(i)
-              const isActive = activeModuleIndex === i
-              const loading = lessonInFlight === i
+        {nodes.length > 0 ? (
+          <ol className="py-2">
+            {nodes.map((node) => {
+              const loading = lessonInFlight === node.index
+              const accent =
+                node.status === "completed"
+                  ? "text-forest"
+                  : node.status === "seen"
+                    ? "text-amber"
+                    : "text-ink-faint"
               return (
-                <li key={m.module}>
+                <li key={node.title} className="relative">
                   <button
                     type="button"
-                    onClick={() => onTeach(i)}
-                    disabled={lessonInFlight !== null}
+                    onClick={() => !node.locked && onTeach(node.index)}
+                    disabled={lessonInFlight !== null || node.locked}
+                    title={node.locked ? "Complete the previous module to unlock this" : undefined}
                     className={cn(
                       "group relative flex w-full items-center gap-3 px-4 py-2.5 text-left transition-all duration-150",
-                      lessoned ? "bg-teal-tint/40" : viewed ? "bg-amber/5" : "hover:bg-surface-soft",
-                      lessonInFlight !== null && !loading && "cursor-not-allowed opacity-35",
+                      node.status === "completed"
+                        ? "bg-forest/5"
+                        : node.status === "seen"
+                          ? "bg-amber/5"
+                          : "hover:bg-surface-soft",
+                      node.locked && "cursor-not-allowed opacity-50",
+                      lessonInFlight !== null && !loading && !node.locked && "cursor-not-allowed opacity-35",
                     )}
                   >
-                    {isActive && (
-                      <span className="absolute inset-y-1 left-0 w-0.5 rounded-r-full bg-teal" />
+                    {node.isCurrent && !node.locked && (
+                      <span className="absolute inset-y-1 left-0 w-0.5 rounded-r-full bg-forest" />
                     )}
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center">
-                      {lessoned ? (
-                        <CheckIcon className="h-3.5 w-3.5 text-teal" />
+                    <div className={cn("flex h-5 w-5 shrink-0 items-center justify-center", accent)}>
+                      {node.status === "completed" ? (
+                        <CheckIcon className="h-3.5 w-3.5" />
                       ) : loading ? (
-                        <span className="font-mono text-[0.5625rem] text-ink-faint">…</span>
-                      ) : viewed ? (
-                        <EyeIcon className="h-3.5 w-3.5 text-amber" />
+                        <span className="font-mono text-[0.5625rem]">…</span>
+                      ) : node.locked ? (
+                        <LockIcon className="h-3 w-3" />
+                      ) : node.status === "seen" ? (
+                        <EyeIcon className="h-3.5 w-3.5" />
                       ) : (
-                        <span className="tabular font-mono text-[0.5625rem] text-ink-faint/60">{String(i + 1).padStart(2, "0")}</span>
+                        <span className="tabular font-mono text-[0.5625rem] text-ink-faint/60">
+                          {String(node.index + 1).padStart(2, "0")}
+                        </span>
                       )}
                     </div>
                     <span className={cn(
                       "min-w-0 flex-1 truncate font-display text-[0.8rem] leading-snug",
-                      lessoned ? "text-ink" : viewed ? "text-ink" : "text-ink-soft group-hover:text-ink",
+                      node.locked ? "text-ink-faint" : node.status === "open" ? "text-ink-soft group-hover:text-ink" : "text-ink",
                     )}>
-                      {m.module}
+                      {node.title}
                     </span>
-                    {viewed && (
-                      <span className="shrink-0 rounded-full bg-amber/15 px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-amber">
-                        viewed
-                      </span>
-                    )}
-                    <span className="shrink-0 tabular font-mono text-[0.5625rem] text-ink-faint/60">{m.durationMinutes}m</span>
+                    <span className="shrink-0 tabular font-mono text-[0.5625rem] text-ink-faint/60">{node.durationMinutes}m</span>
                   </button>
+
+                  {/* Submodule branch — only for unlocked modules */}
+                  {!node.locked && (
+                    <ul className="ml-[26px] border-l border-rule/70 pb-1">
+                      {node.subSteps.map((step) => (
+                        <li
+                          key={step.kind}
+                          className="flex items-center gap-2 py-1 pl-3 pr-4 text-[0.6875rem]"
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+                              step.status === "done"
+                                ? "bg-forest"
+                                : step.status === "active"
+                                  ? "bg-amber"
+                                  : "border border-rule bg-surface",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "truncate",
+                              step.status === "done"
+                                ? "text-forest"
+                                : step.status === "active"
+                                  ? "text-ink"
+                                  : "text-ink-faint",
+                            )}
+                          >
+                            {step.label}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               )
             })}
@@ -1483,20 +1714,37 @@ function CurriculumSidebar({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-rule p-4">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="shrink-0 space-y-3 border-t border-rule p-4">
+        <button
+          type="button"
+          onClick={onOpenNotes}
+          className="flex w-full items-center justify-between rounded-lg border border-rule bg-surface px-3 py-2 text-[0.75rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
+        >
+          <span>My notes</span>
+          <span className="text-ink-faint">✎</span>
+        </button>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
             <p className="font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-ink-faint">Earn when ready</p>
             <p className="mt-0.5 font-display text-[0.9375rem] font-medium text-ink">
               <span className="text-amber">₹</span>{enrollment.bounty.rewardInr.toLocaleString("en-IN")}
             </p>
           </div>
-          <Link
-            href={`/learn/${enrollment.bountyId}/quiz`}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-[0.75rem] font-medium text-paper transition-all hover:bg-teal"
-          >
-            Take quiz <span className="text-paper/60">→</span>
-          </Link>
+          {allMastered ? (
+            <Link
+              href={`/learn/${enrollment.bountyId}/quiz`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-[0.75rem] font-medium text-paper transition-all hover:bg-forest/85"
+            >
+              Final exam <span className="text-paper/60">→</span>
+            </Link>
+          ) : (
+            <div
+              title={`Complete all ${total} modules to unlock the final exam (${done}/${total} done)`}
+              className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl border border-rule bg-surface px-4 py-2 text-[0.75rem] font-medium text-ink-faint"
+            >
+              <LockIcon className="h-3 w-3" /> {done}/{total}
+            </div>
+          )}
         </div>
       </div>
     </aside>
@@ -1790,7 +2038,6 @@ function InlineMarkdown({ text }: { text: string }) {
 function TypingBubble({ label }: { label?: string }) {
   return (
     <div className="flex gap-3">
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-soft font-display text-[0.75rem] font-medium text-teal">T</div>
       <div className="rounded-xl border border-rule bg-surface-soft px-5 py-3">
         <span className="inline-flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5">
@@ -1836,6 +2083,15 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
 }
 
 // ─── Icons ─────────────────────────────────────────────────────────────────────
+
+function LockIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="3" y="7" width="10" height="7" rx="1.5" />
+      <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+    </svg>
+  )
+}
 
 function PanelLeftIcon({ className, open }: { className?: string; open: boolean }) {
   return (
