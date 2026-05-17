@@ -203,7 +203,7 @@ function simulateRun(lang: CodeLang, code: string): string[] {
       grab(/(?:puts|p)\s+(.+)/g)
       break
     case "sql":
-      out.push("(query parsed — connect a database to see rows)")
+      out.push("(query parsed. Connect a database to see rows)")
       break
   }
   if (out.length === 0) out.push("Program finished with no output (exit 0)")
@@ -1121,7 +1121,7 @@ function SettingsModal({
                     <div className="text-[0.8125rem] font-medium text-ink-soft">Autoplay voice</div>
                     <p className="mt-0.5 text-[0.75rem] text-ink-muted">
                       {synthesisSupported
-                        ? "Read new replies aloud as they arrive. Existing chat is never auto-read — hover any reply for a Play button."
+                        ? "Read new replies aloud as they arrive. Existing chat is never auto-read. Hover any reply for a Play button."
                         : "Voice output isn't supported in this browser."}
                     </p>
                   </div>
@@ -1573,7 +1573,7 @@ function CourseOverviewPanel({ onPick, onTeach, curriculum, prompts, lessonInFli
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 
 const PRESET_PROMPTS: { label: string; prompt: string }[] = [
-  { label: "Explain it simpler", prompt: "Explain that again, but simpler — like I'm new to this." },
+  { label: "Explain it simpler", prompt: "Explain that again, but simpler, like I'm new to this." },
   { label: "Give an example", prompt: "Give me a concrete, worked example of this." },
   { label: "Why does it matter?", prompt: "Why does this matter? Where would I actually use it?" },
   { label: "Common mistakes", prompt: "What do people most often get wrong about this?" },
@@ -1697,7 +1697,7 @@ function MessageBubble({ message, onCheck, onPrompt, onSpeak, canSpeak, stream, 
               disabled={!canCheck}
               className="inline-flex items-center gap-1.5 rounded-full border border-forest/30 bg-forest/5 px-3 py-1 text-[0.75rem] font-medium text-forest transition-colors hover:bg-forest/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              I'm ready — check me →
+              I'm ready, check me →
             </button>
           </div>
         )}
