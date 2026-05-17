@@ -37,11 +37,10 @@ const LANG_VERB: Record<TutorLanguage, string> = {
   ta: "தமிழில் பதிலளிக்கும்",
   te: "తెలుగులో సమాధానం",
 }
-const PERSONAS: { id: TutorPersona; label: string; tagline: string }[] = [
-  { id: "mentor",   label: "Mentor",   tagline: "Warm, Socratic. Leads you to the answer." },
-  { id: "examiner", label: "Examiner", tagline: "Rigorous. Cites every claim, no handwaving." },
-  { id: "coach",    label: "Coach",    tagline: "High-energy. Short sentences, momentum first." },
-]
+// One consistent tutor voice. We deliberately don't expose persona
+// switching anymore — a single steady "mentor" keeps replies consistent
+// and on the course's key topics instead of drifting in style.
+const TUTOR_PERSONA: TutorPersona = "mentor"
 
 // ─── Code sandbox languages ───────────────────────────────────────────────────
 
@@ -124,6 +123,93 @@ function detectDefaultLang(curriculum: EnrollmentDetail["curriculum"]): CodeLang
   return "python"
 }
 
+// Languages the course actually uses / recommends — surfaced in the IDE
+// language picker so the student knows what the lessons assume. The detected
+// primary language is always included first.
+function recommendedLangs(curriculum: EnrollmentDetail["curriculum"]): CodeLang[] {
+  const text = (
+    curriculum.title +
+    " " +
+    curriculum.topics.join(" ") +
+    " " +
+    curriculum.syllabus.map((m) => m.module + " " + m.summary).join(" ")
+  ).toLowerCase()
+  const probes: [CodeLang, string[]][] = [
+    ["python", ["python", "pandas", "numpy", "django", "flask"]],
+    ["typescript", ["typescript", " ts "]],
+    ["javascript", ["javascript", "node", "react", " js "]],
+    ["java", ["java "]],
+    ["cpp", ["c++", "cpp"]],
+    ["c", ["c programming"]],
+    ["go", ["golang", " go "]],
+    ["rust", ["rust"]],
+    ["kotlin", ["kotlin", "android"]],
+    ["swift", ["swift", "ios"]],
+    ["ruby", ["ruby", "rails"]],
+    ["sql", ["sql", "database", "postgres", "query"]],
+  ]
+  const primary = detectDefaultLang(curriculum)
+  const found = new Set<CodeLang>([primary])
+  for (const [lang, needles] of probes) {
+    if (needles.some((n) => text.includes(n))) found.add(lang)
+  }
+  return [primary, ...Array.from(found).filter((l) => l !== primary)]
+}
+
+// A best-effort, offline "interpreter" for the IDE terminal. We don't run
+// code on a server — instead we scan for the common print/log calls in each
+// language and echo their string-literal arguments, which is enough to make
+// the terminal feel real for teaching exercises.
+function simulateRun(lang: CodeLang, code: string): string[] {
+  const out: string[] = []
+  const pushLiteral = (raw: string) => {
+    const m = raw.match(/^\s*(["'`])([\s\S]*?)\1\s*$/)
+    out.push(m ? m[2] : raw.trim())
+  }
+  const grab = (re: RegExp) => {
+    let m: RegExpExecArray | null
+    while ((m = re.exec(code)) !== null) pushLiteral(m[1])
+  }
+  switch (lang) {
+    case "python":
+      grab(/print\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "javascript":
+    case "typescript":
+      grab(/console\.log\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "java":
+      grab(/System\.out\.print(?:ln)?\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "cpp":
+      grab(/cout\s*<<\s*([^;]+?)\s*(?:<<\s*endl)?\s*;/g)
+      break
+    case "c":
+      grab(/printf\s*\(\s*([^,)]*?)\s*[,)]/g)
+      break
+    case "go":
+      grab(/fmt\.Print(?:ln|f)?\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "rust":
+      grab(/println!\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "kotlin":
+      grab(/println\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "swift":
+      grab(/print\s*\(\s*([^)]*?)\s*\)/g)
+      break
+    case "ruby":
+      grab(/(?:puts|p)\s+(.+)/g)
+      break
+    case "sql":
+      out.push("(query parsed — connect a database to see rows)")
+      break
+  }
+  if (out.length === 0) out.push("Program finished with no output (exit 0)")
+  return out
+}
+
 // ─── Resize hook ──────────────────────────────────────────────────────────────
 
 function useResizePanel(initial: number, min: number, max: number) {
@@ -175,9 +261,19 @@ function ResizeHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
 
 // ─── LangDropdown ─────────────────────────────────────────────────────────────
 
-function LangDropdown({ value, onChange }: { value: CodeLang; onChange: (l: CodeLang) => void }) {
+function LangDropdown({ value, onChange, recommended }: {
+  value: CodeLang
+  onChange: (l: CodeLang) => void
+  recommended: CodeLang[]
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const recSet = new Set(recommended)
+  // Recommended languages float to the top of the list, in course order.
+  const ordered = [
+    ...recommended.map((id) => LANGUAGES.find((l) => l.id === id)!).filter(Boolean),
+    ...LANGUAGES.filter((l) => !recSet.has(l.id)),
+  ]
 
   useEffect(() => {
     if (!open) return
@@ -203,6 +299,9 @@ function LangDropdown({ value, onChange }: { value: CodeLang; onChange: (l: Code
         )}
       >
         {current.label}
+        {recSet.has(value) && (
+          <span className="rounded-full bg-teal/15 px-1 text-[0.5rem] text-teal">★</span>
+        )}
         <ChevronDownIcon className={cn("h-2.5 w-2.5 transition-transform", open && "rotate-180")} />
       </button>
 
@@ -213,22 +312,37 @@ function LangDropdown({ value, onChange }: { value: CodeLang; onChange: (l: Code
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.97 }}
             transition={{ duration: 0.15, ease: ease.outQuart }}
-            className="absolute left-0 top-full z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-rule bg-paper shadow-lg"
+            className="absolute left-0 top-full z-20 mt-1.5 max-h-72 w-52 overflow-y-auto rounded-xl border border-rule bg-paper shadow-lg"
           >
-            {LANGUAGES.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => { onChange(l.id); setOpen(false) }}
-                className={cn(
-                  "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-surface-soft",
-                  l.id === value ? "text-teal" : "text-ink-soft",
-                )}
-              >
-                <span className="font-mono text-[0.6875rem]">{l.label}</span>
-                {l.id === value && <CheckIcon className="ml-auto h-3 w-3 text-teal" />}
-              </button>
-            ))}
+            {ordered.map((l, i) => {
+              const isRec = recSet.has(l.id)
+              const firstNonRec = i === recommended.length && recommended.length > 0
+              return (
+                <div key={l.id}>
+                  {firstNonRec && (
+                    <div className="border-t border-rule px-3 py-1 font-mono text-[0.5rem] uppercase tracking-[0.16em] text-ink-faint">
+                      Other languages
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { onChange(l.id); setOpen(false) }}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-surface-soft",
+                      l.id === value ? "text-teal" : "text-ink-soft",
+                    )}
+                  >
+                    <span className="font-mono text-[0.6875rem]">{l.label}</span>
+                    {isRec && (
+                      <span className="rounded-full bg-teal/12 px-1.5 py-0.5 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-teal">
+                        in course
+                      </span>
+                    )}
+                    {l.id === value && <CheckIcon className="ml-auto h-3 w-3 text-teal" />}
+                  </button>
+                </div>
+              )
+            })}
           </motion.div>
         )}
       </AnimatePresence>
@@ -291,7 +405,7 @@ export function TutorChat({
   const [pendingCheck, setPendingCheck] = useState<{ question: CheckQuestion; submitting: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tutorLang, setTutorLang] = useState<TutorLanguage>("en")
-  const [persona, setPersona] = useState<TutorPersona>("mentor")
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [listening, setListening] = useState(false)
   const [speakReplies, setSpeakReplies] = useState(false)
   const [voiceSupport, setVoiceSupport] = useState<{ recognition: boolean; synthesis: boolean }>(
@@ -309,6 +423,10 @@ export function TutorChat({
   // ── Code editor state (lifted so send() can read it) ──
   const defaultLang = useMemo(
     () => detectDefaultLang(initialEnrollment.curriculum),
+    [initialEnrollment.curriculum],
+  )
+  const recommendedLanguages = useMemo(
+    () => recommendedLangs(initialEnrollment.curriculum),
     [initialEnrollment.curriculum],
   )
   const [codeLang, setCodeLang] = useState<CodeLang>(defaultLang)
@@ -338,11 +456,8 @@ export function TutorChat({
     if (typeof window === "undefined") return
     const l = window.localStorage.getItem("pol:tutor:lang") as TutorLanguage | null
     if (l && ["en", "hi", "ta", "te"].includes(l)) setTutorLang(l)
-    const p = window.localStorage.getItem("pol:tutor:persona") as TutorPersona | null
-    if (p && ["mentor", "examiner", "coach"].includes(p)) setPersona(p)
   }, [])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("pol:tutor:lang", tutorLang) }, [tutorLang])
-  useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("pol:tutor:persona", persona) }, [persona])
 
   // ── Notes (localStorage, per enrollment) ──
   useEffect(() => {
@@ -396,17 +511,31 @@ export function TutorChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoTeachModuleIndex])
 
-  // ── TTS ──
-  useEffect(() => {
-    if (!speakReplies || typeof window === "undefined") return
+  // Speak a single message on demand (hover play button). Always available
+  // regardless of the autoplay toggle.
+  function speak(text: string) {
+    if (typeof window === "undefined") return
     const synth = window.speechSynthesis
     if (!synth) return
+    const utt = new SpeechSynthesisUtterance(stripMarkdown(text))
+    utt.lang = LANG_LOCALES[tutorLang]
+    utt.rate = 1.05
+    synth.cancel()
+    synth.speak(utt)
+  }
+
+  // ── TTS autoplay — only NEW replies, never an already-present chat ──
+  // When autoplay is toggled on we seed lastSpokenIdRef with the current
+  // last tutor message (see toggleSpeakReplies) so the existing chat is
+  // not read aloud; only messages that arrive afterwards autoplay.
+  useEffect(() => {
+    if (!speakReplies || typeof window === "undefined") return
     const last = [...messages].reverse().find((m) => m.role === "tutor")
     if (!last || last.id === lastSpokenIdRef.current) return
     lastSpokenIdRef.current = last.id
-    const utt = new SpeechSynthesisUtterance(stripMarkdown(last.content))
-    utt.lang = LANG_LOCALES[tutorLang]; utt.rate = 1.05
-    synth.cancel(); synth.speak(utt)
+    speak(last.content)
+    // speak is stable enough for this; deps intentionally narrow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, speakReplies, tutorLang])
 
   // ── Auto-scroll ──
@@ -493,7 +622,7 @@ export function TutorChat({
     try {
       const res = await apiFetch<{ user: ChatMessage; tutor: ChatMessage }>("/tutor/messages", {
         method: "POST",
-        json: { enrollmentId: initialEnrollment.id, message: fullMessage, lang: tutorLang, persona, sessionIndex },
+        json: { enrollmentId: initialEnrollment.id, message: fullMessage, lang: tutorLang, persona: TUTOR_PERSONA, sessionIndex },
       })
       streamRef.current.add(res.tutor.id)
       setMessages((prev) => [...prev.filter((m) => m.id !== optimistic.id), res.user, res.tutor])
@@ -661,7 +790,14 @@ export function TutorChat({
   function toggleSpeakReplies() {
     if (typeof window === "undefined") return
     if (!voiceSupport.synthesis) { setError("Voice output isn't supported in this browser."); return }
-    if (speakReplies) window.speechSynthesis?.cancel()
+    if (speakReplies) {
+      window.speechSynthesis?.cancel()
+    } else {
+      // Turning autoplay ON: mark whatever is already on screen as
+      // "spoken" so we don't suddenly read the whole existing chat.
+      const last = [...messages].reverse().find((m) => m.role === "tutor")
+      lastSpokenIdRef.current = last ? last.id : null
+    }
     setSpeakReplies((v) => !v)
   }
 
@@ -731,12 +867,7 @@ export function TutorChat({
           enrollment={initialEnrollment}
           progressPct={progressPct}
           lang={tutorLang}
-          onLangChange={setTutorLang}
-          persona={persona}
-          onPersonaChange={setPersona}
-          speakReplies={speakReplies}
-          onToggleSpeak={toggleSpeakReplies}
-          synthesisSupported={voiceSupport.synthesis}
+          onOpenSettings={() => setSettingsOpen(true)}
           sessions={sessions}
           sessionIndex={sessionIndex}
           sessionLoading={sessionLoading}
@@ -773,6 +904,8 @@ export function TutorChat({
                     message={m}
                     onCheck={startCheck}
                     onPrompt={send}
+                    onSpeak={speak}
+                    canSpeak={voiceSupport.synthesis}
                     stream={streamRef.current.has(m.id)}
                     canCheck={m.meta?.kind === "lesson" && pendingCheck === null && lessonInFlight === null}
                   />
@@ -867,6 +1000,7 @@ export function TutorChat({
             send(`Review my ${ld.label} code. Is the logic correct? Any improvements?\n\`\`\`${ld.fence}\n${code}\n\`\`\``)
           }}
           pending={pending}
+          recommended={recommendedLanguages}
         />
       </div>
 
@@ -886,7 +1020,140 @@ export function TutorChat({
         onAdd={addNote}
         onRemove={removeNote}
       />
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        lang={tutorLang}
+        onLangChange={setTutorLang}
+        speakReplies={speakReplies}
+        onToggleSpeak={toggleSpeakReplies}
+        synthesisSupported={voiceSupport.synthesis}
+      />
     </div>
+  )
+}
+
+function SettingsModal({
+  open,
+  onClose,
+  lang,
+  onLangChange,
+  speakReplies,
+  onToggleSpeak,
+  synthesisSupported,
+}: {
+  open: boolean
+  onClose: () => void
+  lang: TutorLanguage
+  onLangChange: (l: TutorLanguage) => void
+  speakReplies: boolean
+  onToggleSpeak: () => void
+  synthesisSupported: boolean
+}) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [open, onClose])
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          onClick={onClose}
+        >
+          <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" />
+          <motion.div
+            className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-rule bg-surface shadow-[0_32px_80px_-20px_hsl(218_45%_10%_/_0.35)]"
+            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            transition={{ duration: 0.24, ease: ease.outQuart }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-rule px-6 py-4">
+              <h2 className="font-display text-[1.0625rem] font-medium text-ink">Tutor settings</h2>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close settings"
+                className="grid h-7 w-7 place-items-center rounded-full border border-rule text-ink-faint transition-colors hover:border-ink/30 hover:text-ink"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-6 p-6">
+              <div>
+                <div className="text-[0.8125rem] font-medium text-ink-soft">Tutor language</div>
+                <p className="mt-0.5 text-[0.75rem] text-ink-muted">
+                  The tutor replies and reads aloud in this language.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(Object.keys(LANG_LABELS) as TutorLanguage[]).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => onLangChange(l)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+                        lang === l
+                          ? "border-ink bg-ink text-paper"
+                          : "border-rule bg-surface text-ink-soft hover:border-ink/30",
+                      )}
+                    >
+                      {LANG_LABELS[l]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-rule pt-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-[0.8125rem] font-medium text-ink-soft">Autoplay voice</div>
+                    <p className="mt-0.5 text-[0.75rem] text-ink-muted">
+                      {synthesisSupported
+                        ? "Read new replies aloud as they arrive. Existing chat is never auto-read — hover any reply for a Play button."
+                        : "Voice output isn't supported in this browser."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onToggleSpeak}
+                    disabled={!synthesisSupported}
+                    role="switch"
+                    aria-checked={speakReplies}
+                    className={cn(
+                      "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                      !synthesisSupported
+                        ? "cursor-not-allowed bg-rule opacity-40"
+                        : speakReplies
+                          ? "bg-forest"
+                          : "bg-rule",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all",
+                        speakReplies ? "left-[22px]" : "left-0.5",
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -1065,8 +1332,7 @@ function ConfirmClearModal({
 // ─── ChatHeader ───────────────────────────────────────────────────────────────
 
 function ChatHeader({
-  enrollment, progressPct, lang, onLangChange, persona, onPersonaChange,
-  speakReplies, onToggleSpeak, synthesisSupported,
+  enrollment, progressPct, lang, onOpenSettings,
   sessions, sessionIndex, sessionLoading, onSwitchSession, onNewSession,
   sidebarOpen, onToggleSidebar, codeOpen, onToggleCode,
   onClearChat, canClearChat,
@@ -1074,12 +1340,7 @@ function ChatHeader({
   enrollment: EnrollmentDetail
   progressPct: number
   lang: TutorLanguage
-  onLangChange: (l: TutorLanguage) => void
-  persona: TutorPersona
-  onPersonaChange: (p: TutorPersona) => void
-  speakReplies: boolean
-  onToggleSpeak: () => void
-  synthesisSupported: boolean
+  onOpenSettings: () => void
   sessions: SessionSummary[]
   sessionIndex: number
   sessionLoading: boolean
@@ -1148,36 +1409,19 @@ function ChatHeader({
 
       {/* Row 2 — controls */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5 pt-2">
-        <div className="flex items-center gap-0.5 rounded-full border border-rule bg-paper p-0.5">
-          {(Object.keys(LANG_LABELS) as TutorLanguage[]).map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => onLangChange(l)}
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-[0.6rem] font-medium transition-colors",
-                lang === l ? "bg-ink text-paper" : "text-ink-faint hover:text-ink-soft",
-              )}
-            >
-              {LANG_LABELS[l]}
-            </button>
-          ))}
-        </div>
-
         <button
           type="button"
-          onClick={onToggleSpeak}
-          disabled={!synthesisSupported}
-          className={cn(
-            "inline-flex h-6 items-center gap-1 rounded-full border px-2.5 font-mono text-[0.55rem] font-semibold uppercase tracking-[0.14em] transition-colors",
-            !synthesisSupported ? "cursor-not-allowed border-rule text-ink-faint opacity-40"
-              : speakReplies ? "border-teal/30 bg-teal-soft text-teal"
-              : "border-rule bg-paper text-ink-faint hover:text-ink-soft",
-          )}
+          onClick={onOpenSettings}
+          className="inline-flex h-6 items-center gap-1.5 rounded-full border border-rule bg-paper px-3 font-mono text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-ink-faint transition-colors hover:border-ink/20 hover:text-ink-soft"
         >
-          {speakReplies ? <SpeakerWaveIcon className="h-2.5 w-2.5" /> : <SpeakerOffIcon className="h-2.5 w-2.5" />}
-          {speakReplies ? "on" : "off"}
+          <GearIcon className="h-2.5 w-2.5" />
+          Settings
         </button>
+        {lang !== "en" && (
+          <span className="inline-flex items-center rounded-full bg-teal-soft px-2 py-0.5 text-[0.55rem] font-medium text-teal">
+            {LANG_LABELS[lang]}
+          </span>
+        )}
 
         <button
           type="button"
@@ -1373,10 +1617,12 @@ function StreamedText({ text, stream }: { text: string; stream: boolean }) {
   )
 }
 
-function MessageBubble({ message, onCheck, onPrompt, stream, canCheck }: {
+function MessageBubble({ message, onCheck, onPrompt, onSpeak, canSpeak, stream, canCheck }: {
   message: ChatMessage
   onCheck: (i: number) => void
   onPrompt: (text: string) => void
+  onSpeak: (text: string) => void
+  canSpeak: boolean
   stream: boolean
   canCheck: boolean
 }) {
@@ -1391,7 +1637,7 @@ function MessageBubble({ message, onCheck, onPrompt, stream, canCheck }: {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, ease: ease.outQuart }}
-      className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}
+      className={cn("group flex gap-3", isUser ? "justify-end" : "justify-start")}
     >
       <div className={cn(isLesson ? "max-w-[92%] space-y-3" : "max-w-[82%] space-y-2", isUser && "items-end")}>
         {isLesson && message.meta?.kind === "lesson" && (
@@ -1421,6 +1667,17 @@ function MessageBubble({ message, onCheck, onPrompt, stream, canCheck }: {
             <StreamedText text={message.content} stream={stream} />
           )}
         </div>
+        {!isUser && canSpeak && (
+          <button
+            type="button"
+            onClick={() => onSpeak(message.content)}
+            title="Play this reply"
+            className="inline-flex items-center gap-1.5 self-start rounded-full border border-rule bg-surface px-2.5 py-1 text-[0.6875rem] font-medium text-ink-faint opacity-0 transition-opacity hover:border-ink/30 hover:text-ink group-hover:opacity-100"
+          >
+            <SpeakerWaveIcon className="h-2.5 w-2.5" />
+            Play
+          </button>
+        )}
         {isLesson && message.meta?.kind === "lesson" && (
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             {PRESET_PROMPTS.map((p) => (
@@ -1502,7 +1759,15 @@ function PendingCheckCard({ question, submitting, onSubmit, onCancel }: {
 
 // ─── CodePanel ────────────────────────────────────────────────────────────────
 
-function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskAI, pending }: {
+const LANG_EXT: Record<CodeLang, string> = {
+  python: "py", javascript: "js", typescript: "ts", java: "java",
+  cpp: "cpp", c: "c", go: "go", rust: "rs", kotlin: "kt",
+  swift: "swift", ruby: "rb", sql: "sql",
+}
+
+type ScratchFile = { id: string; name: string; content: string }
+
+function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskAI, pending, recommended }: {
   codeLang: CodeLang
   onLangChange: (l: CodeLang) => void
   code: string
@@ -1510,36 +1775,94 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
   onClose: () => void
   onAskAI: (code: string) => void
   pending: boolean
+  recommended: CodeLang[]
 }) {
   const [copied, setCopied] = useState(false)
+  const [files, setFiles] = useState<ScratchFile[]>([])
+  const [activeId, setActiveId] = useState<string>("solution")
+  const [term, setTerm] = useState<string[]>([])
+  const [termOpen, setTermOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const ld = langById(codeLang)
+  const ext = LANG_EXT[codeLang]
+  const solutionName = `solution.${ext}`
+  const isSolution = activeId === "solution"
+  const activeFile = files.find((f) => f.id === activeId)
+  const activeContent = isSolution ? code : activeFile?.content ?? ""
 
   function handleLangChange(next: CodeLang) {
     onLangChange(next)
+    setActiveId("solution")
     setTimeout(() => textareaRef.current?.focus(), 50)
   }
 
+  function setActiveContent(text: string) {
+    if (isSolution) onCodeChange(text)
+    else setFiles((prev) => prev.map((f) => (f.id === activeId ? { ...f, content: text } : f)))
+  }
+
+  function addFile() {
+    const n = files.length + 1
+    const id = `f-${Date.now()}`
+    setFiles((prev) => [...prev, { id, name: `scratch${n}.${ext}`, content: "" }])
+    setActiveId(id)
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }
+
+  function closeFile(id: string) {
+    setFiles((prev) => prev.filter((f) => f.id !== id))
+    if (activeId === id) setActiveId("solution")
+  }
+
   function copyCode() {
-    navigator.clipboard.writeText(code).then(() => {
+    navigator.clipboard.writeText(activeContent).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
     })
   }
 
-  const ld = langById(codeLang)
-  const hasCode = code.trim() !== "" && code.trim() !== ld.starter.trim()
+  function runActive() {
+    const name = isSolution ? solutionName : activeFile?.name ?? "file"
+    const lines = simulateRun(codeLang, activeContent)
+    setTerm((prev) => [
+      ...prev,
+      `$ ${ld.runHint.replace(/solution\.\w+|Solution\.\w+/, name)}`,
+      ...lines,
+    ])
+    setTermOpen(true)
+  }
+
+  const hasCode = activeContent.trim() !== "" && activeContent.trim() !== ld.starter.trim()
+  const tabs = [{ id: "solution", name: solutionName }, ...files]
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-rule bg-surface-soft px-4 py-2.5">
-        <LangDropdown value={codeLang} onChange={handleLangChange} />
-
+      <div className="flex shrink-0 items-center gap-2 border-b border-rule bg-surface-soft px-3 py-2.5">
+        <LangDropdown value={codeLang} onChange={handleLangChange} recommended={recommended} />
+        <button
+          type="button"
+          onClick={runActive}
+          className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-forest px-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-paper transition-colors hover:bg-forest/85"
+        >
+          ▶ Run
+        </button>
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setTermOpen((v) => !v)}
+            className={cn(
+              "inline-flex h-6 items-center gap-1 rounded-lg border px-2.5 font-mono text-[0.6rem] font-semibold uppercase tracking-[0.1em] transition-colors",
+              termOpen ? "border-ink/30 bg-ink text-paper" : "border-rule bg-paper text-ink-faint hover:text-ink-soft",
+            )}
+          >
+            Terminal
+          </button>
+          <button
+            type="button"
             onClick={copyCode}
-            disabled={!code.trim()}
+            disabled={!activeContent.trim()}
             className="inline-flex h-6 items-center gap-1 rounded-lg border border-rule bg-paper px-2.5 font-mono text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-ink-faint transition-colors hover:text-ink-soft disabled:opacity-40"
           >
             {copied ? "Copied!" : "Copy"}
@@ -1555,28 +1878,94 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
         </div>
       </div>
 
+      {/* File tabs */}
+      <div className="flex shrink-0 items-stretch overflow-x-auto border-b border-rule bg-surface">
+        {tabs.map((t) => {
+          const active = t.id === activeId
+          return (
+            <div
+              key={t.id}
+              className={cn(
+                "group flex items-center gap-1.5 border-r border-rule px-3 py-1.5 font-mono text-[0.6875rem] transition-colors",
+                active ? "bg-paper-deep text-ink" : "bg-surface text-ink-faint hover:text-ink-soft",
+              )}
+            >
+              <button type="button" onClick={() => setActiveId(t.id)} className="whitespace-nowrap">
+                {t.name}
+              </button>
+              {t.id !== "solution" && (
+                <button
+                  type="button"
+                  onClick={() => closeFile(t.id)}
+                  aria-label={`Close ${t.name}`}
+                  className="text-ink-faint opacity-0 transition-opacity hover:text-terracotta group-hover:opacity-100"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )
+        })}
+        <button
+          type="button"
+          onClick={addFile}
+          title="New file"
+          className="px-3 py-1.5 font-mono text-[0.8125rem] text-ink-faint transition-colors hover:text-ink"
+        >
+          +
+        </button>
+      </div>
+
       {/* Editor */}
       <textarea
         ref={textareaRef}
-        value={code}
-        onChange={(e) => onCodeChange(e.target.value)}
+        value={activeContent}
+        onChange={(e) => setActiveContent(e.target.value)}
         spellCheck={false}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
-        className="flex-1 resize-none bg-paper-deep px-4 py-4 font-mono text-[0.8125rem] leading-relaxed text-ink-soft outline-none"
-        placeholder={`Write your ${ld.label} code here…`}
+        className="min-h-0 flex-1 resize-none bg-paper-deep px-4 py-4 font-mono text-[0.8125rem] leading-relaxed text-ink-soft outline-none"
+        placeholder={`// ${isSolution ? solutionName : activeFile?.name}\n// Write your ${ld.label} code here…`}
       />
 
+      {/* Terminal */}
+      {termOpen && (
+        <div className="flex h-44 shrink-0 flex-col border-t border-rule bg-ink">
+          <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5">
+            <span className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-paper/60">
+              Terminal
+            </span>
+            <button
+              type="button"
+              onClick={() => setTerm([])}
+              className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-paper/50 transition-colors hover:text-paper"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-paper/85">
+            {term.length === 0 ? (
+              <span className="text-paper/40">Press Run to execute the active file.</span>
+            ) : (
+              term.map((line, i) => (
+                <div
+                  key={i}
+                  className={cn(line.startsWith("$ ") ? "text-forest" : "whitespace-pre-wrap")}
+                >
+                  {line}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <div className="shrink-0 space-y-2.5 border-t border-rule bg-surface-soft px-4 py-3">
-        <p className="font-mono text-[0.5625rem] text-ink-faint">
-          <span className="uppercase tracking-[0.12em]">Run:</span>{" "}
-          <span className="text-ink-soft">{ld.runHint}</span>
-        </p>
+      <div className="shrink-0 border-t border-rule bg-surface-soft px-4 py-3">
         <button
           type="button"
-          onClick={() => onAskAI(code)}
+          onClick={() => onAskAI(activeContent)}
           disabled={!hasCode || pending}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-2.5 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-teal disabled:opacity-35"
         >
@@ -2194,10 +2583,10 @@ function SpeakerWaveIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M16 8a5 5 0 0 1 0 8" /><path d="M19 5a9 9 0 0 1 0 14" /></svg>
 }
 
-function SpeakerOffIcon({ className }: { className?: string }) {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M16 9l5 5" /><path d="M21 9l-5 5" /></svg>
-}
-
 function SparkleIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /><circle cx="12" cy="12" r="3" /></svg>
+}
+
+function GearIcon({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
 }
