@@ -140,10 +140,13 @@ function Headline() {
         className="flex flex-wrap items-center gap-4"
       >
         <Link
-          href="/learn"
-          className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
+          href="/login"
+          className="group inline-flex items-center gap-2.5 rounded-full bg-ink px-7 py-3.5 text-[0.9375rem] font-medium text-paper transition-all duration-300 ease-out-quart hover:bg-ink/85 hover:shadow-[0_8px_28px_-10px_hsl(218_45%_10%_/_0.35)]"
         >
-          Browse active bounties ↗
+          Open the platform
+          <span className="transition-transform duration-300 ease-out-quart group-hover:translate-x-0.5">
+            →
+          </span>
         </Link>
       </motion.div>
 
