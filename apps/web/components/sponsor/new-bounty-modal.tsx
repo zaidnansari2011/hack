@@ -23,6 +23,7 @@ export function NewBountyModal({
 }) {
   const [curricula, setCurricula] = useState<Curriculum[]>([])
   const [curriculumId, setCurriculumId] = useState("")
+  const [curriculumQuery, setCurriculumQuery] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [rewardInr, setRewardInr] = useState(250)
@@ -57,6 +58,17 @@ export function NewBountyModal({
     () => Math.max(0, rewardInr) * Math.max(0, maxStudents),
     [rewardInr, maxStudents],
   )
+
+  const filteredCurricula = useMemo(() => {
+    const q = curriculumQuery.trim().toLowerCase()
+    if (!q) return curricula
+    return curricula.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.summary.toLowerCase().includes(q) ||
+        c.topics.some((t) => t.toLowerCase().includes(q)),
+    )
+  }, [curricula, curriculumQuery])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -195,29 +207,43 @@ export function NewBountyModal({
                       Loading available curricula…
                     </div>
                   ) : (
-                    <div className="max-h-44 space-y-px overflow-y-auto rounded-md border border-rule">
-                      {curricula.map((c) => {
-                        const active = curriculumId === c.id
-                        return (
-                          <button
-                            type="button"
-                            key={c.id}
-                            onClick={() => setCurriculumId(c.id)}
-                            className={cn(
-                              "flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left transition-colors",
-                              active ? "bg-teal-tint" : "bg-surface hover:bg-surface-soft",
-                            )}
-                          >
-                            <span className="truncate text-[0.875rem] font-medium text-ink">
-                              {c.title}
-                            </span>
-                            <span className="shrink-0 font-mono text-[0.625rem] text-ink-faint">
-                              ~{c.estimatedMinutes}m
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <>
+                      <Input
+                        type="search"
+                        value={curriculumQuery}
+                        onChange={(e) => setCurriculumQuery(e.target.value)}
+                        placeholder="Search curricula by name, summary, or topic…"
+                      />
+                      <div className="max-h-44 space-y-px overflow-y-auto rounded-md border border-rule">
+                        {filteredCurricula.length === 0 ? (
+                          <div className="px-4 py-3 text-[0.8125rem] text-ink-faint">
+                            No curricula match “{curriculumQuery}”.
+                          </div>
+                        ) : (
+                          filteredCurricula.map((c) => {
+                            const active = curriculumId === c.id
+                            return (
+                              <button
+                                type="button"
+                                key={c.id}
+                                onClick={() => setCurriculumId(c.id)}
+                                className={cn(
+                                  "flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left transition-colors",
+                                  active ? "bg-teal-tint" : "bg-surface hover:bg-surface-soft",
+                                )}
+                              >
+                                <span className="truncate text-[0.875rem] font-medium text-ink">
+                                  {c.title}
+                                </span>
+                                <span className="shrink-0 font-mono text-[0.625rem] text-ink-faint">
+                                  ~{c.estimatedMinutes}m
+                                </span>
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">

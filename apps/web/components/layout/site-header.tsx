@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 
 import { AuthPill } from "./auth-pill"
+import { MailInbox } from "./mail-inbox"
 import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/lib/use-auth"
 import { cn } from "@/lib/utils"
@@ -66,6 +67,7 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-3">
           {user && <BalancePill role={user.role} />}
+          {user && <MailInbox />}
           <AuthPill />
         </div>
       </div>
