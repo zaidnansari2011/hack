@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import type { Bounty, Curriculum } from "@pol/shared"
 
 import {
@@ -10,8 +9,10 @@ import {
 
 export function BountyCard({
   bounty,
+  onSelect,
 }: {
   bounty: Bounty & { curriculum: Curriculum }
+  onSelect: () => void
 }) {
   const seatsLeft = Math.max(0, bounty.maxStudents - bounty.enrolled)
 
@@ -21,12 +22,13 @@ export function BountyCard({
   const diff = DIFFICULTY_META[bounty.curriculum.difficulty]
 
   return (
-    <Link
-      href={full ? "#" : `/learn/${bounty.id}`}
-      aria-disabled={full}
-      className={`group flex flex-col rounded-xl border bg-surface p-6 transition-all duration-300 ease-out-quart
+    <button
+      type="button"
+      onClick={full ? undefined : onSelect}
+      disabled={full}
+      className={`group flex w-full flex-col rounded-xl border bg-surface p-6 text-left transition-all duration-300 ease-out-quart
         ${full
-          ? "pointer-events-none border-rule opacity-50"
+          ? "cursor-not-allowed border-rule opacity-50"
           : "border-rule hover:border-ink/20 hover:shadow-[0_4px_24px_-8px_hsl(218_39%_12%_/_0.10)]"
         }`}
     >
@@ -95,7 +97,7 @@ export function BountyCard({
           </span>
         )}
       </div>
-    </Link>
+    </button>
   )
 }
 
