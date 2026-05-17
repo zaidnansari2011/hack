@@ -91,16 +91,24 @@ export default function SponsorDashboardPage() {
             />
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="group inline-flex items-center gap-2.5 rounded-full bg-ink px-6 py-3 text-[0.875rem] font-medium text-paper transition-all duration-300 ease-out-quart hover:bg-ink/90"
-        >
-          New bounty
-          <span className="transition-transform duration-300 ease-out-quart group-hover:translate-x-0.5">
-            +
-          </span>
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/insights"
+            className="text-[0.8125rem] font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
+          >
+            View insights →
+          </Link>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="group inline-flex items-center gap-2.5 rounded-full bg-ink px-6 py-3 text-[0.875rem] font-medium text-paper transition-all duration-300 ease-out-quart hover:bg-ink/90"
+          >
+            New bounty
+            <span className="transition-transform duration-300 ease-out-quart group-hover:translate-x-0.5">
+              +
+            </span>
+          </button>
+        </div>
       </header>
 
       {error && (

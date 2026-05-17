@@ -13,6 +13,11 @@ const NAV = [
   { href: "/payouts", label: "Earnings", index: "03" },
 ] as const
 
+const LOCKED_NAV = [
+  { label: "Competitions", index: "04" },
+  { label: "Forums", index: "05" },
+] as const
+
 export function StudentShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -79,6 +84,25 @@ export function StudentShell({ children }: { children: ReactNode }) {
                   </Link>
                 )
               })}
+              {LOCKED_NAV.map((item) => (
+                <span
+                  key={item.label}
+                  title="Coming soon"
+                  aria-disabled
+                  className="flex cursor-not-allowed items-baseline gap-2 text-ink-faint/70"
+                >
+                  <span className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-ink-faint/60">
+                    {item.index}
+                  </span>
+                  <span className="flex items-center gap-1.5 border-b-2 border-transparent pb-1">
+                    {item.label}
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden>
+                      <rect x="3" y="7" width="10" height="7" rx="1.5" />
+                      <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                    </svg>
+                  </span>
+                </span>
+              ))}
             </nav>
           </div>
         </div>
