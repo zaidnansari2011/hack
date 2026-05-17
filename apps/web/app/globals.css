@@ -10,32 +10,32 @@
 @layer base {
   :root {
     /* Surfaces */
-    --paper: 38 32% 95%;            /* #F5F0E5 cream background */
-    --paper-deep: 36 28% 92%;       /* slightly toasted variant */
-    --surface: 0 0% 100%;           /* card paper white */
-    --surface-soft: 38 25% 98%;     /* near-white with warmth */
+    --paper: 220 25% 97%;           /* clean near-white with cool cast */
+    --paper-deep: 220 18% 93%;      /* slightly deeper variant */
+    --surface: 0 0% 100%;           /* card white */
+    --surface-soft: 220 20% 99%;    /* near-white with coolness */
 
     /* Ink scale */
-    --ink: 218 39% 12%;             /* near-black with cool cast */
-    --ink-soft: 218 18% 26%;
-    --ink-muted: 220 11% 42%;
-    --ink-faint: 218 8% 60%;
+    --ink: 218 45% 10%;             /* rich near-black */
+    --ink-soft: 218 30% 18%;        /* dark for strong readability */
+    --ink-muted: 220 20% 30%;       /* legible mid tone */
+    --ink-faint: 218 14% 46%;       /* visible but subtle */
 
     /* Hairlines */
-    --rule: 36 18% 84%;             /* warm gray for borders */
-    --rule-soft: 36 18% 90%;
-    --rule-strong: 218 14% 32%;
+    --rule: 220 18% 86%;            /* cool-gray borders */
+    --rule-soft: 220 15% 92%;
+    --rule-strong: 218 20% 28%;
 
-    /* Brand scale — editorial teal, not Web3 cyan */
-    --teal: 192 75% 22%;            /* #0E5662 deep teal */
-    --teal-soft: 188 35% 86%;
-    --teal-tint: 188 50% 96%;
+    /* Brand scale — vivid teal */
+    --teal: 191 82% 30%;            /* vibrant teal */
+    --teal-soft: 188 48% 80%;
+    --teal-tint: 188 62% 93%;
 
     /* Restrained accents */
-    --terracotta: 13 56% 50%;       /* ≈ #C5573B  used for energy beats */
-    --amber: 33 70% 38%;            /* ≈ #A86A1F  for ₹ moments */
-    --forest: 148 33% 37%;          /* success */
-    --forest-soft: 144 23% 90%;
+    --terracotta: 13 62% 46%;       /* error / energy */
+    --amber: 33 78% 36%;            /* ₹ moments */
+    --forest: 148 42% 34%;          /* success */
+    --forest-soft: 144 28% 88%;
 
     /* Type scale (clamp() based, fluid) */
     --display-xl: clamp(3.2rem, 6.5vw, 5.2rem);
