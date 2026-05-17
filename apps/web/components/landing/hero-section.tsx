@@ -82,18 +82,12 @@ function AnimatedBackground() {
 /* ── Headline ───────────────────────────────────────────── */
 
 const WORDS = [
-  { text: "Sponsors", normal: true },
-  { text: "fund" },
-  { text: "outcomes." },
-  { text: "The" },
-  { text: "chain", teal: true },
-  { text: "proves" },
-  { text: "them." },
-  { text: "UPI", teal: true },
-  { text: "settles" },
-  { text: "them" },
-  { text: "in" },
-  { text: "seconds.", italic: true },
+  { text: "Learn" },
+  { text: "it." },
+  { text: "Prove", italic: true },
+  { text: "it.", italic: true },
+  { text: "Get", teal: true },
+  { text: "paid.", teal: true },
 ]
 
 function Headline() {
@@ -127,10 +121,9 @@ function Headline() {
         transition={{ duration: 0.7, ease: ease.outQuart, delay: 0.85 }}
         className="max-w-[52ch] text-balance text-[1.0625rem] leading-relaxed text-ink-soft"
       >
-        You study, you pass, you get paid. In rupees, straight to your UPI.
-        Sponsors put real money behind your learning, and every completion comes
-        with a permanent on-chain receipt.
-</motion.p>
+        Pick a bounty, study with the AI tutor, pass the quiz. Rupees land in
+        your UPI within seconds. Sponsors only pay when you finish.
+      </motion.p>
 
       {/* CTAs */}
       <motion.div
