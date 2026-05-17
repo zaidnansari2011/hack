@@ -163,7 +163,7 @@ const CURRICULA: CurriculumSeed[] = [
       {
         module: "Error handling",
         summary:
-          "Result, Option, and the ? operator — propagating failure without exceptions.",
+          "Result, Option, and the ? operator, propagating failure without exceptions.",
         durationMinutes: 10,
       },
       {
@@ -207,7 +207,7 @@ const CURRICULA: CurriculumSeed[] = [
       {
         module: "Functions and Visibility",
         summary:
-          "public, external, internal, private — and what `private` does NOT mean.",
+          "public, external, internal, private, and what `private` does NOT mean.",
         durationMinutes: 12,
       },
       {
@@ -225,7 +225,7 @@ const CURRICULA: CurriculumSeed[] = [
       {
         module: "Access Control",
         summary:
-          "Ownable, AccessControl roles, multisigs, timelocks — production patterns.",
+          "Ownable, AccessControl roles, multisigs, timelocks, production patterns.",
         durationMinutes: 14,
       },
       {
@@ -305,7 +305,7 @@ const CURRICULA: CurriculumSeed[] = [
       {
         module: "Beyond pandas",
         summary:
-          "chunksize iteration, polars, duckdb — when (and when not) to scale up.",
+          "chunksize iteration, polars, duckdb, when (and when not) to scale up.",
         durationMinutes: 14,
       },
     ],
@@ -361,7 +361,7 @@ const CURRICULA: CurriculumSeed[] = [
       {
         module: "Context and prop drilling",
         summary:
-          "When context is the right tool — and the perf trap of one giant context.",
+          "When context is the right tool, and the perf trap of one giant context.",
         durationMinutes: 11,
       },
       {
@@ -376,7 +376,7 @@ const CURRICULA: CurriculumSeed[] = [
     slug: "personal-finance-101",
     title: "Personal Finance & Tax (India)",
     summary:
-      "Budgets, emergency funds, the old vs new tax regime, SIPs, and insurance you actually need — written for Indian salaries.",
+      "Budgets, emergency funds, the old vs new tax regime, SIPs, and insurance you actually need, written for Indian salaries.",
     topics: ["Finance", "Tax", "Investing", "India"],
     category: "business",
     difficulty: "beginner",
@@ -386,7 +386,7 @@ const CURRICULA: CurriculumSeed[] = [
     syllabus: [
       { module: "Budgeting", summary: "The 50-30-20 rule and tracking habits that actually stick.", durationMinutes: 10 },
       { module: "Emergency fund", summary: "Why 3–6 months in a liquid account beats any investment.", durationMinutes: 10 },
-      { module: "Tax regimes", summary: "Old vs new regime — when each one wins.", durationMinutes: 12 },
+      { module: "Tax regimes", summary: "Old vs new regime, when each one wins.", durationMinutes: 12 },
       { module: "Investing", summary: "Index funds, SIPs, and the math of compounding.", durationMinutes: 14 },
       { module: "Insurance", summary: "Term + health, not endowment or ULIP.", durationMinutes: 14 },
     ],
@@ -424,7 +424,7 @@ const CURRICULA: CurriculumSeed[] = [
     syllabus: [
       { module: "Why research first", summary: "Replacing 'I think' with 'we observed'.", durationMinutes: 12 },
       { module: "Interview discipline", summary: "Past behaviour, open questions, sitting in silence.", durationMinutes: 18 },
-      { module: "Usability testing", summary: "Tasks vs feedback — what to actually run.", durationMinutes: 16 },
+      { module: "Usability testing", summary: "Tasks vs feedback, what to actually run.", durationMinutes: 16 },
       { module: "Survey design", summary: "Leading, double-barrelled, and sampling bias traps.", durationMinutes: 16 },
       { module: "Synthesis", summary: "Affinity mapping and the one-page research report.", durationMinutes: 18 },
     ],
@@ -433,7 +433,7 @@ const CURRICULA: CurriculumSeed[] = [
     slug: "visual-design-101",
     title: "Visual Design & Typography",
     summary:
-      "Hierarchy, typography, restrained colour, the 8-point grid — the craft signals that separate amateur from professional.",
+      "Hierarchy, typography, restrained colour, the 8-point grid, the craft signals that separate amateur from professional.",
     topics: ["Design", "Typography", "Visual Design", "UI"],
     category: "design",
     difficulty: "beginner",
@@ -441,7 +441,7 @@ const CURRICULA: CurriculumSeed[] = [
     contentFile: "visual-design-101.md",
     quizFile: "quiz-visual-design-101.json",
     syllabus: [
-      { module: "Hierarchy", summary: "Size, weight, spacing — and why whitespace beats bold.", durationMinutes: 14 },
+      { module: "Hierarchy", summary: "Size, weight, spacing, and why whitespace beats bold.", durationMinutes: 14 },
       { module: "Typography", summary: "Pairing, line height, measure that reads.", durationMinutes: 16 },
       { module: "Colour", summary: "Restrained palettes, WCAG 4.5:1 contrast.", durationMinutes: 14 },
       { module: "Spacing", summary: "The 8-point grid and the rule of proximity.", durationMinutes: 14 },
@@ -479,7 +479,7 @@ const CURRICULA: CurriculumSeed[] = [
     contentFile: "public-health-101.md",
     quizFile: "quiz-public-health-101.json",
     syllabus: [
-      { module: "Emergencies", summary: "When to call — chest pain, F.A.S.T., breathing.", durationMinutes: 12 },
+      { module: "Emergencies", summary: "When to call, chest pain, F.A.S.T., breathing.", durationMinutes: 12 },
       { module: "CPR & AED", summary: "Hands-only CPR at 100–120 per minute.", durationMinutes: 14 },
       { module: "Bleeding & wounds", summary: "Direct pressure, clean rinse, when to escalate.", durationMinutes: 12 },
       { module: "Choking & burns", summary: "Back blows, Heimlich, 20 minutes of running water.", durationMinutes: 12 },
@@ -490,7 +490,7 @@ const CURRICULA: CurriculumSeed[] = [
     slug: "mental-health-101",
     title: "Mental Health Literacy",
     summary:
-      "Stress, anxiety, depression — what each is, recognising them in yourself, talking to someone struggling, and what actually helps.",
+      "Stress, anxiety, depression, what each is, recognising them in yourself, talking to someone struggling, and what actually helps.",
     topics: ["Health", "Mental Health", "Wellbeing"],
     category: "health",
     difficulty: "beginner",
@@ -518,7 +518,7 @@ const CURRICULA: CurriculumSeed[] = [
     quizFile: "quiz-climate-science-101.json",
     syllabus: [
       { module: "Greenhouse effect", summary: "Why Earth is +15°C instead of −18°C.", durationMinutes: 14 },
-      { module: "1.5 vs 2°C", summary: "Averages hide tails — extreme weather statistics.", durationMinutes: 16 },
+      { module: "1.5 vs 2°C", summary: "Averages hide tails, extreme weather statistics.", durationMinutes: 16 },
       { module: "Carbon cycle", summary: "Ocean, land, and the long atmospheric tail.", durationMinutes: 16 },
       { module: "Mitigation", summary: "Where decarbonisation leverage is largest.", durationMinutes: 18 },
       { module: "Adaptation in India", summary: "Heat plans, water, vector-borne disease.", durationMinutes: 21 },
@@ -539,7 +539,7 @@ const CURRICULA: CurriculumSeed[] = [
       { module: "Stage fear", summary: "Reframing nervousness as excitement.", durationMinutes: 12 },
       { module: "Structure", summary: "Three-act shape and the 90-second opening.", durationMinutes: 14 },
       { module: "Stories", summary: "Person → struggle → turn.", durationMinutes: 16 },
-      { module: "Delivery", summary: "Pace, pause, pitch — silence as a tool.", durationMinutes: 18 },
+      { module: "Delivery", summary: "Pace, pause, pitch, silence as a tool.", durationMinutes: 18 },
       { module: "Slides", summary: "Cues, not scripts; one idea per slide.", durationMinutes: 8 },
       { module: "Q&A", summary: "Repeat the question; handle hostile asks.", durationMinutes: 12 },
     ],
@@ -666,7 +666,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "personal-finance-101",
     title: "Financially literate India",
     description:
-      "RupeeNest is funding 1000 young earners through hands-on personal finance. Budgets, tax, SIPs, and term insurance — completion gets you paid and certified.",
+      "RupeeNest is funding 1000 young earners through hands-on personal finance. Budgets, tax, SIPs, and term insurance. Completion gets you paid and certified.",
     rewardInr: 150,
     rewardUsdcMicros: 1_800_000n,
     maxStudents: 1000,
@@ -680,7 +680,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "digital-marketing-101",
     title: "Digital marketing for makers",
     description:
-      "Palette is sponsoring 80 founders and creators to master the marketing stack — funnels, SEO, paid ads, and email lifecycle.",
+      "Palette is sponsoring 80 founders and creators to master the marketing stack, funnels, SEO, paid ads, and email lifecycle.",
     rewardInr: 350,
     rewardUsdcMicros: 4_200_000n,
     maxStudents: 80,
@@ -708,7 +708,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "visual-design-101",
     title: "Visual craft fundamentals",
     description:
-      "Hierarchy, type, restrained colour, 8-point spacing — the craft signals that separate junior and senior work. Bounty open to all aspiring designers.",
+      "Hierarchy, type, restrained colour, 8-point spacing, the craft signals that separate junior and senior work. Bounty open to all aspiring designers.",
     rewardInr: 300,
     rewardUsdcMicros: 3_600_000n,
     maxStudents: 60,
@@ -722,7 +722,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "business-english-101",
     title: "English for the global workplace",
     description:
-      "Global Fluency Council is funding 100 students through workplace-ready English communication — email, meetings, presenting, negotiation. Nearly full.",
+      "Global Fluency Council is funding 100 students through workplace-ready English communication, email, meetings, presenting, negotiation. Nearly full.",
     rewardInr: 200,
     rewardUsdcMicros: 2_400_000n,
     maxStudents: 100,
@@ -736,7 +736,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "public-health-101",
     title: "First aid for every Indian household",
     description:
-      "Arogya+ funded 100 community first-aid responders across two states. Bounty closed — fully delivered and paid out.",
+      "Arogya+ funded 100 community first-aid responders across two states. Bounty closed, fully delivered and paid out.",
     rewardInr: 180,
     rewardUsdcMicros: 2_160_000n,
     maxStudents: 100,
@@ -778,7 +778,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "public-speaking-101",
     title: "Speak with confidence",
     description:
-      "BrightPath is funding 80 students through the public-speaking curriculum — structure, storytelling, pace, Q&A. Recommended before our interview-prep track.",
+      "BrightPath is funding 80 students through the public-speaking curriculum, structure, storytelling, pace, Q&A. Recommended before our interview-prep track.",
     rewardInr: 250,
     rewardUsdcMicros: 3_000_000n,
     maxStudents: 80,
@@ -820,7 +820,7 @@ const BOUNTIES: BountySeed[] = [
     curriculumSlug: "ai-literacy-101",
     title: "AI literacy for non-engineers",
     description:
-      "FutureLens is sponsoring 30 professionals across law, medicine, journalism, and education to use AI well — and avoid the failure modes that matter in their fields.",
+      "FutureLens is sponsoring 30 professionals across law, medicine, journalism, and education to use AI well, and avoid the failure modes that matter in their fields.",
     rewardInr: 600,
     rewardUsdcMicros: 7_200_000n,
     maxStudents: 30,
@@ -1168,7 +1168,7 @@ async function seedShowcaseCompletions(deps: {
       },
     })
 
-    // On-chain proof — deterministic tx hash so /verify links are stable.
+    // On-chain proof, deterministic tx hash so /verify links are stable.
     const studentAddress = pseudoAddress(`addr:${user.id}`)
     const txHash = pseudoTxHash(`tx:${enrollment.id}:${session.id}`)
     const scoreHash = pseudoTxHash(`score:${user.id}:${session.id}:${p.scorePct}`)
@@ -1190,7 +1190,7 @@ async function seedShowcaseCompletions(deps: {
       },
     })
 
-    // Confirmed payout — feeds the dashboard "paid" totals.
+    // Confirmed payout, feeds the dashboard "paid" totals.
     const bounty = await prisma.bounty.findUnique({ where: { id: p.bountyId } })
     if (bounty) {
       await prisma.payout.deleteMany({
@@ -1251,7 +1251,7 @@ async function ingestQuestionBank(
   return items.length
 }
 
-// Inline ingest — Prisma seed runs outside the API src/ rootDir, so we can't
+// Inline ingest, Prisma seed runs outside the API src/ rootDir, so we can't
 // import services here without complicating the build. Keep this small and
 // duplicated rather than reaching across the boundary.
 async function ingestCurriculumContent(
@@ -1297,7 +1297,7 @@ async function ingestCurriculumContent(
     })),
   })
 
-  // Compute + write embeddings. Local model — first call downloads ~25MB.
+  // Compute + write embeddings. Local model, first call downloads ~25MB.
   const inserted = await prisma.curriculumChunk.findMany({
     where: { curriculumId },
     orderBy: { chunkIndex: "asc" },
