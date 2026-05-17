@@ -33,7 +33,7 @@ function AnimatedBackground() {
         className="absolute -left-48 -top-24 h-[700px] w-[700px] rounded-full"
         style={{
           background:
-            "radial-gradient(circle, hsl(192 75% 22% / 0.10) 0%, transparent 70%)",
+            "radial-gradient(circle, hsl(191 82% 30% / 0.14) 0%, transparent 70%)",
         }}
         animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
@@ -42,7 +42,7 @@ function AnimatedBackground() {
         className="absolute -right-64 top-1/4 h-[600px] w-[600px] rounded-full"
         style={{
           background:
-            "radial-gradient(circle, hsl(13 56% 50% / 0.08) 0%, transparent 65%)",
+            "radial-gradient(circle, hsl(13 62% 46% / 0.10) 0%, transparent 65%)",
         }}
         animate={{ x: [0, -50, 30, 0], y: [0, 40, -20, 0] }}
         transition={{ duration: 28, repeat: Infinity, ease: "linear", delay: 4 }}
@@ -51,7 +51,7 @@ function AnimatedBackground() {
         className="absolute bottom-0 left-1/3 h-[500px] w-[500px] rounded-full"
         style={{
           background:
-            "radial-gradient(circle, hsl(148 33% 37% / 0.07) 0%, transparent 65%)",
+            "radial-gradient(circle, hsl(148 42% 34% / 0.09) 0%, transparent 65%)",
         }}
         animate={{ x: [0, 60, -30, 0], y: [0, -40, 10, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: "linear", delay: 8 }}
@@ -72,7 +72,7 @@ function AnimatedBackground() {
         className="absolute inset-x-0 bottom-0 h-48"
         style={{
           background:
-            "linear-gradient(to bottom, transparent, hsl(38 32% 95%))",
+            "linear-gradient(to bottom, transparent, hsl(220 25% 97%))",
         }}
       />
     </div>
@@ -140,23 +140,10 @@ function Headline() {
         className="flex flex-wrap items-center gap-4"
       >
         <Link
-          href="/signup"
-          className="group inline-flex items-center gap-3 rounded-full bg-ink px-7 py-3.5 text-[0.9375rem] font-medium text-paper shadow-[0_16px_40px_-12px_hsl(218_39%_12%_/_0.45)] transition-all duration-300 ease-out-quart hover:-translate-y-0.5 hover:shadow-[0_22px_48px_-12px_hsl(218_39%_12%_/_0.55)]"
-        >
-          Open the platform
-          <motion.span
-            initial={{ x: 0 }}
-            whileHover={{ x: 4 }}
-            className="inline-block"
-          >
-            →
-          </motion.span>
-        </Link>
-        <Link
           href="/learn"
           className="inline-flex items-center gap-2 text-[0.9375rem] font-medium text-ink-soft underline-offset-4 transition-colors hover:text-ink hover:underline"
         >
-          See active bounties ↗
+          Browse active bounties ↗
         </Link>
       </motion.div>
 
@@ -238,7 +225,7 @@ const ROLES = [
     eyebrow: "Earn",
     title: "I want to learn",
     detail: "Learn at your own pace. Pass the quiz and earn real rupees.",
-    href: "/login?role=student",
+    href: "/signup?role=student",
     highlighted: false,
   },
   {
@@ -246,7 +233,7 @@ const ROLES = [
     eyebrow: "Fund",
     title: "I want to sponsor",
     detail: "Back skills you care about. You only pay when someone proves it.",
-    href: "/login?role=sponsor",
+    href: "/signup?role=sponsor",
     highlighted: true,
   },
   {
