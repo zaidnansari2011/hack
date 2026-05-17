@@ -114,7 +114,7 @@ export default function BountyLearnPage() {
         <p className="mt-2 text-[0.875rem] leading-relaxed text-ink-muted">{state.message}</p>
         <Link
           href="/learn"
-          className="mt-4 inline-flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint transition-colors hover:text-ink-soft"
+          className="mt-4 inline-flex items-center gap-1.5 text-[0.875rem] text-ink-faint transition-colors hover:text-ink-soft"
         >
           ← Back to bounties
         </Link>
@@ -163,7 +163,7 @@ function CourseOverview({
       <div>
         <Link
           href="/learn"
-          className="inline-flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint transition-colors hover:text-ink-soft"
+          className="inline-flex items-center gap-1.5 text-[0.875rem] text-ink-faint transition-colors hover:text-ink-soft"
         >
           ← Back to bounties
         </Link>

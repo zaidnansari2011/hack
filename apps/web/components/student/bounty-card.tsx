@@ -31,12 +31,12 @@ export function BountyCard({
         }`}
     >
       {/* Category + difficulty row */}
-      <div className="mb-3 flex items-center gap-2 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
-        <span className="inline-flex items-center gap-1.5 text-ink-soft">
+      <div className="mb-3 flex items-center gap-2 text-[0.8125rem] text-ink-muted">
+        <span className="inline-flex items-center gap-1.5 font-medium text-ink-soft">
           <CategoryDot tone={cat.tone} />
           {cat.label}
         </span>
-        <span aria-hidden>·</span>
+        <span aria-hidden className="text-ink-faint">·</span>
         <span>{diff.label}</span>
       </div>
 
@@ -52,7 +52,7 @@ export function BountyCard({
 
       {/* Sponsor */}
       {bounty.sponsorName && (
-        <p className="mt-1 font-mono text-[0.6875rem] uppercase tracking-wide text-ink-faint">
+        <p className="mt-1 text-[0.8125rem] text-ink-faint">
           {bounty.sponsorName}
         </p>
       )}
@@ -68,7 +68,7 @@ export function BountyCard({
           {bounty.curriculum.topics.slice(0, 4).map((t: string) => (
             <span
               key={t}
-              className="inline-flex rounded border border-rule px-1.5 py-[1px] font-mono text-[0.5625rem] uppercase tracking-wide text-ink-faint"
+              className="inline-flex rounded border border-rule px-2 py-0.5 text-[0.6875rem] text-ink-muted"
             >
               {t}
             </span>

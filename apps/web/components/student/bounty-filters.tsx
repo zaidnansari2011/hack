@@ -139,7 +139,7 @@ export function BountyFilters({ bounties, state, onChange, onClear }: Props) {
                 type="button"
                 onClick={() => toggleArray<CurriculumDifficulty>("difficulties", d)}
                 disabled={count === 0 && !active}
-                className={`rounded-full border px-3 py-1 font-mono text-[0.6875rem] uppercase tracking-wide transition-colors
+                className={`rounded-full border px-3 py-1 text-[0.8125rem] font-medium transition-colors
                   ${active
                     ? "border-ink bg-ink text-paper"
                     : "border-rule bg-surface text-ink-soft hover:border-ink/30"
@@ -169,7 +169,7 @@ export function BountyFilters({ bounties, state, onChange, onClear }: Props) {
                 type="button"
                 onClick={() => toggleArray<DurationBucket>("durations", d)}
                 disabled={count === 0 && !active}
-                className={`rounded-full border px-3 py-1 font-mono text-[0.6875rem] uppercase tracking-wide transition-colors
+                className={`rounded-full border px-3 py-1 text-[0.8125rem] font-medium transition-colors
                   ${active
                     ? "border-ink bg-ink text-paper"
                     : "border-rule bg-surface text-ink-soft hover:border-ink/30"

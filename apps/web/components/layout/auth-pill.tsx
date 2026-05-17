@@ -10,8 +10,8 @@ import { useAuth } from "@/lib/use-auth"
 import { cn } from "@/lib/utils"
 
 const STUDENT_LINKS = [
-  { href: "/learn", label: "Bounty index" },
-  { href: "/payouts", label: "Earnings ledger" },
+  { href: "/profile", label: "Edit profile" },
+  { href: "/contact", label: "Contact" },
 ] as const
 
 const SPONSOR_LINKS = [
