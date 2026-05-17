@@ -290,7 +290,6 @@ export function TutorChat({
   const [lessonInFlight, setLessonInFlight] = useState<number | null>(null)
   const [pendingCheck, setPendingCheck] = useState<{ question: CheckQuestion; submitting: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [groqLive, setGroqLive] = useState<boolean | null>(null)
   const [tutorLang, setTutorLang] = useState<TutorLanguage>("en")
   const [persona, setPersona] = useState<TutorPersona>("mentor")
   const [listening, setListening] = useState(false)
@@ -325,6 +324,10 @@ export function TutorChat({
     setCodes((prev) => ({ ...prev, [lang]: text }))
   }
 
+  // Tutor message ids that just arrived this session and should type in
+  // (typewriter). Ids loaded from history are not in here, so they render
+  // instantly instead of replaying on every session switch.
+  const streamRef = useRef<Set<string>>(new Set())
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const lastSpokenIdRef = useRef<string | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -377,13 +380,6 @@ export function TutorChat({
       recognition: getSpeechRecognitionCtor() !== null,
       synthesis: typeof window.speechSynthesis !== "undefined",
     })
-  }, [])
-
-  // ── Groq status ──
-  useEffect(() => {
-    apiFetch<{ groq: "live" | "offline" }>("/tutor/status")
-      .then((s) => setGroqLive(s.groq === "live"))
-      .catch(() => setGroqLive(null))
   }, [])
 
   // ── Auto-teach a module if requested by the parent overview page ──
@@ -499,6 +495,7 @@ export function TutorChat({
         method: "POST",
         json: { enrollmentId: initialEnrollment.id, message: fullMessage, lang: tutorLang, persona, sessionIndex },
       })
+      streamRef.current.add(res.tutor.id)
       setMessages((prev) => [...prev.filter((m) => m.id !== optimistic.id), res.user, res.tutor])
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
@@ -558,6 +555,7 @@ export function TutorChat({
         method: "POST",
         json: { enrollmentId: initialEnrollment.id, moduleIndex, lang: tutorLang, sessionIndex: target },
       })
+      streamRef.current.add(res.tutor.id)
       setMessages((prev) => [...prev, res.tutor])
       const prog = await apiFetch<{ coveredModuleIndexes: number[]; progressPct: number }>(
         `/tutor/progress/${initialEnrollment.id}`,
@@ -600,6 +598,7 @@ export function TutorChat({
         "/tutor/check/submit",
         { method: "POST", json: { enrollmentId: initialEnrollment.id, moduleIndex: pendingCheck.question.moduleIndex, questionId: pendingCheck.question.questionId, answeredIndex, sessionIndex } },
       )
+      streamRef.current.add(res.message.id)
       setMessages((prev) => [...prev, res.message])
       setPendingCheck(null)
       // After every check answer, refresh progress + mastered set so the
@@ -730,7 +729,6 @@ export function TutorChat({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader
           enrollment={initialEnrollment}
-          groqLive={groqLive}
           progressPct={progressPct}
           lang={tutorLang}
           onLangChange={setTutorLang}
@@ -774,6 +772,8 @@ export function TutorChat({
                     key={m.id}
                     message={m}
                     onCheck={startCheck}
+                    onPrompt={send}
+                    stream={streamRef.current.has(m.id)}
                     canCheck={m.meta?.kind === "lesson" && pendingCheck === null && lessonInFlight === null}
                   />
                 ))}
@@ -1065,14 +1065,13 @@ function ConfirmClearModal({
 // ─── ChatHeader ───────────────────────────────────────────────────────────────
 
 function ChatHeader({
-  enrollment, groqLive, progressPct, lang, onLangChange, persona, onPersonaChange,
+  enrollment, progressPct, lang, onLangChange, persona, onPersonaChange,
   speakReplies, onToggleSpeak, synthesisSupported,
   sessions, sessionIndex, sessionLoading, onSwitchSession, onNewSession,
   sidebarOpen, onToggleSidebar, codeOpen, onToggleCode,
   onClearChat, canClearChat,
 }: {
   enrollment: EnrollmentDetail
-  groqLive: boolean | null
   progressPct: number
   lang: TutorLanguage
   onLangChange: (l: TutorLanguage) => void
@@ -1108,9 +1107,11 @@ function ChatHeader({
 
         <Link
           href="/learn"
-          className="shrink-0 font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-ink-faint transition-colors hover:text-ink-soft"
+          title="Back to bounties"
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-rule bg-paper px-3 text-[0.8125rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
         >
-          ←
+          <span className="text-[1rem] leading-none">←</span>
+          <span className="hidden sm:inline">Back</span>
         </Link>
 
         <div className="min-w-0 flex-1">
@@ -1122,15 +1123,6 @@ function ChatHeader({
         <div className="flex shrink-0 items-center gap-2">
           <span className="hidden tabular font-mono text-[0.5625rem] text-ink-faint sm:inline">
             {progressPct}%
-          </span>
-          <span className={cn(
-            "pill text-[0.5625rem]",
-            groqLive === true ? "border-forest/40 bg-forest-soft text-forest"
-              : groqLive === false ? "border-amber/30 bg-amber/8 text-amber"
-              : "border-rule bg-surface text-ink-faint",
-          )}>
-            <span className={cn("h-1.5 w-1.5 rounded-full", groqLive === true ? "bg-forest" : groqLive === false ? "bg-amber" : "bg-rule")} />
-            {groqLive === true ? "live" : groqLive === false ? "RAG" : "…"}
           </span>
           {lang !== "en" && (
             <span className="hidden items-center gap-1 rounded-full bg-teal-soft px-2 py-0.5 text-[0.5625rem] font-medium text-teal sm:inline-flex">
@@ -1336,9 +1328,56 @@ function CourseOverviewPanel({ onPick, onTeach, curriculum, prompts, lessonInFli
 
 // ─── MessageBubble ────────────────────────────────────────────────────────────
 
-function MessageBubble({ message, onCheck, canCheck }: {
+const PRESET_PROMPTS: { label: string; prompt: string }[] = [
+  { label: "Explain it simpler", prompt: "Explain that again, but simpler — like I'm new to this." },
+  { label: "Give an example", prompt: "Give me a concrete, worked example of this." },
+  { label: "Why does it matter?", prompt: "Why does this matter? Where would I actually use it?" },
+  { label: "Common mistakes", prompt: "What do people most often get wrong about this?" },
+  { label: "Quiz me", prompt: "Ask me a question to test if I understood this." },
+]
+
+// Reveals tutor text progressively (typewriter) the first time a message
+// arrives, then settles into fully formatted markdown. History messages
+// pass stream={false} so they render instantly.
+function StreamedText({ text, stream }: { text: string; stream: boolean }) {
+  const [count, setCount] = useState(stream ? 0 : text.length)
+
+  useEffect(() => {
+    if (!stream) { setCount(text.length); return }
+    const total = text.length
+    // Reveal in ~1.6s for short replies, capped so long lessons don't crawl.
+    const step = Math.max(3, Math.round(total / 110))
+    let i = 0
+    const id = window.setInterval(() => {
+      i += step
+      if (i >= total) {
+        setCount(total)
+        window.clearInterval(id)
+      } else {
+        setCount(i)
+      }
+    }, 16)
+    return () => window.clearInterval(id)
+    // Stream decision is fixed at mount; text is stable for a given message.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const done = count >= text.length
+  return (
+    <>
+      <FormattedContent text={text.slice(0, count)} />
+      {!done && (
+        <span className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-pulse bg-ink/50" />
+      )}
+    </>
+  )
+}
+
+function MessageBubble({ message, onCheck, onPrompt, stream, canCheck }: {
   message: ChatMessage
   onCheck: (i: number) => void
+  onPrompt: (text: string) => void
+  stream: boolean
   canCheck: boolean
 }) {
   const isUser = message.role === "user"
@@ -1376,17 +1415,32 @@ function MessageBubble({ message, onCheck, canCheck }: {
             ? "rounded-2xl border border-rule bg-paper px-7 py-6 text-[0.9375rem] leading-[1.75] text-ink shadow-[0_1px_0_0_hsl(var(--rule))]"
             : "rounded-xl border border-rule bg-surface-soft px-5 py-4 text-[0.9375rem] leading-relaxed text-ink",
         )}>
-          <FormattedContent text={message.content} />
+          {isUser ? (
+            <FormattedContent text={message.content} />
+          ) : (
+            <StreamedText text={message.content} stream={stream} />
+          )}
         </div>
         {isLesson && message.meta?.kind === "lesson" && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            {PRESET_PROMPTS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => onPrompt(p.prompt)}
+                disabled={!canCheck}
+                className="inline-flex items-center rounded-full border border-rule bg-surface px-3 py-1 text-[0.75rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {p.label}
+              </button>
+            ))}
             <button
               type="button"
               onClick={() => { if (message.meta?.kind === "lesson") onCheck(message.meta.moduleIndex) }}
               disabled={!canCheck}
-              className="inline-flex items-center gap-2 rounded-xl border border-teal/30 bg-teal-tint px-4 py-1.5 text-[0.8125rem] font-medium text-teal transition-colors hover:bg-teal-soft disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-full border border-forest/30 bg-forest/5 px-3 py-1 text-[0.75rem] font-medium text-forest transition-colors hover:bg-forest/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Check yourself →
+              I'm ready — check me →
             </button>
           </div>
         )}
