@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { BountyCard } from "@/components/student/bounty-card"
 import { BountyFilters } from "@/components/student/bounty-filters"
+import { BountyModal } from "@/components/student/bounty-modal"
 import { BountyToolbar } from "@/components/student/bounty-toolbar"
 import {
   EMPTY_FILTERS,
@@ -28,6 +29,7 @@ export default function LearnIndexPage() {
     filtersFromSearchParams(searchParams),
   )
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [selectedBounty, setSelectedBounty] = useState<BountyWithCurriculum | null>(null)
 
   // Fetch once on mount.
   useEffect(() => {
@@ -63,6 +65,8 @@ export default function LearnIndexPage() {
   const onClear = () => setFilters({ ...EMPTY_FILTERS })
 
   return (
+    <>
+    <BountyModal bounty={selectedBounty} onClose={() => setSelectedBounty(null)} />
     <div className="space-y-8">
       {/* Header */}
       <header className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-end lg:gap-16">
@@ -190,7 +194,7 @@ export default function LearnIndexPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {filtered.map((b) => (
-                <BountyCard key={b.id} bounty={b} />
+                <BountyCard key={b.id} bounty={b} onSelect={() => setSelectedBounty(b)} />
               ))}
             </div>
           )}
@@ -212,6 +216,7 @@ export default function LearnIndexPage() {
         </MobileFilterDrawer>
       )}
     </div>
+    </>
   )
 }
 
