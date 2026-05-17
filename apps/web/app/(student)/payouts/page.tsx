@@ -128,7 +128,7 @@ export default function PayoutsPage() {
                   <div className="mt-0.5 text-[0.75rem] text-ink-muted">
                     to{" "}
                     <code className="font-mono text-ink-soft">
-                      {p.upiId ?? "demo@upi"}
+                      {p.upiId ?? "your UPI"}
                     </code>{" "}
                     · {new Date(p.createdAt).toLocaleString("en-IN")}
                   </div>

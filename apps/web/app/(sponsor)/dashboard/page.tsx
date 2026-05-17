@@ -6,7 +6,6 @@ import type { SponsorDashboard } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { BountyRow } from "@/components/sponsor/bounty-row"
-import { ChainBadge } from "@/components/sponsor/chain-badge"
 import { DashboardCharts } from "@/components/sponsor/dashboard-charts"
 import { NewBountyModal } from "@/components/sponsor/new-bounty-modal"
 import { StatCard } from "@/components/sponsor/stat-card"
@@ -83,7 +82,6 @@ export default function SponsorDashboardPage() {
           <div className="eyebrow eyebrow-tick">Sponsor portal</div>
           <h1 className="display-lg mt-3 text-balance text-ink">Your impact</h1>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <ChainBadge />
             <LiveIndicator
               secondsAgo={secondsAgo}
               refreshing={refreshing}
@@ -172,29 +170,42 @@ export default function SponsorDashboardPage() {
           {data.topScorers.length > 0 && (
             <section>
               <div className="flex items-baseline justify-between">
-                <h2 className="eyebrow eyebrow-tick">Top scorers</h2>
+                <h2 className="eyebrow eyebrow-tick">Leaderboard</h2>
                 <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
-                  Across all your bounties
+                  Ranked by quiz score
                 </span>
               </div>
               <ol className="mt-5 divide-y divide-rule overflow-hidden rounded-md border border-rule bg-surface">
                 {data.topScorers.map((s, i) => {
+                  const rank = i + 1
                   const statsHref = s.studentAddress
                     ? `/credentials/${s.studentAddress}`
                     : `/verify/${s.txHash}`
+                  const medal =
+                    rank === 1
+                      ? "bg-amber text-paper"
+                      : rank === 2
+                        ? "bg-ink-soft text-paper"
+                        : rank === 3
+                          ? "bg-terracotta text-paper"
+                          : "bg-paper text-ink-faint border border-rule"
                   return (
                     <li
                       key={s.txHash}
-                      className="flex items-center justify-between gap-4 px-5 py-3.5"
+                      className={`flex items-center justify-between gap-4 px-5 py-3.5 transition-colors ${
+                        rank <= 3 ? "bg-amber/[0.03]" : ""
+                      }`}
                     >
                       <div className="flex min-w-0 items-center gap-4">
-                        <span className="tabular w-6 font-mono text-[0.75rem] font-semibold text-ink-faint">
-                          {String(i + 1).padStart(2, "0")}
+                        <span
+                          className={`tabular grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-[0.6875rem] font-semibold ${medal}`}
+                        >
+                          {rank}
                         </span>
                         <Link
                           href={statsHref}
                           className="grid h-9 w-9 place-items-center rounded-full bg-ink text-[0.75rem] font-semibold text-paper transition-transform hover:scale-105"
-                          title="Open this student's stats"
+                          title="Open this student's profile"
                         >
                           {s.studentInitials || "?"}
                         </Link>
@@ -221,7 +232,7 @@ export default function SponsorDashboardPage() {
                           href={statsHref}
                           className="rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-ink-soft transition-colors hover:border-ink/40 hover:text-ink"
                         >
-                          view stats →
+                          view profile →
                         </Link>
                       </div>
                     </li>
@@ -278,14 +289,9 @@ function LiveIndicator({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-forest/30 bg-forest/5 px-2.5 py-1">
-        <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest opacity-60" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-forest" />
-        </span>
-        <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-forest">
-          Live
-        </span>
+      <span className="relative flex h-1.5 w-1.5">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-forest opacity-60" />
+        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-forest" />
       </span>
       <span className="font-mono text-[0.6875rem] text-ink-faint">
         {refreshing
