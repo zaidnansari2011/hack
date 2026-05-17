@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 
 import { AuthPill } from "./auth-pill"
+import { useAuth } from "@/lib/use-auth"
 import { cn } from "@/lib/utils"
 
 const NAV = [
@@ -16,6 +17,7 @@ const NAV = [
 
 export function SiteHeader() {
   const pathname = usePathname()
+  const { user } = useAuth()
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -37,7 +39,12 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-16 w-[min(1240px,94vw)] items-center justify-between gap-6">
-        <Link href="/" className="group flex items-center gap-3">
+        <Link href="/" className="group flex items-center gap-2.5">
+          {!onLanding && !user && (
+            <span className="text-[1rem] text-ink-faint transition-transform duration-300 group-hover:-translate-x-0.5 group-hover:text-ink-soft">
+              ←
+            </span>
+          )}
           <Wordmark />
         </Link>
 
@@ -65,30 +72,8 @@ export function SiteHeader() {
 
 function Wordmark() {
   return (
-    <span className="flex items-center gap-2.5">
-      <svg
-        viewBox="0 0 24 24"
-        className="h-6 w-6 text-ink"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        {/* Editorial monogram: open book + orbiting node */}
-        <path d="M3 5h6a3 3 0 0 1 3 3v11" />
-        <path d="M21 5h-6a3 3 0 0 0-3 3v11" />
-        <circle cx="20" cy="4" r="1.4" fill="currentColor" stroke="none" />
-      </svg>
-      <span className="flex items-baseline gap-1.5">
-        <span className="font-display text-[1.0625rem] font-medium tracking-tight">
-          Proof-of-Learn
-        </span>
-        <span className="hidden font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ink-faint sm:inline">
-          /v1
-        </span>
-      </span>
+    <span className="font-display text-[1.0625rem] font-medium tracking-tight">
+      EduPay
     </span>
   )
 }
