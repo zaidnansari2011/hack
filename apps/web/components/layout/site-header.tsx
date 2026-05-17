@@ -85,7 +85,6 @@ function Wordmark() {
 
 function BalancePill({ role }: { role: string }) {
   const [balance, setBalance] = useState<number | null>(null)
-  const [label, setLabel] = useState("")
 
   useEffect(() => {
     if (role === "student") {
@@ -95,15 +94,11 @@ function BalancePill({ role }: { role: string }) {
             .filter((p) => p.status === "confirmed" || p.status === "sent")
             .reduce((sum, p) => sum + p.amountInr, 0)
           setBalance(total)
-          setLabel("Earned")
         })
         .catch(() => {})
     } else if (role === "sponsor") {
       apiFetch<SponsorDashboard>("/bounties/dashboard")
-        .then((data) => {
-          setBalance(data.totalRemainingInr)
-          setLabel("Remaining")
-        })
+        .then((data) => setBalance(data.totalRemainingInr))
         .catch(() => {})
     }
   }, [role])
@@ -111,8 +106,7 @@ function BalancePill({ role }: { role: string }) {
   if (balance === null) return null
 
   return (
-    <div className="hidden items-center gap-1.5 rounded-full border border-rule bg-surface px-3 py-1.5 sm:flex">
-      <span className="text-[0.6875rem] text-ink-faint">{label}</span>
+    <div className="hidden items-center rounded-full border border-rule bg-surface px-3 py-1.5 sm:flex">
       <span className="tabular font-display text-[0.9375rem] font-medium text-teal">
         ₹{balance.toLocaleString("en-IN")}
       </span>

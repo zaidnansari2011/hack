@@ -228,7 +228,7 @@ function PayoutCard({ payout }: { payout: Payout | null }) {
       </h3>
       <dl className="mt-6 space-y-3 text-[0.875rem]">
         <Row label="Amount" value={payout ? `₹${payout.amountInr.toLocaleString("en-IN")}` : "…"} />
-        <Row label="UPI" value={payout?.upiId ?? "demo@upi"} mono />
+        <Row label="UPI" value={payout?.upiId ?? "your UPI"} mono />
         <Row
           label="Razorpay ID"
           value={payout?.razorpayPayoutId ?? "…"}

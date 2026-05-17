@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, type ReactNode } from "react"
 
-import { authStore } from "@/lib/auth-store"
 import { useAuth } from "@/lib/use-auth"
 import { cn } from "@/lib/utils"
 
@@ -42,14 +41,7 @@ export function SponsorShell({ children }: { children: ReactNode }) {
       <div className="mx-auto grid w-[min(1240px,94vw)] gap-10 py-12 lg:grid-cols-[220px_1fr] lg:gap-16">
         <aside className="hidden h-fit lg:sticky lg:top-24 lg:block">
           <div className="eyebrow eyebrow-tick">Sponsor</div>
-          <div className="mt-2 truncate font-display text-[1.125rem] font-medium text-ink">
-            {user.name}
-          </div>
-          <div className="font-mono text-[0.6875rem] text-ink-faint">
-            {user.email}
-          </div>
-
-          <nav className="mt-8 space-y-1.5">
+          <nav className="mt-5 space-y-1.5">
             {NAV.map((item) => {
               const active = pathname === item.href
               return (
@@ -71,17 +63,6 @@ export function SponsorShell({ children }: { children: ReactNode }) {
               )
             })}
           </nav>
-
-          <button
-            type="button"
-            onClick={() => {
-              authStore.clear()
-              router.push("/")
-            }}
-            className="mt-10 inline-flex items-center gap-2 text-[0.8125rem] text-ink-muted transition-colors hover:text-ink"
-          >
-            <span className="link-underline">Sign out</span>
-          </button>
         </aside>
 
         <div>{children}</div>
