@@ -14,13 +14,11 @@ export type SortKey =
   | "popular"
   | "scarce"
 
-export type DurationBucket = "short" | "medium" | "long"
-
 export type BountyFilterState = {
   query: string
   categories: CurriculumCategory[]
   difficulties: CurriculumDifficulty[]
-  durations: DurationBucket[]
+  maxDuration: number
   sponsors: string[]
   rewardMin: number
   rewardMax: number
@@ -30,12 +28,13 @@ export type BountyFilterState = {
 
 export const REWARD_FLOOR = 0
 export const REWARD_CEILING = 1000
+export const MAX_DURATION_SLIDER = 180
 
 export const EMPTY_FILTERS: BountyFilterState = {
   query: "",
   categories: [],
   difficulties: [],
-  durations: [],
+  maxDuration: MAX_DURATION_SLIDER,
   sponsors: [],
   rewardMin: REWARD_FLOOR,
   rewardMax: REWARD_CEILING,
@@ -88,17 +87,6 @@ export const DIFFICULTY_ORDER: CurriculumDifficulty[] = [
   "advanced",
 ]
 
-export const DURATION_META: Record<
-  DurationBucket,
-  { label: string; min: number; max: number }
-> = {
-  short: { label: "Under 70 min", min: 0, max: 70 },
-  medium: { label: "70–95 min", min: 71, max: 95 },
-  long: { label: "Over 95 min", min: 96, max: 10_000 },
-}
-
-export const DURATION_ORDER: DurationBucket[] = ["short", "medium", "long"]
-
 export const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "newest", label: "Newest" },
   { key: "reward-desc", label: "Highest reward" },
@@ -142,7 +130,7 @@ export function filtersFromSearchParams(
     query: params.get("q") ?? "",
     categories: parseList<CurriculumCategory>("cat", CATEGORY_ORDER),
     difficulties: parseList<CurriculumDifficulty>("level", DIFFICULTY_ORDER),
-    durations: parseList<DurationBucket>("dur", DURATION_ORDER),
+    maxDuration: clamp(parseNum("maxdur", MAX_DURATION_SLIDER), 0, MAX_DURATION_SLIDER),
     sponsors: (params.get("sp") ?? "")
       .split(ARRAY_SEP)
       .map((s) => s.trim())
@@ -162,7 +150,7 @@ export function filtersToSearchParams(
   if (state.categories.length) p.set("cat", state.categories.join(ARRAY_SEP))
   if (state.difficulties.length)
     p.set("level", state.difficulties.join(ARRAY_SEP))
-  if (state.durations.length) p.set("dur", state.durations.join(ARRAY_SEP))
+  if (state.maxDuration < MAX_DURATION_SLIDER) p.set("maxdur", String(state.maxDuration))
   if (state.sponsors.length) p.set("sp", state.sponsors.join(ARRAY_SEP))
   if (state.rewardMin > REWARD_FLOOR) p.set("rmin", String(state.rewardMin))
   if (state.rewardMax < REWARD_CEILING) p.set("rmax", String(state.rewardMax))
@@ -176,7 +164,7 @@ export function isDefaultFilters(state: BountyFilterState): boolean {
     !state.query &&
     state.categories.length === 0 &&
     state.difficulties.length === 0 &&
-    state.durations.length === 0 &&
+    state.maxDuration === MAX_DURATION_SLIDER &&
     state.sponsors.length === 0 &&
     state.rewardMin === REWARD_FLOOR &&
     state.rewardMax === REWARD_CEILING &&
@@ -190,7 +178,7 @@ export function activeFilterCount(state: BountyFilterState): number {
   if (state.query.trim()) n++
   n += state.categories.length
   n += state.difficulties.length
-  n += state.durations.length
+  if (state.maxDuration < MAX_DURATION_SLIDER) n++
   n += state.sponsors.length
   if (state.rewardMin > REWARD_FLOOR || state.rewardMax < REWARD_CEILING) n++
   if (state.openSeatsOnly) n++
@@ -215,17 +203,6 @@ function matchesQuery(b: BountyWithCurriculum, q: string): boolean {
   return hay.includes(needle)
 }
 
-function matchesDuration(
-  minutes: number,
-  buckets: DurationBucket[],
-): boolean {
-  if (buckets.length === 0) return true
-  return buckets.some((b) => {
-    const range = DURATION_META[b]
-    return minutes >= range.min && minutes <= range.max
-  })
-}
-
 export function applyFilters(
   bounties: BountyWithCurriculum[],
   state: BountyFilterState,
@@ -242,7 +219,7 @@ export function applyFilters(
       !state.difficulties.includes(b.curriculum.difficulty)
     )
       return false
-    if (!matchesDuration(b.curriculum.estimatedMinutes, state.durations))
+    if (state.maxDuration < MAX_DURATION_SLIDER && b.curriculum.estimatedMinutes > state.maxDuration)
       return false
     if (state.sponsors.length && !state.sponsors.includes(b.sponsorId))
       return false
@@ -312,19 +289,6 @@ export function difficultyCounts(
   ])
 }
 
-export function durationCounts(
-  bounties: BountyWithCurriculum[],
-  state: BountyFilterState,
-): Record<string, number> {
-  return countByFacet(bounties, state, "durations", (b) => {
-    const m = b.curriculum.estimatedMinutes
-    return DURATION_ORDER.filter((k) => {
-      const range = DURATION_META[k]
-      return m >= range.min && m <= range.max
-    })
-  })
-}
-
 export function sponsorCounts(
   bounties: BountyWithCurriculum[],
   state: BountyFilterState,
@@ -335,7 +299,7 @@ export function sponsorCounts(
 function countByFacet(
   bounties: BountyWithCurriculum[],
   state: BountyFilterState,
-  facet: "categories" | "difficulties" | "durations" | "sponsors",
+  facet: "categories" | "difficulties" | "sponsors",
   keysOf: (b: BountyWithCurriculum) => string[],
 ): Record<string, number> {
   const cleared: BountyFilterState = { ...state, [facet]: [] }

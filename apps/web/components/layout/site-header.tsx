@@ -5,8 +5,10 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 
 import { AuthPill } from "./auth-pill"
+import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/lib/use-auth"
 import { cn } from "@/lib/utils"
+import type { Payout, SponsorDashboard } from "@pol/shared"
 
 const NAV = [
   { href: "/#manifesto", label: "Manifesto" },
@@ -63,6 +65,7 @@ export function SiteHeader() {
         )}
 
         <div className="flex items-center gap-3">
+          {user && <BalancePill role={user.role} />}
           <AuthPill />
         </div>
       </div>
@@ -75,5 +78,42 @@ function Wordmark() {
     <span className="font-display text-[1.0625rem] font-medium tracking-tight">
       EduPay
     </span>
+  )
+}
+
+function BalancePill({ role }: { role: string }) {
+  const [balance, setBalance] = useState<number | null>(null)
+  const [label, setLabel] = useState("")
+
+  useEffect(() => {
+    if (role === "student") {
+      apiFetch<{ payouts: Payout[] }>("/payouts/mine")
+        .then(({ payouts }) => {
+          const total = payouts
+            .filter((p) => p.status === "confirmed" || p.status === "sent")
+            .reduce((sum, p) => sum + p.amountInr, 0)
+          setBalance(total)
+          setLabel("Earned")
+        })
+        .catch(() => {})
+    } else if (role === "sponsor") {
+      apiFetch<SponsorDashboard>("/bounties/dashboard")
+        .then((data) => {
+          setBalance(data.totalRemainingInr)
+          setLabel("Remaining")
+        })
+        .catch(() => {})
+    }
+  }, [role])
+
+  if (balance === null) return null
+
+  return (
+    <div className="hidden items-center gap-1.5 rounded-full border border-rule bg-surface px-3 py-1.5 sm:flex">
+      <span className="text-[0.6875rem] text-ink-faint">{label}</span>
+      <span className="tabular font-display text-[0.9375rem] font-medium text-teal">
+        ₹{balance.toLocaleString("en-IN")}
+      </span>
+    </div>
   )
 }

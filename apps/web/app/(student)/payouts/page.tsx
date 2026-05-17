@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Payout } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
@@ -49,6 +49,7 @@ export default function PayoutsPage() {
 
   return (
     <div className="space-y-12">
+      {totalEarned > 0 && <WithdrawSection available={totalEarned} />}
       <header className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-end lg:gap-16">
         <div>
           <div className="eyebrow eyebrow-tick">Earnings ledger</div>
@@ -150,5 +151,93 @@ export default function PayoutsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function WithdrawSection({ available }: { available: number }) {
+  const [upiId, setUpiId] = useState("")
+  const [amount, setAmount] = useState(String(available))
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [errorMsg, setErrorMsg] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleWithdraw = (e: React.FormEvent) => {
+    e.preventDefault()
+    const amt = Number(amount)
+    if (!upiId.trim()) { setErrorMsg("Enter your UPI ID."); return }
+    if (!amt || amt <= 0 || amt > available) { setErrorMsg(`Amount must be between ₹1 and ₹${available}.`); return }
+    setErrorMsg("")
+    setStatus("loading")
+    setTimeout(() => setStatus("success"), 1600)
+  }
+
+  if (status === "success") {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-forest/30 bg-forest/5 px-6 py-10 text-center">
+        <div className="text-[2rem]">✓</div>
+        <p className="font-display text-[1.0625rem] font-medium text-forest">Withdrawal initiated.</p>
+        <p className="text-[0.875rem] text-ink-muted">
+          ₹{Number(amount).toLocaleString("en-IN")} will reach <code className="font-mono text-ink-soft">{upiId}</code> within seconds.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <section className="rounded-xl border border-rule bg-surface">
+      <div className="border-b border-rule px-6 py-4">
+        <div className="eyebrow eyebrow-tick text-[0.625rem]">Withdraw</div>
+        <h2 className="mt-1 font-display text-[1.25rem] font-medium text-ink">
+          Move earnings to UPI
+        </h2>
+        <p className="mt-1 text-[0.875rem] text-ink-muted">
+          Available to withdraw: <span className="tabular font-medium text-teal">₹{available.toLocaleString("en-IN")}</span>
+        </p>
+      </div>
+      <form onSubmit={handleWithdraw} className="grid gap-4 p-6 sm:grid-cols-[1fr_180px_auto]">
+        <div className="space-y-1.5">
+          <label className="text-[0.8125rem] font-medium text-ink-soft" htmlFor="wd-upi">
+            UPI ID
+          </label>
+          <input
+            id="wd-upi"
+            ref={inputRef}
+            type="text"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            placeholder="yourname@upi"
+            className="w-full rounded-lg border border-rule bg-paper px-3 py-2.5 text-[0.9375rem] text-ink placeholder:text-ink-faint focus:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/8"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[0.8125rem] font-medium text-ink-soft" htmlFor="wd-amount">
+            Amount (₹)
+          </label>
+          <input
+            id="wd-amount"
+            type="number"
+            min={1}
+            max={available}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full rounded-lg border border-rule bg-paper px-3 py-2.5 text-[0.9375rem] text-ink focus:border-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/8"
+          />
+        </div>
+        <div className="flex items-end">
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="w-full rounded-full bg-ink px-5 py-2.5 text-[0.875rem] font-medium text-paper transition-all hover:bg-ink/85 disabled:opacity-60 sm:w-auto"
+          >
+            {status === "loading" ? "Processing..." : "Withdraw"}
+          </button>
+        </div>
+      </form>
+      {errorMsg && (
+        <div className="mx-6 mb-4 border-l-2 border-terracotta bg-terracotta/5 px-4 py-2 text-[0.8125rem] text-terracotta">
+          {errorMsg}
+        </div>
+      )}
+    </section>
   )
 }

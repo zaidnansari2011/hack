@@ -1,22 +1,19 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useRef, useState } from "react"
 
 import {
   CATEGORY_META,
   CATEGORY_ORDER,
   DIFFICULTY_META,
   DIFFICULTY_ORDER,
-  DURATION_META,
-  DURATION_ORDER,
+  MAX_DURATION_SLIDER,
   REWARD_CEILING,
   REWARD_FLOOR,
   type BountyFilterState,
   type BountyWithCurriculum,
-  type DurationBucket,
   categoryCounts,
   difficultyCounts,
-  durationCounts,
   sponsorCounts,
 } from "@/lib/bounty-filters"
 import type {
@@ -38,10 +35,6 @@ export function BountyFilters({ bounties, state, onChange, onClear }: Props) {
   )
   const diffCounts = useMemo(
     () => difficultyCounts(bounties, state),
-    [bounties, state],
-  )
-  const durCounts = useMemo(
-    () => durationCounts(bounties, state),
     [bounties, state],
   )
   const spCounts = useMemo(
@@ -159,32 +152,10 @@ export function BountyFilters({ bounties, state, onChange, onClear }: Props) {
 
       {/* Duration */}
       <FilterGroup label="Duration">
-        <div className="flex flex-wrap gap-1.5">
-          {DURATION_ORDER.map((d) => {
-            const active = state.durations.includes(d)
-            const count = durCounts[d] ?? 0
-            return (
-              <button
-                key={d}
-                type="button"
-                onClick={() => toggleArray<DurationBucket>("durations", d)}
-                disabled={count === 0 && !active}
-                className={`rounded-full border px-3 py-1 text-[0.8125rem] font-medium transition-colors
-                  ${active
-                    ? "border-ink bg-ink text-paper"
-                    : "border-rule bg-surface text-ink-soft hover:border-ink/30"
-                  }
-                  ${count === 0 && !active ? "opacity-40" : ""}
-                `}
-              >
-                {DURATION_META[d].label}
-                <span className={`ml-2 ${active ? "text-paper/60" : "text-ink-faint"}`}>
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+        <DurationSlider
+          value={state.maxDuration}
+          onChange={(v) => onChange({ ...state, maxDuration: v })}
+        />
       </FilterGroup>
 
       {/* Reward range */}
@@ -213,10 +184,9 @@ export function BountyFilters({ bounties, state, onChange, onClear }: Props) {
         </label>
       </FilterGroup>
 
-      {/* Sponsors — collapsible by being limited to first 6 by default */}
       {sponsorOptions.length > 1 && (
         <FilterGroup label="Sponsor">
-          <SponsorList
+          <SponsorDropdown
             options={sponsorOptions}
             counts={spCounts}
             selected={state.sponsors}
@@ -323,7 +293,40 @@ function RewardRange({
   )
 }
 
-function SponsorList({
+function DurationSlider({
+  value,
+  onChange,
+}: {
+  value: number
+  onChange: (v: number) => void
+}) {
+  const isMax = value >= MAX_DURATION_SLIDER
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-[0.8125rem]">
+        <span className="text-ink-soft">Up to</span>
+        <span className={`tabular font-medium ${isMax ? "text-ink-faint" : "text-ink"}`}>
+          {isMax ? "Any length" : `${value} min`}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={30}
+        max={MAX_DURATION_SLIDER}
+        step={10}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full appearance-none accent-ink [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-rule [&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-ink/30 [&::-webkit-slider-thumb]:bg-surface [&::-webkit-slider-thumb]:shadow-sm"
+      />
+      <div className="mt-1.5 flex justify-between font-mono text-[0.625rem] text-ink-faint">
+        <span>30m</span>
+        <span>Any</span>
+      </div>
+    </div>
+  )
+}
+
+function SponsorDropdown({
   options,
   counts,
   selected,
@@ -334,32 +337,75 @@ function SponsorList({
   selected: string[]
   onToggle: (id: string) => void
 }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  const filtered = options.filter(
+    ([id, label]) =>
+      (counts[id] ?? 0) > 0 ||
+      selected.includes(id) ||
+      label.toLowerCase().includes(query.toLowerCase()),
+  )
+
+  const visible = query
+    ? filtered.filter(([, label]) => label.toLowerCase().includes(query.toLowerCase()))
+    : filtered
+
+  const selectedCount = selected.length
+
   return (
-    <ul className="space-y-1.5">
-      {options.map(([id, label]) => {
-        const active = selected.includes(id)
-        const count = counts[id] ?? 0
-        if (count === 0 && !active) return null
-        return (
-          <li key={id}>
-            <label className="flex cursor-pointer items-center justify-between gap-2 rounded px-1 py-1 text-[0.8125rem] text-ink-soft hover:text-ink">
-              <span className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={active}
-                  onChange={() => onToggle(id)}
-                  className="h-3.5 w-3.5 rounded border-rule accent-ink"
-                />
-                <span className="truncate">{label}</span>
-              </span>
-              <span className="font-mono text-[0.625rem] tabular text-ink-faint">
-                {count}
-              </span>
-            </label>
-          </li>
-        )
-      })}
-    </ul>
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-md border border-rule bg-surface px-3 py-2 text-[0.8125rem] text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
+      >
+        <span>
+          {selectedCount > 0 ? `${selectedCount} selected` : "All sponsors"}
+        </span>
+        <span className="text-[0.625rem] text-ink-faint">{open ? "▴" : "▾"}</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 overflow-hidden rounded-md border border-rule bg-surface shadow-[0_8px_24px_-8px_hsl(218_45%_10%_/_0.15)]">
+          <div className="border-b border-rule p-2">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search sponsors..."
+              className="w-full rounded border border-rule bg-paper px-2.5 py-1.5 text-[0.8125rem] text-ink placeholder:text-ink-faint focus:border-ink/30 focus:outline-none"
+            />
+          </div>
+          <ul className="max-h-48 overflow-y-auto py-1">
+            {visible.length === 0 ? (
+              <li className="px-3 py-2 text-[0.8125rem] text-ink-faint">No sponsors found</li>
+            ) : visible.map(([id, label]) => {
+              const active = selected.includes(id)
+              const count = counts[id] ?? 0
+              return (
+                <li key={id}>
+                  <label className="flex cursor-pointer items-center justify-between gap-2 px-3 py-1.5 text-[0.8125rem] hover:bg-paper-deep">
+                    <span className="flex items-center gap-2 text-ink-soft">
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => onToggle(id)}
+                        className="h-3.5 w-3.5 rounded border-rule accent-ink"
+                      />
+                      <span className="truncate">{label}</span>
+                    </span>
+                    <span className="font-mono text-[0.625rem] tabular text-ink-faint">{count}</span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
   )
 }
 

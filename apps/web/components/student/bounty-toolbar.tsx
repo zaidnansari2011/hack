@@ -3,7 +3,7 @@
 import {
   CATEGORY_META,
   DIFFICULTY_META,
-  DURATION_META,
+  MAX_DURATION_SLIDER,
   REWARD_CEILING,
   REWARD_FLOOR,
   SORT_OPTIONS,
@@ -130,15 +130,11 @@ function activeChips(
         }),
     })
   }
-  for (const d of s.durations) {
+  if (s.maxDuration < MAX_DURATION_SLIDER) {
     out.push({
-      key: `dur:${d}`,
-      label: DURATION_META[d].label,
-      remove: (st, onChange) =>
-        onChange({
-          ...st,
-          durations: st.durations.filter((x) => x !== d),
-        }),
+      key: "dur",
+      label: `Up to ${s.maxDuration} min`,
+      remove: (st, onChange) => onChange({ ...st, maxDuration: MAX_DURATION_SLIDER }),
     })
   }
   if (s.rewardMin > REWARD_FLOOR || s.rewardMax < REWARD_CEILING) {
