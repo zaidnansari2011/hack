@@ -1,7 +1,7 @@
 import Link from "next/link"
 
 export const metadata = {
-  title: "About · Proof-of-Learn",
+  title: "About · EduPay",
   description:
     "Why we built a sponsor-funded, on-chain proof-of-learning protocol settled in INR over UPI.",
 }
@@ -29,7 +29,7 @@ function Hero() {
           <span className="display-italic text-teal">Receipts don&rsquo;t.</span>
         </h1>
         <p className="mt-8 max-w-2xl text-[1.0625rem] leading-relaxed text-ink-soft">
-          Proof-of-Learn pays students for actually learning. Sponsors put
+          EduPay pays students for actually learning. Sponsors put
           money into escrow, students work through an AI tutor, and the moment
           a quiz clears (usually in a single session), rupees land in their
           UPI. No PDFs for recruiters to guess at. No promises to take on

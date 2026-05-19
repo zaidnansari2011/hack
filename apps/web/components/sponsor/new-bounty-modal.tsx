@@ -31,6 +31,7 @@ export function NewBountyModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<Bounty | null>(null)
+  const [view, setView] = useState<"form" | "confirm">("form")
 
   useEffect(() => {
     if (!open || curricula.length > 0) return
@@ -70,8 +71,16 @@ export function NewBountyModal({
     )
   }, [curricula, curriculumQuery])
 
-  async function onSubmit(e: React.FormEvent) {
+  // The form submit now advances to a confirm step instead of firing the
+  // request directly. Real money (escrowed USDC) sits behind this call, so
+  // a one-tap review prevents fat-finger mistakes on reward/seats.
+  function onFormSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setError(null)
+    setView("confirm")
+  }
+
+  async function confirmFund() {
     setError(null)
     setSubmitting(true)
     try {
@@ -91,6 +100,7 @@ export function NewBountyModal({
       setError(
         err instanceof ApiClientError ? err.message : "Could not create the bounty",
       )
+      setView("form")
     } finally {
       setSubmitting(false)
     }
@@ -103,7 +113,10 @@ export function NewBountyModal({
     setRewardInr(250)
     setMaxStudents(100)
     setError(null)
+    setView("form")
   }
+
+  const selectedCurriculum = curricula.find((c) => c.id === curriculumId)
 
   return (
     <AnimatePresence>
@@ -129,7 +142,11 @@ export function NewBountyModal({
               <div>
                 <div className="eyebrow eyebrow-tick text-[0.625rem]">New bounty</div>
                 <h2 className="mt-1 font-display text-[1.25rem] font-medium text-ink">
-                  {created ? "Bounty funded" : "Open an escrow"}
+                  {created
+                    ? "Bounty funded"
+                    : view === "confirm"
+                      ? "Confirm escrow"
+                      : "Open an escrow"}
                 </h2>
               </div>
               <button
@@ -176,8 +193,75 @@ export function NewBountyModal({
                   </button>
                 </div>
               </div>
+            ) : view === "confirm" ? (
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
+                <div className="rounded-xl border border-rule bg-paper-deep/40 p-5">
+                  <div className="eyebrow eyebrow-tick text-[0.625rem]">
+                    Review
+                  </div>
+                  <h3 className="mt-1 font-display text-[1.0625rem] font-medium text-ink">
+                    {title}
+                  </h3>
+                  <p className="mt-1 text-[0.8125rem] leading-relaxed text-ink-muted">
+                    {description}
+                  </p>
+                  <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-rule pt-4 text-[0.8125rem]">
+                    <dt className="text-ink-faint">Curriculum</dt>
+                    <dd className="truncate text-right text-ink">
+                      {selectedCurriculum?.title ?? "—"}
+                    </dd>
+                    <dt className="text-ink-faint">Reward / student</dt>
+                    <dd className="text-right text-ink">
+                      ₹{Number(rewardInr).toLocaleString("en-IN")}
+                    </dd>
+                    <dt className="text-ink-faint">Max students</dt>
+                    <dd className="text-right text-ink">
+                      {Number(maxStudents).toLocaleString("en-IN")}
+                    </dd>
+                  </dl>
+                </div>
+                <div className="rounded-xl border border-teal/30 bg-teal-soft/40 p-5">
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-teal">
+                      Escrow charge
+                    </span>
+                    <span className="tabular font-display text-[1.5rem] font-medium text-ink">
+                      ₹{totalInr.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-muted">
+                    Held on Base in USDC. Refundable for any seats that don't get claimed.
+                  </p>
+                </div>
+
+                {error && (
+                  <div className="border-l-2 border-terracotta bg-terracotta/5 px-4 py-2 text-[0.8125rem] text-terracotta">
+                    {error}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3 border-t border-rule pt-5">
+                  <button
+                    type="button"
+                    onClick={() => setView("form")}
+                    disabled={submitting}
+                    className="text-[0.875rem] text-ink-faint transition-colors hover:text-ink disabled:opacity-50"
+                  >
+                    ← Edit
+                  </button>
+                  <Button
+                    type="button"
+                    onClick={confirmFund}
+                    disabled={submitting}
+                  >
+                    {submitting
+                      ? "Funding escrow…"
+                      : `Confirm · ₹${totalInr.toLocaleString("en-IN")}`}
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <form onSubmit={onSubmit} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
+              <form onSubmit={onFormSubmit} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
                 <div className="space-y-2">
                   <Label htmlFor="nb-title">Bounty title</Label>
                   <Input
@@ -285,7 +369,7 @@ export function NewBountyModal({
                     </span>
                   </span>
                   <Button type="submit" disabled={submitting || !curriculumId}>
-                    {submitting ? "Funding…" : "Fund bounty →"}
+                    Review →
                   </Button>
                 </div>
               </form>

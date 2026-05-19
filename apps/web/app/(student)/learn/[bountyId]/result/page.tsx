@@ -51,9 +51,23 @@ function ResultInner() {
 
   if (state.status === "loading") {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-64 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-[400px] animate-pulse rounded-2xl border border-slate-200/70 bg-white/60" />
+      <div className="mx-auto max-w-2xl space-y-6 py-10">
+        <div className="h-3 w-32 animate-pulse rounded-full bg-rule/60" />
+        <div className="space-y-5 rounded-2xl border border-rule bg-surface p-8">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-3 w-20 animate-pulse rounded-full bg-rule/50" />
+              <div className="h-9 w-32 animate-pulse rounded bg-rule/60" />
+            </div>
+            <div className="h-20 w-20 animate-pulse rounded-full bg-rule/40" />
+          </div>
+          <div className="h-px w-full bg-rule" />
+          <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-rule bg-rule">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-20 animate-pulse bg-paper" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }

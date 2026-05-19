@@ -24,8 +24,12 @@ type BootState =
 type Launch = { view: "overview" } | { view: "chat"; moduleIndex: number | null }
 
 export default function BountyLearnPage() {
+  // The route segment is still named [bountyId] for legacy reasons, but the
+  // value coming through is the bounty's URL slug ("rupeenest-personal-finance").
+  // The API accepts both UUIDs and slugs on `/enrollments/by-bounty/:idOrSlug`
+  // and `POST /enrollments`, so we just forward whatever we got.
   const params = useParams<{ bountyId: string }>()
-  const bountyId = params.bountyId
+  const bountyKey = params.bountyId
   const [state, setState] = useState<BootState>({ status: "loading" })
   const [launch, setLaunch] = useState<Launch>({ view: "overview" })
 
@@ -35,7 +39,7 @@ export default function BountyLearnPage() {
     async function boot() {
       try {
         const existing = await apiFetch<{ enrollment: EnrollmentDetail | null }>(
-          `/enrollments/by-bounty/${bountyId}`,
+          `/enrollments/by-bounty/${bountyKey}`,
         )
 
         let enrollment: EnrollmentDetail | null = existing.enrollment
@@ -43,7 +47,7 @@ export default function BountyLearnPage() {
         if (!enrollment) {
           const created = await apiFetch<{ enrollment: EnrollmentDetail }>(
             "/enrollments",
-            { method: "POST", json: { bountyId } },
+            { method: "POST", json: { bountyId: bountyKey } },
           )
           const detail = await apiFetch<{ enrollment: EnrollmentDetail }>(
             `/enrollments/${created.enrollment.id}`,
@@ -94,7 +98,7 @@ export default function BountyLearnPage() {
     return () => {
       cancelled = true
     }
-  }, [bountyId])
+  }, [bountyKey])
 
   if (state.status === "loading") {
     return (
@@ -246,7 +250,7 @@ function CourseOverview({
           {hasHistory ? "Resume chat" : "Open tutor chat"} <span className="text-paper/60">→</span>
         </button>
         <Link
-          href={`/learn/${enrollment.bountyId}/quiz`}
+          href={`/learn/${bounty.slug}/quiz`}
           className="inline-flex items-center gap-1.5 rounded-xl border border-rule bg-surface px-4 py-2 text-[0.75rem] font-medium text-ink transition-all hover:border-teal/40 hover:text-teal"
         >
           Take quiz <span className="text-ink-faint">→</span>

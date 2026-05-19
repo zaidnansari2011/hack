@@ -12,8 +12,10 @@ import {
   startEnrollment,
 } from "@/services/enrollments/enrollment-service"
 
+// `bountyId` accepts either a UUID or a human-readable slug (e.g.
+// "rupeenest-personal-finance"). The service layer decides which it is.
 const startSchema = z.object({
-  bountyId: z.string().uuid(),
+  bountyId: z.string().min(1).max(120),
 })
 
 const progressSchema = z.object({

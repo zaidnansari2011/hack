@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { SponsorDashboard } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
@@ -13,6 +14,16 @@ import { StatCard } from "@/components/sponsor/stat-card"
 const REFRESH_MS = 6000
 
 export default function SponsorDashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <SponsorDashboardInner />
+    </Suspense>
+  )
+}
+
+function SponsorDashboardInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<SponsorDashboard | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -48,6 +59,16 @@ export default function SponsorDashboardPage() {
       setRefreshing(false)
     }
   }, [])
+
+  // Deep-link entry: `/dashboard?new=1` (used by the avatar dropdown and
+  // legacy /bounties/new redirect) opens the create-bounty modal and then
+  // strips the param so refreshes don't keep re-opening it.
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setModalOpen(true)
+      router.replace("/dashboard")
+    }
+  }, [searchParams, router])
 
   // Polling loop — re-armed after each completed fetch.
   useEffect(() => {

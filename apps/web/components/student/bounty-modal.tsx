@@ -140,7 +140,7 @@ export function BountyModal({
             <div className="flex-none border-t border-rule bg-surface px-6 py-4">
               <div className="flex items-center gap-3">
                 <Link
-                  href={`/learn/${bounty.id}`}
+                  href={`/learn/${bounty.slug}`}
                   className="group inline-flex items-center gap-2 rounded-full bg-ink px-6 py-2.5 text-[0.875rem] font-medium text-paper transition-all duration-300 hover:bg-ink/85 hover:shadow-[0_6px_20px_-8px_hsl(218_45%_10%_/_0.35)]"
                 >
                   Start learning

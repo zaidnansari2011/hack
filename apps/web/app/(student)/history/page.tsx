@@ -278,7 +278,7 @@ function InFlightRow({ enrollment }: { enrollment: EnrollmentDetail }) {
       </div>
 
       <Link
-        href={`/learn/${enrollment.bountyId}`}
+        href={`/learn/${enrollment.bounty.slug}`}
         className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-ink/90"
       >
         Continue →

@@ -123,22 +123,29 @@ export async function platformStats(): Promise<{
   totalPaidInr: number
   activeStudents: number
 }> {
-  const [bountyCount, proofs, payouts, students] = await Promise.all([
-    prisma.bounty.count({ where: { status: { not: "draft" } } }),
-    prisma.onchainProof.count({ where: { status: "minted" } }),
-    prisma.payout.aggregate({
-      _sum: { amountInr: true },
-      where: { status: { in: ["sent", "confirmed"] } },
+  // Public stats are derived from the bounty rollup (`bounty.completed` and
+  // `bounty.rewardInr`) — the same source the sponsor dashboard uses. This
+  // is the authoritative completion count: it's bumped atomically when a
+  // quiz passes and is unaffected by payout retries or proof-mint lag.
+  const [bounties, students] = await Promise.all([
+    prisma.bounty.findMany({
+      where: { status: { not: "draft" } },
+      select: { completed: true, rewardInr: true },
     }),
     prisma.enrollment.findMany({
       distinct: ["studentId"],
       select: { studentId: true },
     }),
   ])
+  const totalCompletions = bounties.reduce((n, b) => n + b.completed, 0)
+  const totalPaidInr = bounties.reduce(
+    (n, b) => n + b.completed * b.rewardInr,
+    0,
+  )
   return {
-    totalBounties: bountyCount,
-    totalCompletions: proofs,
-    totalPaidInr: payouts._sum.amountInr ?? 0,
+    totalBounties: bounties.length,
+    totalCompletions,
+    totalPaidInr,
     activeStudents: students.length,
   }
 }

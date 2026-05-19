@@ -21,6 +21,20 @@ function microsToUsdc(micros: bigint): number {
   return Number(micros) / 10 ** USDC_DECIMALS
 }
 
+// Slug used in /learn/<slug> URLs. We strip the title to ASCII lowercase
+// hyphens, cap the prefix so the URL doesn't get absurd, and tack on a short
+// random suffix to keep the @unique constraint happy even when two sponsors
+// pick the same bounty title.
+function slugifyBountyTitle(title: string): string {
+  const base = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "bounty"
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `${base}-${suffix}`
+}
+
 function toCurriculumDto(c: PrismaCurriculum): Curriculum {
   // syllabus is stored as Prisma.JsonValue but we know the shape from seed.
   const syllabus = Array.isArray(c.syllabus)
@@ -45,6 +59,7 @@ function toBountyDto(
 ): Bounty {
   return {
     id: b.id,
+    slug: b.slug,
     sponsorId: b.sponsorId,
     sponsorName: b.sponsor?.organizationName ?? null,
     title: b.title,
@@ -91,6 +106,7 @@ export async function createBounty(input: {
   // Persist as draft first so we have an id to hash for the on-chain bountyId.
   const bounty = await prisma.bounty.create({
     data: {
+      slug: slugifyBountyTitle(input.title),
       sponsorId: sponsor.id,
       curriculumId: curriculum.id,
       title: input.title.trim(),

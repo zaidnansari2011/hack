@@ -86,23 +86,40 @@ export default function QuizPage() {
 
   if (state.status === "loading") {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-64 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-[500px] animate-pulse rounded-2xl border border-slate-200/70 bg-white/60" />
+      <div className="mx-auto max-w-2xl space-y-6 py-10">
+        <div className="flex items-center justify-between">
+          <div className="h-3 w-24 animate-pulse rounded-full bg-rule/60" />
+          <div className="h-3 w-16 animate-pulse rounded-full bg-rule/60" />
+        </div>
+        <div className="space-y-4 rounded-2xl border border-rule bg-surface p-8">
+          <div className="h-2 w-full animate-pulse rounded-full bg-rule/50" />
+          <div className="space-y-2">
+            <div className="h-5 w-3/4 animate-pulse rounded bg-rule/50" />
+            <div className="h-5 w-2/3 animate-pulse rounded bg-rule/40" />
+          </div>
+          <div className="space-y-2 pt-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-12 animate-pulse rounded-xl border border-rule bg-paper-deep/40"
+              />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (state.status === "error") {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-        <h2 className="text-base font-semibold text-red-900">
+      <div className="rounded-2xl border border-terracotta/30 bg-terracotta/5 p-6">
+        <h2 className="font-display text-[1rem] font-medium text-terracotta">
           Couldn't start the quiz
         </h2>
-        <p className="mt-1 text-sm text-red-700">{state.message}</p>
+        <p className="mt-1 text-[0.875rem] leading-relaxed text-ink-muted">{state.message}</p>
         <Link
           href={`/learn/${bountyId}`}
-          className="mt-3 inline-block text-sm font-semibold text-red-900 underline-offset-4 hover:underline"
+          className="mt-3 inline-flex items-center gap-1.5 text-[0.875rem] text-ink-faint transition-colors hover:text-ink-soft"
         >
           ← Back to tutor
         </Link>
