@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import type { WalletProfile } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
+import { ReachOutModal } from "@/components/recruit/reach-out-modal"
 
 type State =
   | { status: "loading" }
@@ -37,33 +38,24 @@ export default function WalletProfilePage() {
   }, [address])
 
   return (
-    <main className="min-h-screen bg-paper">
-      <Header />
-      <div className="mx-auto w-[min(1100px,94vw)] py-12">
+    <div className="mx-auto w-[min(1100px,94vw)] py-10">
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-[0.875rem] text-ink-faint transition-colors hover:text-ink-soft"
+        >
+          ← Home
+        </Link>
+        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
+          Learner profile
+        </span>
+      </div>
+      <div className="mt-8">
         {state.status === "loading" && <Skeleton />}
         {state.status === "error" && <ErrorPanel message={state.message} address={address} />}
         {state.status === "ready" && <Profile profile={state.profile} />}
       </div>
-    </main>
-  )
-}
-
-function Header() {
-  return (
-    <header className="border-b border-rule bg-surface">
-      <div className="mx-auto flex h-14 w-[min(1100px,94vw)] items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-[0.9375rem] font-medium tracking-tight text-ink"
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-teal" />
-          Proof-of-Learn
-        </Link>
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
-          Wallet profile
-        </span>
-      </div>
-    </header>
+    </div>
   )
 }
 
@@ -109,6 +101,9 @@ function ErrorPanel({ message, address }: { message: string; address: string }) 
 }
 
 function Profile({ profile }: { profile: WalletProfile }) {
+  const displayName = profile.studentName || profile.studentInitials || "Anon"
+  const [outreachOpen, setOutreachOpen] = useState(false)
+  const topCurriculum = profile.curricula[0]?.title
   return (
     <div className="space-y-10">
       {/* Header strip */}
@@ -133,10 +128,13 @@ function Profile({ profile }: { profile: WalletProfile }) {
               {profile.studentInitials || "?"}
             </div>
             <div>
-              <h1 className="max-w-[20ch] font-display text-[2rem] font-medium leading-[1.1] tracking-tight text-ink">
-                {profile.studentInitials || "Anon"}&rsquo;s on-chain transcript
+              <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
+                Learner profile
+              </div>
+              <h1 className="mt-1 max-w-[24ch] font-display text-[2.25rem] font-medium leading-[1.1] tracking-tight text-ink">
+                {displayName}
               </h1>
-              <div className="mt-1.5 font-mono text-[0.75rem] text-ink-muted">
+              <div className="mt-2 font-mono text-[0.75rem] text-ink-muted">
                 {short(profile.address)}
                 <button
                   onClick={() => navigator.clipboard.writeText(profile.address)}
@@ -247,11 +245,18 @@ function Profile({ profile }: { profile: WalletProfile }) {
       </section>
 
       <div className="flex flex-wrap gap-3 border-t border-rule pt-8">
+        <button
+          type="button"
+          onClick={() => setOutreachOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[0.875rem] font-medium text-paper transition-colors hover:bg-ink/90"
+        >
+          Reach out to {displayName.split(" ")[0]} →
+        </button>
         <a
           href={profile.basescanAddressUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[0.875rem] font-medium text-paper transition-colors hover:bg-ink/90"
+          className="inline-flex items-center gap-2 rounded-full border border-rule bg-surface px-5 py-2.5 text-[0.875rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
         >
           View address on BaseScan ↗
         </a>
@@ -262,6 +267,14 @@ function Profile({ profile }: { profile: WalletProfile }) {
           Find similar candidates →
         </Link>
       </div>
+
+      <ReachOutModal
+        open={outreachOpen}
+        onClose={() => setOutreachOpen(false)}
+        recipientAddress={profile.address}
+        recipientLabel={displayName}
+        contextHint={topCurriculum}
+      />
     </div>
   )
 }

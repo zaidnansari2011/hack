@@ -19,7 +19,7 @@ export function CredentialShareCard({
   showDownload?: boolean
 }) {
   const verifyUrl = useVerifyUrl(cred.txHash)
-  const shareText = `${cred.studentInitials} passed ${cred.curriculum.title} (${cred.scorePct}%), verified on-chain · ${verifyUrl}`
+  const shareText = `${cred.studentName || cred.studentInitials} passed ${cred.curriculum.title} (${cred.scorePct}%), verified on-chain · ${verifyUrl}`
 
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle")
   const [pdfState, setPdfState] = useState<"idle" | "working" | "err">("idle")
@@ -39,7 +39,7 @@ export function CredentialShareCard({
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
         await navigator.share({
-          title: `${cred.curriculum.title} · Proof-of-Learn`,
+          title: `${cred.curriculum.title} · EduPay`,
           text: shareText,
           url: verifyUrl,
         })

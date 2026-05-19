@@ -1,12 +1,14 @@
 import { keccak256, toHex, type Address } from "viem"
 import type { OnchainProof as PrismaProof } from "@prisma/client"
 import type {
+  CertificateMetadata,
   OnchainProof,
   VerifiedCredential,
   WalletProfile,
 } from "@pol/shared"
 
 import { prisma } from "@/db/prisma"
+import { env } from "@/config/env"
 import { logger } from "@/config/logger"
 import { Forbidden, NotFound } from "@/lib/errors"
 import {
@@ -25,6 +27,41 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((p) => (p[0] ?? "").toUpperCase())
     .join("")
+}
+
+// The certificate's full data, exactly as written to the SBT's tokenURI.
+// Keep this function deterministic: the same inputs must always produce the
+// same JSON so the on-chain metadata matches what /verify shows.
+export function buildCertificateMetadata(args: {
+  studentName: string
+  studentAddress: string
+  curriculumSlug: string
+  curriculumTitle: string
+  scorePct: number
+  sponsorName: string
+  issuedAt: Date
+  txHash: string
+}): CertificateMetadata {
+  return {
+    name: `Proof-of-Learn · ${args.curriculumTitle}`,
+    description: `${args.studentName} passed ${args.curriculumTitle} with a verified score of ${args.scorePct}%, sponsored by ${args.sponsorName}. This credential is soulbound to the recipient's wallet and was minted on Base Sepolia.`,
+    recipient: {
+      name: args.studentName,
+      address: args.studentAddress,
+    },
+    curriculum: {
+      slug: args.curriculumSlug,
+      title: args.curriculumTitle,
+    },
+    score: args.scorePct,
+    sponsor: args.sponsorName,
+    issuedAt: args.issuedAt.toISOString(),
+    verifyUrl: `${env.WEB_APP_URL.replace(/\/$/, "")}/verify/${args.txHash}`,
+  }
+}
+
+function encodeMetadataUri(metadata: CertificateMetadata): string {
+  return `data:application/json,${encodeURIComponent(JSON.stringify(metadata))}`
 }
 
 function toDto(p: PrismaProof): OnchainProof {
@@ -105,17 +142,41 @@ export async function recordCompletionProof(args: {
       studentAddress,
       scoreHash: sHash,
     })
+
+    // Load the rich data we encode into the SBT's on-chain metadata. This
+    // makes the credential fully self-describing: anyone reading the
+    // contract directly sees the recipient's name, curriculum title,
+    // sponsor, and a back-link to the public verify page.
+    const enrichment = await prisma.enrollment.findUnique({
+      where: { id: args.enrollmentId },
+      include: {
+        student: { select: { name: true } },
+        bounty: {
+          include: {
+            sponsor: { select: { organizationName: true } },
+            curriculum: { select: { title: true } },
+          },
+        },
+      },
+    })
+
+    const issuedAt = new Date()
+    const tokenMetadata = buildCertificateMetadata({
+      studentName: enrichment?.student.name ?? "Proof-of-Learn Learner",
+      studentAddress,
+      curriculumSlug: args.curriculumSlug,
+      curriculumTitle: enrichment?.bounty.curriculum.title ?? args.curriculumSlug,
+      scorePct: args.scorePct,
+      sponsorName: enrichment?.bounty.sponsor.organizationName ?? "Proof-of-Learn",
+      issuedAt,
+      txHash: release.txHash,
+    })
+
     const mint = await mintCredential({
       studentAddress,
       curriculumSlug: args.curriculumSlug,
       scorePct: args.scorePct,
-      metadataUri: `data:application/json,${encodeURIComponent(
-        JSON.stringify({
-          name: "Proof-of-Learn Credential",
-          curriculum: args.curriculumSlug,
-          score: args.scorePct,
-        }),
-      )}`,
+      metadataUri: encodeMetadataUri(tokenMetadata),
     })
 
     const updated = await prisma.onchainProof.update({
@@ -124,7 +185,7 @@ export async function recordCompletionProof(args: {
         status: "minted",
         txHash: release.txHash,
         tokenId: mint.tokenId,
-        mintedAt: new Date(),
+        mintedAt: issuedAt,
       },
     })
 
@@ -167,9 +228,10 @@ export async function getProof(args: {
 }
 
 /**
- * Public lookup by tx hash — drives /verify/[txHash]. Returns no PII beyond
- * student initials. Either the release tx OR the credential mint tx will
- * resolve, since both are recorded for the same proof in different fields.
+ * Public lookup by tx hash — drives /verify/[txHash]. The credential's
+ * full data is also written into the SBT's tokenURI (see `chain.tokenMetadata`)
+ * so independent verifiers can audit the same record by reading the contract
+ * directly, with no trust in our database.
  */
 export async function getVerifiedCredentialByTx(
   txHash: string,
@@ -206,6 +268,22 @@ export async function getVerifiedCredentialByTx(
       )
     : ("0x" + "0".repeat(64))
 
+  // Reconstruct the same metadata blob that was written on-chain at mint
+  // time. Same inputs → same JSON, so this matches the contract's tokenURI.
+  const tokenMetadata =
+    proof.status === "minted" && proof.studentAddress && proof.txHash
+      ? buildCertificateMetadata({
+          studentName: proof.enrollment.student.name,
+          studentAddress: proof.studentAddress,
+          curriculumSlug: proof.curriculum.slug,
+          curriculumTitle: proof.curriculum.title,
+          scorePct: session?.scorePct ?? 0,
+          sponsorName: proof.enrollment.bounty.sponsor.organizationName,
+          issuedAt: proof.mintedAt ?? proof.createdAt,
+          txHash: proof.txHash,
+        })
+      : null
+
   return {
     txHash: proof.txHash ?? normalized,
     scoreHash: proof.scoreHash,
@@ -213,6 +291,7 @@ export async function getVerifiedCredentialByTx(
     tokenId: proof.tokenId,
     status: proof.status,
     studentAddress: proof.studentAddress,
+    studentName: proof.enrollment.student.name,
     studentInitials: initials(proof.enrollment.student.name),
     scorePct: session?.scorePct ?? 0,
     passedAt: session?.submittedAt?.toISOString() ?? proof.mintedAt?.toISOString() ?? null,
@@ -233,6 +312,7 @@ export async function getVerifiedCredentialByTx(
       basescanAddressUrl: proof.studentAddress
         ? basescanAddressUrl(proof.studentAddress)
         : null,
+      tokenMetadata,
     },
   }
 }
@@ -308,12 +388,14 @@ export async function getWalletProfileByAddress(
     }
   }
 
-  // Take initials from any of the underlying enrollment students — they're
-  // all the same person since the address is keyed to one userId.
-  const studentInitials = initials(proofs[0]?.enrollment.student.name ?? "")
+  // All proofs at this address belong to one userId, so any enrollment's
+  // student record is the authoritative name.
+  const studentName = proofs[0]?.enrollment.student.name ?? ""
+  const studentInitials = initials(studentName)
 
   return {
     address,
+    studentName,
     studentInitials,
     totalCredentials: credentials.length,
     totalEarnedInr,
