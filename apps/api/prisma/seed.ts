@@ -36,6 +36,7 @@ type SponsorSeed = {
 
 type BountySeed = {
   id: string
+  slug: string
   sponsorEmail: string
   curriculumSlug: string
   title: string
@@ -606,6 +607,7 @@ const CURRICULA: CurriculumSeed[] = [
 const BOUNTIES: BountySeed[] = [
   {
     id: "00000000-0000-0000-0000-000000000001",
+    slug: "acme-rust-systems",
     sponsorEmail: "sponsor@demo.pol",
     curriculumSlug: "rust-101",
     title: "Rust Systems Engineering track",
@@ -614,12 +616,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 250,
     rewardUsdcMicros: 3_000_000n,
     maxStudents: 100,
-    enrolled: 18,
-    completed: 7,
+    enrolled: 62,
+    completed: 38,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000002",
+    slug: "web3india-solidity-security",
     sponsorEmail: "grants@web3india.example",
     curriculumSlug: "solidity-101",
     title: "Master Solidity security",
@@ -628,12 +631,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 400,
     rewardUsdcMicros: 4_800_000n,
     maxStudents: 50,
-    enrolled: 11,
-    completed: 4,
+    enrolled: 34,
+    completed: 21,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000003",
+    slug: "kalpataru-python-data",
     sponsorEmail: "diversity@kalpataru.example",
     curriculumSlug: "python-data-101",
     title: "Pandas & matplotlib foundations",
@@ -642,12 +646,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 300,
     rewardUsdcMicros: 3_600_000n,
     maxStudents: 200,
-    enrolled: 64,
-    completed: 23,
+    enrolled: 141,
+    completed: 94,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000004",
+    slug: "bluestack-react",
     sponsorEmail: "talent@bluestack.example",
     curriculumSlug: "react-101",
     title: "Ship React applications",
@@ -656,12 +661,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 250,
     rewardUsdcMicros: 3_000_000n,
     maxStudents: 150,
-    enrolled: 32,
-    completed: 9,
+    enrolled: 108,
+    completed: 67,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000005",
+    slug: "rupeenest-personal-finance",
     sponsorEmail: "finance@rupeenest.example",
     curriculumSlug: "personal-finance-101",
     title: "Financially literate India",
@@ -670,12 +676,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 150,
     rewardUsdcMicros: 1_800_000n,
     maxStudents: 1000,
-    enrolled: 312,
-    completed: 87,
+    enrolled: 683,
+    completed: 412,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000006",
+    slug: "palette-digital-marketing",
     sponsorEmail: "creative@palette.example",
     curriculumSlug: "digital-marketing-101",
     title: "Digital marketing for makers",
@@ -684,12 +691,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 350,
     rewardUsdcMicros: 4_200_000n,
     maxStudents: 80,
-    enrolled: 22,
-    completed: 6,
+    enrolled: 58,
+    completed: 31,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000007",
+    slug: "palette-ux-research",
     sponsorEmail: "creative@palette.example",
     curriculumSlug: "ux-research-101",
     title: "Research-led product design",
@@ -698,12 +706,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 400,
     rewardUsdcMicros: 4_800_000n,
     maxStudents: 40,
-    enrolled: 11,
-    completed: 3,
+    enrolled: 26,
+    completed: 14,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000008",
+    slug: "palette-visual-design",
     sponsorEmail: "creative@palette.example",
     curriculumSlug: "visual-design-101",
     title: "Visual craft fundamentals",
@@ -712,12 +721,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 300,
     rewardUsdcMicros: 3_600_000n,
     maxStudents: 60,
-    enrolled: 18,
-    completed: 5,
+    enrolled: 41,
+    completed: 22,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000009",
+    slug: "globalfluency-business-english",
     sponsorEmail: "english@globalfluency.example",
     curriculumSlug: "business-english-101",
     title: "English for the global workplace",
@@ -726,12 +736,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 200,
     rewardUsdcMicros: 2_400_000n,
     maxStudents: 100,
-    enrolled: 95,
-    completed: 41,
+    enrolled: 96,
+    completed: 78,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000010",
+    slug: "arogyaplus-first-aid",
     sponsorEmail: "health@arogyaplus.example",
     curriculumSlug: "public-health-101",
     title: "First aid for every Indian household",
@@ -746,6 +757,7 @@ const BOUNTIES: BountySeed[] = [
   },
   {
     id: "00000000-0000-0000-0000-000000000011",
+    slug: "arogyaplus-mental-health",
     sponsorEmail: "health@arogyaplus.example",
     curriculumSlug: "mental-health-101",
     title: "Mental health literacy for managers",
@@ -754,12 +766,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 220,
     rewardUsdcMicros: 2_640_000n,
     maxStudents: 120,
-    enrolled: 38,
-    completed: 12,
+    enrolled: 92,
+    completed: 58,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000012",
+    slug: "greenstack-climate-literacy",
     sponsorEmail: "climate@greenstack.example",
     curriculumSlug: "climate-science-101",
     title: "Climate literacy for India 2030",
@@ -768,12 +781,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 275,
     rewardUsdcMicros: 3_300_000n,
     maxStudents: 60,
-    enrolled: 14,
-    completed: 4,
+    enrolled: 37,
+    completed: 19,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000013",
+    slug: "brightpath-public-speaking",
     sponsorEmail: "careers@brightpath.example",
     curriculumSlug: "public-speaking-101",
     title: "Speak with confidence",
@@ -782,12 +796,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 250,
     rewardUsdcMicros: 3_000_000n,
     maxStudents: 80,
-    enrolled: 47,
-    completed: 18,
+    enrolled: 69,
+    completed: 41,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000014",
+    slug: "brightpath-career-craft",
     sponsorEmail: "careers@brightpath.example",
     curriculumSlug: "career-craft-101",
     title: "Career craft for the first interview",
@@ -796,12 +811,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 300,
     rewardUsdcMicros: 3_600_000n,
     maxStudents: 100,
-    enrolled: 28,
-    completed: 9,
+    enrolled: 64,
+    completed: 38,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000015",
+    slug: "harvestsetu-sustainable-farming",
     sponsorEmail: "agri@harvestsetu.example",
     curriculumSlug: "sustainable-farming-101",
     title: "Sustainable farming for smallholders",
@@ -810,12 +826,13 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 450,
     rewardUsdcMicros: 5_400_000n,
     maxStudents: 50,
-    enrolled: 19,
-    completed: 5,
+    enrolled: 34,
+    completed: 19,
     status: "active",
   },
   {
     id: "00000000-0000-0000-0000-000000000016",
+    slug: "futurelens-ai-literacy",
     sponsorEmail: "ai@futurelens.example",
     curriculumSlug: "ai-literacy-101",
     title: "AI literacy for non-engineers",
@@ -824,8 +841,8 @@ const BOUNTIES: BountySeed[] = [
     rewardInr: 600,
     rewardUsdcMicros: 7_200_000n,
     maxStudents: 30,
-    enrolled: 7,
-    completed: 2,
+    enrolled: 21,
+    completed: 9,
     status: "active",
   },
 ]
@@ -923,6 +940,7 @@ async function main() {
     await prisma.bounty.upsert({
       where: { id: b.id },
       update: {
+        slug: b.slug,
         title: b.title,
         description: b.description,
         rewardInr: b.rewardInr,
@@ -936,6 +954,7 @@ async function main() {
       },
       create: {
         id: b.id,
+        slug: b.slug,
         sponsorId: sp.sponsorId,
         curriculumId,
         title: b.title,
@@ -951,6 +970,19 @@ async function main() {
       },
     })
   }
+
+  // ─── Demo mastery (the live-demo runway) ────────────────────────────────
+  // Student@demo.pol lands on stage already mastered on every module of the
+  // Acme Rust bounty, so the final exam is unlocked the moment they open it.
+  // We target the Acme bounty specifically because its sponsor profile is
+  // sponsor@demo.pol — when the student passes live, the sponsor dashboard
+  // (logged in as Acme on the second laptop) shows the completion tick up.
+  // Without this seed, the exam is gated until 3-in-a-row correct mastery
+  // checks on every module — too slow for a live demo.
+  await seedDemoMastery({
+    studentUserId: studentUser.id,
+    bountyId: "00000000-0000-0000-0000-000000000001",
+  })
 
   // ─── Showcase completions ───────────────────────────────────────────────
   // Pre-passed enrollments that populate /verify, /recruit, and
@@ -1081,6 +1113,94 @@ function pseudoTxHash(seed: string): string {
 
 function pseudoAddress(seed: string): string {
   return `0x${pseudoTxHash(seed).slice(2, 42)}`
+}
+
+// Pre-master every module of one bounty's curriculum for the demo student so
+// the final-exam gate is open on stage. We synthesise 3 tutor "check"
+// messages per module with `meta.correct === true`, which is exactly what
+// the live tutor records when a student answers a mastery check correctly.
+// The mastery scan in tutor-service.ts reads only `citations.meta`, so the
+// shape below is the contract.
+async function seedDemoMastery(deps: {
+  studentUserId: string
+  bountyId: string
+}): Promise<void> {
+  const bounty = await prisma.bounty.findUnique({
+    where: { id: deps.bountyId },
+    include: { curriculum: true },
+  })
+  if (!bounty) {
+    console.warn(`   ⚠ seedDemoMastery: bounty ${deps.bountyId} not found`)
+    return
+  }
+
+  const syllabus = (bounty.curriculum.syllabus as unknown as SyllabusModule[]) ?? []
+  if (syllabus.length === 0) {
+    console.warn(`   ⚠ seedDemoMastery: curriculum ${bounty.curriculum.slug} has no syllabus`)
+    return
+  }
+
+  // Enrollment for the demo student on this bounty (in-progress, not done —
+  // the live demo is what completes it).
+  const enrollment = await prisma.enrollment.upsert({
+    where: {
+      studentId_bountyId: {
+        studentId: deps.studentUserId,
+        bountyId: deps.bountyId,
+      },
+    },
+    update: {
+      status: "active",
+      progressPct: 80,
+    },
+    create: {
+      studentId: deps.studentUserId,
+      bountyId: deps.bountyId,
+      status: "active",
+      progressPct: 80,
+    },
+  })
+
+  // Idempotent: wipe any prior demo-mastery messages on this enrollment.
+  await prisma.chatMessage.deleteMany({
+    where: { enrollmentId: enrollment.id },
+  })
+
+  // Build 3 tutor messages per module — matches MASTERY_THRESHOLD = 3.
+  const startedAt = Date.now() - syllabus.length * 30 * 60 * 1000
+  const rows: Prisma.ChatMessageCreateManyInput[] = []
+  syllabus.forEach((mod, moduleIndex) => {
+    for (let streak = 1; streak <= 3; streak += 1) {
+      const content =
+        streak < 3
+          ? `**Correct.** That is ${streak} of 3 right in a row on ${mod.module}. ${3 - streak} more correct answer${3 - streak === 1 ? "" : "s"} and this module is marked complete.`
+          : `**Mastered.** That is 3 correct in a row on ${mod.module}. You clearly understand it. This module is now marked complete and your progress has moved up. Ready to pick a new module?`
+      rows.push({
+        enrollmentId: enrollment.id,
+        userId: deps.studentUserId,
+        role: "tutor",
+        content,
+        citations: {
+          meta: {
+            kind: "check",
+            moduleIndex,
+            questionId: `demo-${moduleIndex}-${streak}`,
+            correctIndex: 0,
+            answeredIndex: 0,
+            correct: true,
+          },
+        } as unknown as Prisma.InputJsonValue,
+        sessionIndex: 0,
+        createdAt: new Date(startedAt + (moduleIndex * 3 + streak) * 60 * 1000),
+      })
+    }
+  })
+
+  await prisma.chatMessage.createMany({ data: rows })
+
+  console.log(
+    `   • Demo mastery: ${syllabus.length} modules on "${bounty.title}" pre-mastered for student@demo.pol`,
+  )
 }
 
 async function seedShowcaseCompletions(deps: {

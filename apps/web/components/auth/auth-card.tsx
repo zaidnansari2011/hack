@@ -46,7 +46,7 @@ function Narrative() {
     <aside className="relative hidden flex-col justify-between lg:flex">
       <div>
         <Link href="/" className="font-display text-2xl font-medium text-ink">
-          Proof-of-Learn
+          EduPay
         </Link>
         <div className="mt-12 max-w-md">
           <span className="font-mono text-[0.75rem] uppercase tracking-[0.22em] text-terracotta">
