@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import type { VerifiedCredential } from "@pol/shared"
+import type { VerifiedCredential, WalletProfile } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { CredentialShareCard } from "@/components/verify/credential-share-card"
@@ -18,6 +18,7 @@ export default function VerifyPage() {
   const txHash = params.txHash
 
   const [state, setState] = useState<State>({ status: "loading" })
+  const [profile, setProfile] = useState<WalletProfile | null>(null)
 
   useEffect(() => {
     if (!txHash) return
@@ -39,34 +40,53 @@ export default function VerifyPage() {
       )
   }, [txHash])
 
-  return (
-    <main className="min-h-screen bg-paper">
-      <Header />
-      <div className="mx-auto w-[min(960px,92vw)] py-14">
-        {state.status === "loading" && <Skeleton />}
-        {state.status === "error" && <ErrorPanel message={state.message} />}
-        {state.status === "ready" && <Credential cred={state.cred} />}
-      </div>
-    </main>
-  )
-}
+  // Fetch the public profile alongside the credential so the hero can show
+  // real stats (credentials count, total earned) and curricula chips. Best
+  // effort — a missing profile still leaves the verify view usable.
+  useEffect(() => {
+    if (state.status !== "ready") return
+    const addr = state.cred.studentAddress
+    if (!addr) {
+      setProfile(null)
+      return
+    }
+    let cancelled = false
+    apiFetch<{ profile: WalletProfile }>(
+      `/credentials/by-address/${encodeURIComponent(addr)}`,
+      { token: null },
+    )
+      .then(({ profile }) => {
+        if (!cancelled) setProfile(profile)
+      })
+      .catch(() => {
+        if (!cancelled) setProfile(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [state])
 
-function Header() {
   return (
-    <header className="border-b border-rule bg-surface">
-      <div className="mx-auto flex h-14 w-[min(960px,92vw)] items-center justify-between">
+    <div className="mx-auto w-[min(960px,92vw)] py-10">
+      <div className="flex items-center justify-between gap-3">
         <Link
           href="/"
-          className="flex items-center gap-2.5 text-[0.9375rem] font-medium tracking-tight text-ink"
+          className="inline-flex items-center gap-1.5 text-[0.875rem] text-ink-faint transition-colors hover:text-ink-soft"
         >
-          <span className="inline-block h-2 w-2 rounded-full bg-teal" />
-          Proof-of-Learn
+          ← Home
         </Link>
         <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
           Public credential verification
         </span>
       </div>
-    </header>
+      <div className="mt-8">
+        {state.status === "loading" && <Skeleton />}
+        {state.status === "error" && <ErrorPanel message={state.message} />}
+        {state.status === "ready" && (
+          <Credential cred={state.cred} profile={profile} />
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -101,7 +121,13 @@ function ErrorPanel({ message }: { message: string }) {
   )
 }
 
-function Credential({ cred }: { cred: VerifiedCredential }) {
+function Credential({
+  cred,
+  profile,
+}: {
+  cred: VerifiedCredential
+  profile: WalletProfile | null
+}) {
   const minted = cred.status === "minted"
   return (
     <div className="space-y-10">
@@ -119,11 +145,8 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
             {cred.chain.network}
           </span>
         </div>
-        <h1 className="mt-5 max-w-[24ch] font-display text-[2.5rem] font-medium leading-[1.1] tracking-tight text-ink">
-          {cred.studentInitials || "Anon"} passed{" "}
-          <span className="text-teal">{cred.curriculum.title}</span>
-        </h1>
-        <p className="mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+        <PersonCard cred={cred} profile={profile} />
+        <p className="mt-6 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
           {cred.curriculum.summary}
         </p>
       </div>
@@ -190,43 +213,6 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
         )}
       </Section>
 
-      <Section title="Cryptographic commitments">
-        <p className="mb-4 max-w-xl text-[0.875rem] leading-relaxed text-ink-muted">
-          These hashes bind the credential to the student, curriculum, and
-          score. Anyone holding the original inputs can recompute and audit
-          them against the on-chain record.
-        </p>
-        <FieldRow label="Score hash">
-          <span className="font-mono text-[0.75rem] text-ink-soft">
-            {cred.scoreHash}
-          </span>
-        </FieldRow>
-        <FieldRow label="Pass commitment">
-          <span className="font-mono text-[0.75rem] text-ink-soft">
-            {cred.commitment}
-          </span>
-          <span className="ml-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
-            keccak(addr · slug · passed)
-          </span>
-        </FieldRow>
-      </Section>
-
-      <Section title="Bounty">
-        <FieldRow label="Sponsor">
-          <span className="text-[0.9375rem] text-ink">
-            {cred.bounty.sponsorName}
-          </span>
-        </FieldRow>
-        <FieldRow label="Title">
-          <span className="text-[0.9375rem] text-ink">{cred.bounty.title}</span>
-        </FieldRow>
-        <FieldRow label="Curriculum">
-          <span className="font-mono text-[0.8125rem] text-ink-soft">
-            {cred.curriculum.slug}
-          </span>
-        </FieldRow>
-      </Section>
-
       <div className="flex flex-wrap gap-3 border-t border-rule pt-8">
         <a
           href={cred.chain.basescanTxUrl}
@@ -236,14 +222,6 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
         >
           View on BaseScan ↗
         </a>
-        {cred.studentAddress && (
-          <Link
-            href={`/credentials/${cred.studentAddress}`}
-            className="inline-flex items-center gap-2 rounded-full border border-rule bg-surface px-5 py-2.5 text-[0.875rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
-          >
-            See full transcript →
-          </Link>
-        )}
         <Link
           href={`/recruit?curriculum=${cred.curriculum.slug}`}
           className="inline-flex items-center gap-2 rounded-full border border-rule bg-surface px-5 py-2.5 text-[0.875rem] font-medium text-ink-soft transition-colors hover:border-ink/30 hover:text-ink"
@@ -251,6 +229,115 @@ function Credential({ cred }: { cred: VerifiedCredential }) {
           Find others who passed →
         </Link>
       </div>
+    </div>
+  )
+}
+
+function PersonCard({
+  cred,
+  profile,
+}: {
+  cred: VerifiedCredential
+  profile: WalletProfile | null
+}) {
+  const displayName =
+    cred.studentName || profile?.studentName || cred.studentInitials || "Anon"
+  const profileHref = cred.studentAddress
+    ? `/credentials/${cred.studentAddress}`
+    : null
+  const sinceLabel = profile?.firstPassedAt
+    ? new Date(profile.firstPassedAt).toLocaleDateString("en-IN", {
+        month: "short",
+        year: "numeric",
+      })
+    : null
+
+  return (
+    <div className="mt-5 rounded-2xl border border-rule bg-surface p-6 lg:p-8">
+      <div className="flex flex-wrap items-start gap-5">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink text-[0.9375rem] font-semibold tracking-wider text-paper">
+          {cred.studentInitials || "?"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="max-w-[24ch] font-display text-[2.25rem] font-medium leading-[1.1] tracking-tight text-ink">
+            {displayName}
+          </h1>
+          {cred.studentAddress && (
+            <div className="mt-2 font-mono text-[0.75rem] text-ink-muted">
+              {short(cred.studentAddress)}
+            </div>
+          )}
+          <p className="mt-3 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-soft">
+            Passed{" "}
+            <span className="font-medium text-ink">
+              {cred.curriculum.title}
+            </span>{" "}
+            with{" "}
+            <span className="font-medium text-teal">{cred.scorePct}%</span>
+            {cred.bounty.sponsorName && (
+              <>
+                , sponsored by{" "}
+                <span className="text-ink">{cred.bounty.sponsorName}</span>
+              </>
+            )}
+            .
+          </p>
+        </div>
+        {profileHref && (
+          <Link
+            href={profileHref}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[0.875rem] font-medium text-paper transition-colors hover:bg-ink/90"
+          >
+            View profile →
+          </Link>
+        )}
+      </div>
+
+      {profile && (profile.totalCredentials > 1 || profile.totalEarnedInr > 0 || sinceLabel) && (
+        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-rule pt-5 text-[0.8125rem] text-ink-soft">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+              Credentials
+            </span>
+            <span className="tabular font-medium text-ink">
+              {profile.totalCredentials.toLocaleString("en-IN")}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+              Earned
+            </span>
+            <span className="tabular font-medium text-ink">
+              ₹{profile.totalEarnedInr.toLocaleString("en-IN")}
+            </span>
+          </span>
+          {sinceLabel && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-ink-faint">
+                On-chain since
+              </span>
+              <span className="font-medium text-ink">{sinceLabel}</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {profile && profile.curricula.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {profile.curricula.map((c) => (
+            <span
+              key={c.slug}
+              className={`rounded-full border px-3 py-1 text-[0.8125rem] ${
+                c.slug === cred.curriculum.slug
+                  ? "border-teal/40 bg-teal/10 text-teal"
+                  : "border-rule bg-surface-soft text-ink-soft"
+              }`}
+            >
+              {c.title}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

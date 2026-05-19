@@ -33,9 +33,22 @@ export type AuthResponse = {
   token: string
 }
 
+// One row in the demo-account picker on /login. Returned by
+// GET /auth/demo-accounts so the frontend stays in sync with the seed.
+export type DemoAccount = {
+  email: string
+  name: string
+  role: UserRole
+  // Short human-readable hint shown next to the account button, e.g.
+  // "3 active bounties · ₹50,000 in escrow" for sponsors,
+  // "₹600 earned · 3 credentials" for students.
+  detail: string
+}
+
 // ─── Sponsor / Bounty ────────────────────────────────────────────
 export type Bounty = {
   id: string
+  slug: string
   sponsorId: string
   sponsorName: string | null
   title: string
@@ -257,6 +270,7 @@ export type WalletCredential = {
 
 export type WalletProfile = {
   address: string
+  studentName: string
   studentInitials: string
   totalCredentials: number
   totalEarnedInr: number
@@ -266,8 +280,9 @@ export type WalletProfile = {
   basescanAddressUrl: string
 }
 
-// Public-facing verify payload — no PII, just credential facts a third
-// party can audit alongside the on-chain tx.
+// Public-facing verify payload. The certificate's full data is also stored
+// on-chain in the SBT's tokenURI (see `chain.tokenMetadata`), so anyone can
+// independently audit the credential by reading the contract directly.
 export type VerifiedCredential = {
   txHash: string
   scoreHash: string
@@ -275,6 +290,7 @@ export type VerifiedCredential = {
   tokenId: string | null
   status: ProofStatus
   studentAddress: string | null
+  studentName: string
   studentInitials: string
   scorePct: number
   passedAt: string | null
@@ -293,7 +309,31 @@ export type VerifiedCredential = {
     network: string
     basescanTxUrl: string
     basescanAddressUrl: string | null
+    // The exact JSON blob written to the SBT's tokenURI on Base Sepolia.
+    // This is what makes the credential "fully on-chain": the certificate's
+    // human-readable data is part of the token's immutable metadata, not
+    // just our database.
+    tokenMetadata: CertificateMetadata | null
   }
+}
+
+// The on-chain metadata blob — what the contract returns from tokenURI().
+// We render it as a `data:application/json,...` URI so no IPFS is needed.
+export type CertificateMetadata = {
+  name: string
+  description: string
+  recipient: {
+    name: string
+    address: string
+  }
+  curriculum: {
+    slug: string
+    title: string
+  }
+  score: number
+  sponsor: string
+  issuedAt: string
+  verifyUrl: string
 }
 
 // ─── Recruiter portal ────────────────────────────────────────────
@@ -318,6 +358,34 @@ export type RecruitResults = {
   candidates: RecruitCandidate[]
   curricula: { slug: string; title: string; passedCount: number }[]
   total: number
+}
+
+// ─── Recruiter outreach ──────────────────────────────────────────
+// An anonymous recruiter on /recruit clicks "Reach out" on a verified
+// candidate and posts this payload. The backend resolves the address to
+// a real userId so the student's inbox can render the message.
+export type SendOutreachInput = {
+  recipientAddress: string
+  senderName: string
+  senderEmail: string
+  senderCompany?: string
+  subject: string
+  body: string
+}
+
+// Student-side DTO. Stored read state + inline reply live on the same row,
+// so the inbox can render the whole exchange without a separate join.
+export type RecruiterMessage = {
+  id: string
+  senderName: string
+  senderEmail: string
+  senderCompany: string | null
+  subject: string
+  body: string
+  readAt: string | null
+  replyBody: string | null
+  repliedAt: string | null
+  createdAt: string
 }
 
 // ─── Sponsor analytics ───────────────────────────────────────────
@@ -370,6 +438,7 @@ export type SendMessageRequest = {
   message: string
   lang?: TutorLanguage
   persona?: TutorPersona
+  format?: TutorFormat
 }
 
 export type SendMessageResponse = {
@@ -378,9 +447,17 @@ export type SendMessageResponse = {
 
 export type TutorLanguage = "en" | "hi" | "ta" | "te"
 
-// Three personas the tutor can adopt — same RAG, same content, different
+// Personas the tutor can adopt, same RAG and same content but different
 // teaching voice. Persisted in localStorage so the choice survives reloads.
-export type TutorPersona = "mentor" | "examiner" | "coach"
+// `socratic` is special: it refuses to state answers outright and only asks
+// leading questions, so the learner reasons their way there.
+export type TutorPersona = "mentor" | "examiner" | "coach" | "socratic"
+
+// Response shape preference, independent of persona. Different learners
+// retain differently: bullets scan well, prose reads warmly, examples-first
+// grounds abstractions, brief is for "just answer me." Persisted to
+// localStorage so the choice survives reloads.
+export type TutorFormat = "prose" | "bullets" | "examples" | "brief"
 
 export type RemediationPlan = {
   sessionId: string

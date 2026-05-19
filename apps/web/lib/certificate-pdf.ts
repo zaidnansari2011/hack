@@ -32,11 +32,25 @@ export async function generateCertificatePdf(args: {
   doc.setLineWidth(0.15)
   doc.rect(margin / 2 + 2, margin / 2 + 2, W - margin - 4, 297 - margin - 4)
 
-  // ── Header
-  doc.setFont("helvetica", "bold")
-  doc.setTextColor(...inkGray)
-  doc.setFontSize(11)
-  doc.text("PROOF-OF-LEARN", margin, margin + 6)
+  // ── Header brand mark. We rasterize the SVG into a small PNG at
+  // generation time so the PDF doesn't carry the full 7MB logo asset.
+  // Falls back to the EduPay wordmark in helvetica if the rasterization
+  // fails (e.g. cross-origin issues in some browsers).
+  let logoEmbedded = false
+  try {
+    const logoPng = await rasterizeLogo("/edupaylogonew.svg", 200, 200)
+    // 14mm tall, vertically aligned with the network label on the right.
+    doc.addImage(logoPng, "PNG", margin, margin - 1, 14, 14)
+    logoEmbedded = true
+  } catch {
+    // ignore — fallback below
+  }
+  if (!logoEmbedded) {
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...inkGray)
+    doc.setFontSize(13)
+    doc.text("EduPay", margin, margin + 6)
+  }
 
   doc.setFont("helvetica", "normal")
   doc.setTextColor(...muted)
@@ -73,13 +87,13 @@ export async function generateCertificatePdf(args: {
   // ── Recipient
   doc.setFont("helvetica", "bold")
   doc.setTextColor(...inkGray)
-  doc.setFontSize(20)
-  doc.text(cred.studentInitials || "Anon", margin, margin + 75)
+  doc.setFontSize(22)
+  doc.text(cred.studentName || cred.studentInitials || "Anon", margin, margin + 75)
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(10)
   doc.setTextColor(...muted)
-  doc.text("Recipient (initials)", margin, margin + 81)
+  doc.text("Awarded to", margin, margin + 81)
 
   // ── Curriculum
   doc.setFont("helvetica", "bold")
@@ -146,11 +160,11 @@ export async function generateCertificatePdf(args: {
   )
 
   // ── Cryptographic commitments
-  const cryptoY = margin + 180
+  const cryptoY = margin + 178
   doc.setFont("helvetica", "bold")
   doc.setTextColor(...inkGray)
   doc.setFontSize(8)
-  doc.text("CRYPTOGRAPHIC COMMITMENTS", margin, cryptoY)
+  doc.text("ON-CHAIN RECORD · BASE SEPOLIA", margin, cryptoY)
 
   doc.setFont("courier", "normal")
   doc.setTextColor(...muted)
@@ -164,6 +178,13 @@ export async function generateCertificatePdf(args: {
   if (cred.tokenId) {
     doc.text(`SBT token     #${cred.tokenId}`, margin, cryptoY + 27)
   }
+  doc.setFont("helvetica", "italic")
+  doc.setFontSize(7)
+  doc.text(
+    "Name, score, and curriculum are encoded in the token's on-chain metadata.",
+    margin,
+    cryptoY + 33,
+  )
 
   // ── QR + verify URL
   const qrY = margin + 222
@@ -193,10 +214,15 @@ export async function generateCertificatePdf(args: {
     qrY + 16,
   )
 
+  // URL printed under the QR. Long tx hashes (especially against a
+  // localhost host) overflow the available width at 8pt courier, so we
+  // drop a point and let splitTextToSize wrap to the next line. The
+  // right margin gives us roughly W - margin - (margin + 36) of room.
   doc.setFont("courier", "normal")
   doc.setTextColor(...inkGray)
-  doc.setFontSize(8)
-  doc.text(verifyUrl, margin + 36, qrY + 24)
+  doc.setFontSize(7)
+  const urlLines = doc.splitTextToSize(verifyUrl, W - margin - (margin + 36))
+  doc.text(urlLines, margin + 36, qrY + 24)
 
   // ── Footer
   doc.setDrawColor(...ruleColor)
@@ -205,15 +231,51 @@ export async function generateCertificatePdf(args: {
   doc.setTextColor(...muted)
   doc.setFontSize(7)
   doc.text(
-    "Issued by Proof-of-Learn — sponsor-funded learning, settled in seconds.",
+    "Issued by EduPay, sponsor-funded learning, settled in seconds.",
     margin,
     297 - margin - 3,
   )
-  doc.text("proof-of-learn.io", W - margin, 297 - margin - 3, { align: "right" })
+  doc.text("edupay.io", W - margin, 297 - margin - 3, { align: "right" })
 
   doc.save(
-    `proof-of-learn-${cred.curriculum.slug}-${cred.txHash.slice(0, 10)}.pdf`,
+    `edupay-certificate-${cred.curriculum.slug}-${cred.txHash.slice(0, 10)}.pdf`,
   )
+}
+
+/**
+ * Load the EduPay logo and draw it into an off-screen canvas at a small
+ * target size, then return a PNG data URL. The public logo asset is a
+ * raster-in-SVG wrapper at native 1500x1500; embedding it as-is would
+ * bloat every PDF by ~7MB. Downsampling to a 200px canvas keeps the PDF
+ * under a few hundred KB and looks crisp at the 14mm header size we use.
+ */
+async function rasterizeLogo(
+  src: string,
+  width: number,
+  height: number,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        reject(new Error("canvas 2d context unavailable"))
+        return
+      }
+      ctx.drawImage(img, 0, 0, width, height)
+      try {
+        resolve(canvas.toDataURL("image/png"))
+      } catch (err) {
+        reject(err)
+      }
+    }
+    img.onerror = () => reject(new Error("logo failed to load"))
+    img.src = src
+  })
 }
 
 function drawStat(
