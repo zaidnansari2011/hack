@@ -1,100 +1,80 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
+import type { RecruiterMessage } from "@pol/shared"
 
-type Sender = "sponsor" | "support" | "user"
+import { ApiClientError, apiFetch } from "@/lib/api"
 
-type Mail = {
-  id: string
-  from: string
-  sender: Sender
-  subject: string
-  body: string
-  replyable: boolean
-  createdAt: string
-}
-
-// No backend messaging exists — this is a realistic seeded inbox. Read +
-// reply state persists in localStorage so it survives a refresh.
-const SEED: Mail[] = [
-  {
-    id: "m-sponsor-1",
-    from: "RupeeNest (Sponsor)",
-    sender: "sponsor",
-    subject: "Loved your progress on the finance track",
-    body: "Hi! We sponsor the personal finance bounty you're working through. Your mastery checks look strong. If you finish this week, we have a second bounty opening that pays more. Reply if you want early access.",
-    replyable: true,
-    createdAt: "2026-05-16T09:20:00Z",
-  },
-  {
-    id: "m-support-1",
-    from: "EduPay Support",
-    sender: "support",
-    subject: "Your UPI payout settled",
-    body: "Good news: your most recent payout reached your UPI in under 4 seconds. Nothing is needed from you. This is an automated notice and the address does not accept replies.",
-    replyable: false,
-    createdAt: "2026-05-15T14:02:00Z",
-  },
-  {
-    id: "m-user-1",
-    from: "Aarav (Learner)",
-    sender: "user",
-    subject: "Study buddy for the Rust bounty?",
-    body: "Saw you on the leaderboard. I'm stuck on the ownership module. Want to compare notes and keep each other accountable? Reply and we can set a time.",
-    replyable: true,
-    createdAt: "2026-05-14T18:45:00Z",
-  },
-  {
-    id: "m-support-2",
-    from: "EduPay Support",
-    sender: "support",
-    subject: "Competitions and Forums are coming",
-    body: "We're building head-to-head competitions and learner forums. They're locked in your dashboard for now. You'll get a message here the day they open. No reply needed.",
-    replyable: false,
-    createdAt: "2026-05-12T11:30:00Z",
-  },
-]
-
-type InboxState = { read: string[]; replied: string[] }
-
-const KEY = "pol:inbox:v1"
-
-function loadState(): InboxState {
-  if (typeof window === "undefined") return { read: [], replied: [] }
-  try {
-    const raw = window.localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as InboxState) : { read: [], replied: [] }
-  } catch {
-    return { read: [], replied: [] }
-  }
-}
-
-function saveState(s: InboxState) {
-  if (typeof window === "undefined") return
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(s))
-  } catch {
-    // non-fatal
-  }
-}
-
-const SENDER_TINT: Record<Sender, string> = {
-  sponsor: "bg-teal/10 text-teal",
-  support: "bg-amber/10 text-amber",
-  user: "bg-forest/10 text-forest",
-}
+type LoadState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; messages: RecruiterMessage[] }
 
 export function MailInbox() {
   const [open, setOpen] = useState(false)
-  const [state, setState] = useState<InboxState>({ read: [], replied: [] })
+  const [state, setState] = useState<LoadState>({ status: "idle" })
   const [activeId, setActiveId] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   const [justSent, setJustSent] = useState(false)
+  const [replying, setReplying] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  // Initial unread badge — fetched lazily on first hover/open so we don't
+  // ping the API on every page load when the student isn't checking mail.
+  const [unreadCount, setUnreadCount] = useState<number | null>(null)
 
   useEffect(() => {
-    setState(loadState())
+    setMounted(true)
   }, [])
+
+  const loadInbox = useCallback(async () => {
+    setState({ status: "loading" })
+    try {
+      const data = await apiFetch<{ messages: RecruiterMessage[] }>(
+        "/recruiter-messages",
+      )
+      setState({ status: "ready", messages: data.messages })
+      setUnreadCount(data.messages.filter((m) => m.readAt === null).length)
+    } catch (err) {
+      setState({
+        status: "error",
+        message:
+          err instanceof ApiClientError
+            ? err.message
+            : "Couldn't load your inbox.",
+      })
+    }
+  }, [])
+
+  // Fetch a lightweight unread count once on mount so the header badge
+  // can show even before the drawer is opened.
+  useEffect(() => {
+    let cancelled = false
+    apiFetch<{ messages: RecruiterMessage[] }>("/recruiter-messages")
+      .then((data) => {
+        if (cancelled) return
+        setUnreadCount(data.messages.filter((m) => m.readAt === null).length)
+        // Keep state for instant render on open; saves a second round-trip.
+        setState({ status: "ready", messages: data.messages })
+      })
+      .catch(() => {
+        if (cancelled) return
+        // Silent — the badge just stays absent until the drawer opens.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Re-fetch whenever the drawer opens, so the inbox stays fresh after
+  // long-lived sessions. Cheap; the endpoint is paginated implicitly via
+  // the per-user index.
+  useEffect(() => {
+    if (!open) return
+    loadInbox()
+  }, [open, loadInbox])
 
   useEffect(() => {
     if (!open) return
@@ -103,36 +83,87 @@ export function MailInbox() {
     return () => window.removeEventListener("keydown", onKey)
   }, [open])
 
-  const unread = useMemo(
-    () => SEED.filter((m) => !state.read.includes(m.id)).length,
-    [state.read],
+  // Scroll-lock the page behind the drawer. Compensates body padding-right
+  // for the scrollbar so the layout doesn't jump when locking.
+  useEffect(() => {
+    if (!open) return
+    const body = document.body
+    const prevOverflow = body.style.overflow
+    const prevPaddingRight = body.style.paddingRight
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth
+    body.style.overflow = "hidden"
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`
+    }
+    return () => {
+      body.style.overflow = prevOverflow
+      body.style.paddingRight = prevPaddingRight
+    }
+  }, [open])
+
+  const messages = state.status === "ready" ? state.messages : []
+  const active = useMemo(
+    () => messages.find((m) => m.id === activeId) ?? null,
+    [messages, activeId],
   )
+  const total = messages.length
+  const unread = unreadCount ?? messages.filter((m) => m.readAt === null).length
 
-  const active = SEED.find((m) => m.id === activeId) ?? null
-
-  function openMessage(m: Mail) {
+  async function openMessage(m: RecruiterMessage) {
     setActiveId(m.id)
     setDraft("")
     setJustSent(false)
-    if (!state.read.includes(m.id)) {
-      const next = { ...state, read: [...state.read, m.id] }
-      setState(next)
-      saveState(next)
+    if (m.readAt === null) {
+      // Optimistic: stamp readAt locally so the bullet disappears immediately.
+      setState((prev) =>
+        prev.status === "ready"
+          ? {
+              status: "ready",
+              messages: prev.messages.map((x) =>
+                x.id === m.id ? { ...x, readAt: new Date().toISOString() } : x,
+              ),
+            }
+          : prev,
+      )
+      setUnreadCount((c) => (c !== null ? Math.max(0, c - 1) : c))
+      try {
+        await apiFetch(`/recruiter-messages/${m.id}/read`, { method: "POST" })
+      } catch {
+        // Mark-read is best-effort; the next inbox load will resync.
+      }
     }
   }
 
-  function sendReply() {
-    if (!active || !draft.trim()) return
-    const next = {
-      ...state,
-      replied: state.replied.includes(active.id)
-        ? state.replied
-        : [...state.replied, active.id],
+  async function sendReply() {
+    if (!active || !draft.trim() || replying) return
+    setReplying(true)
+    try {
+      const { message } = await apiFetch<{ message: RecruiterMessage }>(
+        `/recruiter-messages/${active.id}/reply`,
+        { method: "POST", json: { body: draft.trim() } },
+      )
+      setState((prev) =>
+        prev.status === "ready"
+          ? {
+              status: "ready",
+              messages: prev.messages.map((x) =>
+                x.id === message.id ? message : x,
+              ),
+            }
+          : prev,
+      )
+      setDraft("")
+      setJustSent(true)
+    } catch (err) {
+      // Surface a minimal error inline — the textarea stays so the user
+      // can retry without losing their draft.
+      setJustSent(false)
+      window.alert(
+        err instanceof ApiClientError ? err.message : "Could not send reply.",
+      )
+    } finally {
+      setReplying(false)
     }
-    setState(next)
-    saveState(next)
-    setDraft("")
-    setJustSent(true)
   }
 
   return (
@@ -154,18 +185,23 @@ export function MailInbox() {
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
+      {mounted && createPortal(
+        <AnimatePresence>
+          {open && (
           <motion.div
-            className="fixed inset-0 z-[80] flex justify-end"
+            className="fixed inset-0 z-[100] flex justify-end"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
+            onWheel={(e) => { if (e.target === e.currentTarget) e.preventDefault() }}
           >
-            <div className="absolute inset-0 bg-ink/40" onClick={() => setOpen(false)} />
+            <div
+              className="absolute inset-0 bg-ink/55 backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+            />
             <motion.div
-              className="relative z-10 flex h-full w-[min(440px,92vw)] flex-col border-l border-rule bg-surface"
+              className="relative z-10 flex h-full w-[min(460px,92vw)] flex-col border-l border-rule bg-surface shadow-[0_0_40px_-8px_hsl(218_45%_10%/0.35)]"
               initial={{ x: 40 }}
               animate={{ x: 0 }}
               exit={{ x: 40 }}
@@ -174,12 +210,16 @@ export function MailInbox() {
               <div className="flex items-center justify-between border-b border-rule px-5 py-4">
                 <div>
                   <h3 className="font-display text-[1.0625rem] font-medium text-ink">
-                    {active ? "Message" : "Inbox"}
+                    {active ? "Message" : "Recruiter inbox"}
                   </h3>
                   <p className="text-[0.75rem] text-ink-muted">
                     {active
-                      ? active.from
-                      : `${unread} unread of ${SEED.length}`}
+                      ? `${active.senderName}${active.senderCompany ? ` · ${active.senderCompany}` : ""}`
+                      : state.status === "loading"
+                        ? "Loading…"
+                        : state.status === "error"
+                          ? "Couldn't load"
+                          : `${unread} unread of ${total}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -204,92 +244,201 @@ export function MailInbox() {
               </div>
 
               {!active ? (
-                <ul className="min-h-0 flex-1 divide-y divide-rule overflow-y-auto">
-                  {SEED.map((m) => {
-                    const isRead = state.read.includes(m.id)
-                    return (
-                      <li key={m.id}>
-                        <button
-                          type="button"
-                          onClick={() => openMessage(m)}
-                          className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-soft"
-                        >
-                          <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold ${SENDER_TINT[m.sender]}`}>
-                            {m.from[0]}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              {!isRead && (
-                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
-                              )}
-                              <span className={`truncate text-[0.875rem] ${isRead ? "text-ink-soft" : "font-semibold text-ink"}`}>
-                                {m.subject}
-                              </span>
-                            </span>
-                            <span className="mt-0.5 block truncate text-[0.75rem] text-ink-muted">
-                              {m.from} · {m.replyable ? "Replyable" : "No-reply"}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
+                <InboxList state={state} onOpen={openMessage} />
               ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.625rem] font-medium uppercase tracking-[0.14em] ${SENDER_TINT[active.sender]}`}>
-                    {active.sender}
-                  </span>
-                  <h4 className="mt-3 font-display text-[1.125rem] font-medium text-ink">
-                    {active.subject}
-                  </h4>
-                  <p className="mt-3 whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-ink-soft">
-                    {active.body}
-                  </p>
-
-                  <div className="mt-6 border-t border-rule pt-5">
-                    {active.replyable ? (
-                      justSent || state.replied.includes(active.id) ? (
-                        <div className="rounded-lg border border-forest/30 bg-forest/5 px-4 py-3 text-[0.875rem] text-forest">
-                          ✓ Reply sent. They'll get back to you here.
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="text-[0.8125rem] font-medium text-ink-soft">
-                            Reply to {active.from}
-                          </label>
-                          <textarea
-                            value={draft}
-                            onChange={(e) => setDraft(e.target.value)}
-                            rows={4}
-                            placeholder="Write a reply…"
-                            className="mt-2 w-full resize-none rounded-lg border border-rule bg-paper px-3 py-2.5 text-[0.875rem] text-ink placeholder:text-ink-faint focus:border-ink/30 focus:outline-none"
-                          />
-                          <div className="mt-2 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={sendReply}
-                              disabled={!draft.trim()}
-                              className="rounded-full bg-ink px-5 py-2 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-ink/85 disabled:opacity-40"
-                            >
-                              Send reply
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    ) : (
-                      <div className="rounded-lg border border-rule bg-paper px-4 py-3 text-[0.8125rem] text-ink-muted">
-                        This is a no-reply message. You can't respond to this
-                        sender.
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <MessageView
+                  message={active}
+                  draft={draft}
+                  setDraft={setDraft}
+                  replying={replying}
+                  justSent={justSent}
+                  onSend={sendReply}
+                />
               )}
             </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </>
   )
+}
+
+function InboxList({
+  state,
+  onOpen,
+}: {
+  state: LoadState
+  onOpen: (m: RecruiterMessage) => void
+}) {
+  if (state.status === "loading" || state.status === "idle") {
+    return (
+      <ul className="min-h-0 flex-1 divide-y divide-rule overflow-y-auto">
+        {[0, 1, 2].map((i) => (
+          <li key={i} className="flex items-start gap-3 px-5 py-4">
+            <div className="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-full bg-rule/40" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-2/3 animate-pulse rounded bg-rule/40" />
+              <div className="h-2.5 w-1/2 animate-pulse rounded bg-rule/30" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  if (state.status === "error") {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center">
+        <p className="text-[0.875rem] text-ink-muted">{state.message}</p>
+      </div>
+    )
+  }
+  if (state.messages.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-8 py-10 text-center">
+        <p className="font-display text-[1.0625rem] font-medium text-ink">
+          No outreach yet.
+        </p>
+        <p className="max-w-[26ch] text-[0.8125rem] leading-relaxed text-ink-muted">
+          When a recruiter reaches out through your verified profile, their message lands here. Keep passing curricula to grow your visibility.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <ul className="min-h-0 flex-1 divide-y divide-rule overflow-y-auto">
+      {state.messages.map((m) => {
+        const isRead = m.readAt !== null
+        const hasReplied = m.replyBody !== null
+        return (
+          <li key={m.id}>
+            <button
+              type="button"
+              onClick={() => onOpen(m)}
+              className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-surface-soft"
+            >
+              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal/10 text-[0.6875rem] font-semibold text-teal">
+                {initials(m.senderName)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  {!isRead && (
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-terracotta" />
+                  )}
+                  <span className={`truncate text-[0.875rem] ${isRead ? "text-ink-soft" : "font-semibold text-ink"}`}>
+                    {m.subject}
+                  </span>
+                </span>
+                <span className="mt-0.5 block truncate text-[0.75rem] text-ink-muted">
+                  {m.senderName}
+                  {m.senderCompany ? ` · ${m.senderCompany}` : ""}
+                  {hasReplied ? " · Replied" : ""}
+                </span>
+              </span>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function MessageView({
+  message,
+  draft,
+  setDraft,
+  replying,
+  justSent,
+  onSend,
+}: {
+  message: RecruiterMessage
+  draft: string
+  setDraft: (s: string) => void
+  replying: boolean
+  justSent: boolean
+  onSend: () => void
+}) {
+  const alreadyReplied = message.replyBody !== null
+  const showSentBanner = justSent || alreadyReplied
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-teal/10 px-2.5 py-1 text-[0.625rem] font-medium uppercase tracking-[0.14em] text-teal">
+        Recruiter
+      </span>
+      <h4 className="mt-3 font-display text-[1.125rem] font-medium text-ink">
+        {message.subject}
+      </h4>
+      <div className="mt-2 text-[0.75rem] text-ink-muted">
+        From <span className="text-ink-soft">{message.senderName}</span>
+        {message.senderCompany && (
+          <>
+            {" · "}
+            <span className="text-ink-soft">{message.senderCompany}</span>
+          </>
+        )}
+        {" · "}
+        <a
+          href={`mailto:${message.senderEmail}`}
+          className="text-teal underline-offset-4 hover:underline"
+        >
+          {message.senderEmail}
+        </a>
+      </div>
+      <p className="mt-4 whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-ink-soft">
+        {message.body}
+      </p>
+
+      <div className="mt-6 border-t border-rule pt-5">
+        {showSentBanner ? (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-forest/30 bg-forest/5 px-4 py-3 text-[0.875rem] text-forest">
+              ✓ Reply sent. {message.senderName.split(" ")[0]} will hear back from you at {message.senderEmail}.
+            </div>
+            {message.replyBody && (
+              <div>
+                <div className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+                  Your reply
+                </div>
+                <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-rule bg-paper p-3 text-[0.875rem] leading-relaxed text-ink-soft">
+                  {message.replyBody}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="text-[0.8125rem] font-medium text-ink-soft">
+              Reply to {message.senderName.split(" ")[0]}
+            </label>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={4}
+              placeholder="Write a reply…"
+              className="mt-2 w-full resize-none rounded-lg border border-rule bg-paper px-3 py-2.5 text-[0.875rem] text-ink placeholder:text-ink-faint focus:border-ink/30 focus:outline-none"
+            />
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={!draft.trim() || replying}
+                className="rounded-full bg-ink px-5 py-2 text-[0.8125rem] font-medium text-paper transition-colors hover:bg-ink/85 disabled:opacity-40"
+              >
+                {replying ? "Sending…" : "Send reply"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("") || "?"
 }

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import type { RecruitResults } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
+import { ReachOutModal } from "@/components/recruit/reach-out-modal"
 
 const SCORE_OPTIONS = [
   { value: "0", label: "Any score" },
@@ -40,6 +41,10 @@ function RecruitInner() {
   const [data, setData] = useState<RecruitResults | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [outreachTarget, setOutreachTarget] = useState<
+    | { address: string; label: string; context: string }
+    | null
+  >(null)
 
   const fetchResults = useCallback(async () => {
     setLoading(true)
@@ -83,9 +88,13 @@ function RecruitInner() {
   }, [data, curriculumSlug, minScore, withinDays])
 
   return (
-    <main className="min-h-screen bg-paper">
-      <Header />
-      <div className="mx-auto w-[min(1180px,94vw)] py-12">
+    <div className="mx-auto w-[min(1180px,94vw)] py-10">
+      <div className="flex items-center justify-end">
+        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
+          Recruiter portal
+        </span>
+      </div>
+      <div className="mt-8">
         <div className="max-w-2xl">
           <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-teal">
             Verifiable talent layer
@@ -174,6 +183,23 @@ function RecruitInner() {
               </div>
             )}
 
+            {!error && loading && !data && (
+              <ul className="mt-2 divide-y divide-rule/60">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <li key={i} className="flex items-center justify-between gap-4 py-4">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-rule/50" />
+                      <div className="space-y-2">
+                        <div className="h-3 w-40 animate-pulse rounded bg-rule/50" />
+                        <div className="h-2.5 w-28 animate-pulse rounded bg-rule/40" />
+                      </div>
+                    </div>
+                    <div className="h-6 w-14 animate-pulse rounded-full bg-rule/40" />
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {!error && data && data.candidates.length === 0 && (
               <div className="mt-12 rounded-md border border-rule bg-surface p-10 text-center">
                 <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
@@ -244,6 +270,21 @@ function RecruitInner() {
                             })}
                           </div>
                         </div>
+                        {c.studentAddress && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOutreachTarget({
+                                address: c.studentAddress!,
+                                label: c.studentInitials || "this candidate",
+                                context: c.curriculumTitle,
+                              })
+                            }
+                            className="rounded-full bg-ink px-3 py-1.5 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-paper transition-colors hover:bg-ink/85"
+                          >
+                            reach out
+                          </button>
+                        )}
                         <Link
                           href={`/verify/${c.txHash}`}
                           className="rounded-full border border-rule bg-paper px-3 py-1.5 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-ink-soft transition-colors hover:border-ink/40 hover:text-ink"
@@ -259,26 +300,15 @@ function RecruitInner() {
           </section>
         </div>
       </div>
-    </main>
-  )
-}
 
-function Header() {
-  return (
-    <header className="border-b border-rule bg-surface">
-      <div className="mx-auto flex h-14 w-[min(1180px,94vw)] items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-[0.9375rem] font-medium tracking-tight text-ink"
-        >
-          <span className="inline-block h-2 w-2 rounded-full bg-teal" />
-          Proof-of-Learn
-        </Link>
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
-          Recruiter portal
-        </span>
-      </div>
-    </header>
+      <ReachOutModal
+        open={outreachTarget !== null}
+        onClose={() => setOutreachTarget(null)}
+        recipientAddress={outreachTarget?.address ?? ""}
+        recipientLabel={outreachTarget?.label ?? ""}
+        contextHint={outreachTarget?.context}
+      />
+    </div>
   )
 }
 

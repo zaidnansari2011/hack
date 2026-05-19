@@ -34,6 +34,7 @@ model User {
   quizSessions   QuizSession[]
   payouts        Payout[]
   chatMessages   ChatMessage[]
+  recruiterMessages RecruiterMessage[]
 }
 
 model StudentProfile {
@@ -115,6 +116,10 @@ enum BountyStatus {
 
 model Bounty {
   id                String        @id @default(uuid())
+  // Human-readable URL key. Used in routes like /learn/<slug> so students
+  // see "rupeenest-finance-basics" instead of a raw UUID. The DB primary
+  // key stays the UUID; slug is just a sugar lookup column.
+  slug              String        @unique
   sponsorId         String
   sponsor           Sponsor       @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
   curriculumId      String
@@ -287,4 +292,34 @@ model ChatMessage {
 
   @@index([enrollmentId, createdAt])
   @@index([enrollmentId, sessionIndex])
+}
+
+// ─── Recruiter outreach ──────────────────────────────────────────
+// A recruiter on the public /recruit page (no auth required) sends a
+// candidate an outreach message. We store one row per outreach with the
+// student's reply attached inline — simple enough for a hackathon, no
+// thread table needed. The recipient is resolved at send time via the
+// student's on-chain address (matched against OnchainProof.studentAddress).
+model RecruiterMessage {
+  id              String    @id @default(uuid())
+  recipientUserId String
+  recipient       User      @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  // The wallet address the recruiter clicked to start the outreach. Stored
+  // for audit / display even though we resolve to a userId on send.
+  recipientAddress String
+  senderName      String
+  senderEmail     String
+  senderCompany   String?
+  subject         String
+  body            String
+  // Read state on the student side.
+  readAt          DateTime?
+  // Inline reply. We don't expose the recruiter inbox in this app (they
+  // have no account), so a single reply per outreach is plenty for the
+  // demo loop. Future: ship the reply by email and allow multi-turn.
+  replyBody       String?
+  repliedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([recipientUserId, createdAt])
 }
