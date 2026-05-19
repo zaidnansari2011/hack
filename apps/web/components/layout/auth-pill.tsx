@@ -4,24 +4,50 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import type { AuthResponse, AuthUser, DemoAccount } from "@pol/shared"
 
+import { ApiClientError, apiFetch } from "@/lib/api"
 import { authStore } from "@/lib/auth-store"
 import { useAuth } from "@/lib/use-auth"
 import { cn } from "@/lib/utils"
+import { toast } from "@/components/ui/toast"
 
 type ActiveModal = "edit-profile" | "contact" | null
+type DropdownView = "menu" | "switch"
 
-const SPONSOR_LINKS = [
+type DropdownLink = { href: string; label: string }
+
+// Every seeded account uses this password. We hardcode it here so the
+// account switcher works in one tap; the API still validates on every
+// /auth/login call so this is no different from a regular login.
+const DEMO_PASSWORD = "demo1234"
+
+const SPONSOR_LINKS: readonly DropdownLink[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/bounties/new", label: "New bounty" },
+  { href: "/dashboard?new=1", label: "New bounty" },
+  { href: "/recruit", label: "Find talent" },
+] as const
+
+const STUDENT_LINKS: readonly DropdownLink[] = [
+  { href: "/learn", label: "Dashboard" },
+  { href: "/history", label: "History" },
+  { href: "/payouts", label: "Earnings" },
 ] as const
 
 export function AuthPill() {
   const router = useRouter()
   const { user, hydrated } = useAuth()
   const [open, setOpen] = useState(false)
+  const [view, setView] = useState<DropdownView>("menu")
   const [modal, setModal] = useState<ActiveModal>(null)
   const wrapRef = useRef<HTMLDivElement | null>(null)
+
+  // Accounts loaded lazily the first time the user opens the switcher.
+  // We keep them around in component state so re-opening doesn't re-fetch.
+  const [accounts, setAccounts] = useState<DemoAccount[] | null>(null)
+  const [accountsError, setAccountsError] = useState(false)
+  const [switchingEmail, setSwitchingEmail] = useState<string | null>(null)
+  const [switchError, setSwitchError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -31,6 +57,40 @@ export function AuthPill() {
     window.addEventListener("mousedown", onClick)
     return () => window.removeEventListener("mousedown", onClick)
   }, [open])
+
+  // Reset the dropdown back to the main menu whenever it closes so the
+  // next open doesn't pop straight into the switcher.
+  useEffect(() => {
+    if (!open) {
+      setView("menu")
+      setSwitchError(null)
+    }
+  }, [open])
+
+  // Lazy-load demo accounts the first time the switcher is opened. We
+  // pass `token: null` because this endpoint is public and we don't want
+  // the 401 handler to bounce on a missing token (it never would here,
+  // but the explicit opt-out keeps intent clear).
+  useEffect(() => {
+    if (view !== "switch") return
+    if (accounts !== null) return
+    let cancelled = false
+    apiFetch<{ accounts: DemoAccount[] }>("/auth/demo-accounts", {
+      token: null,
+    })
+      .then(({ accounts }) => {
+        if (!cancelled) setAccounts(accounts)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAccounts([])
+          setAccountsError(true)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [view, accounts])
 
   if (!hydrated) {
     return <div className="h-9 w-28 animate-pulse rounded-full bg-rule/50" />
@@ -59,6 +119,37 @@ export function AuthPill() {
   const openModal = (m: ActiveModal) => {
     setOpen(false)
     setModal(m)
+  }
+
+  async function switchToAccount(account: DemoAccount) {
+    if (account.email === user!.email) return
+    setSwitchError(null)
+    setSwitchingEmail(account.email)
+    try {
+      const data = await apiFetch<AuthResponse>("/auth/login", {
+        method: "POST",
+        json: { email: account.email, password: DEMO_PASSWORD },
+        token: null,
+      })
+      authStore.set(data.user, data.token)
+      setOpen(false)
+      setView("menu")
+      toast.success(
+        `Signed in as ${data.user.name}`,
+        data.user.role === "sponsor"
+          ? "Taking you to the sponsor dashboard."
+          : "Taking you to the student dashboard.",
+      )
+      router.push(data.user.role === "sponsor" ? "/dashboard" : "/learn")
+    } catch (err) {
+      setSwitchError(
+        err instanceof ApiClientError
+          ? err.message
+          : "Could not switch account",
+      )
+    } finally {
+      setSwitchingEmail(null)
+    }
   }
 
   return (
@@ -90,66 +181,128 @@ export function AuthPill() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute right-0 top-[calc(100%+10px)] z-50 w-64 overflow-hidden rounded-md border border-rule bg-surface shadow-[0_24px_48px_-22px_hsl(var(--ink)/0.25)]"
+              className="absolute right-0 top-[calc(100%+10px)] z-50 w-72 overflow-hidden rounded-md border border-rule bg-surface shadow-[0_24px_48px_-22px_hsl(var(--ink)/0.25)]"
             >
-              <div className="border-b border-rule-soft px-4 py-3.5">
-                <div className="eyebrow eyebrow-tick text-[0.625rem]">{user.role}</div>
-                <div className="mt-1 truncate font-display text-[0.9375rem] font-medium text-ink">
-                  {user.name}
-                </div>
-                <div className="truncate font-mono text-[0.6875rem] text-ink-faint">
-                  {user.email}
-                </div>
-              </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {view === "menu" ? (
+                  <motion.div
+                    key="menu"
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8 }}
+                    transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <div className="border-b border-rule-soft px-4 py-3.5">
+                      <div className="eyebrow eyebrow-tick text-[0.625rem]">
+                        {user.role}
+                      </div>
+                      <div className="mt-1 truncate font-display text-[0.9375rem] font-medium text-ink">
+                        {user.name}
+                      </div>
+                      <div className="truncate font-mono text-[0.6875rem] text-ink-faint">
+                        {user.email}
+                      </div>
+                    </div>
 
-              <div className="p-1.5">
-                {user.role === "sponsor" ? (
-                  SPONSOR_LINKS.map((l) => (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      onClick={() => setOpen(false)}
-                      className="flex items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
-                    >
-                      <span>{l.label}</span>
-                      <span className="text-ink-faint">→</span>
-                    </Link>
-                  ))
+                    <div className="p-1.5">
+                      {(user.role === "sponsor" ? SPONSOR_LINKS : STUDENT_LINKS).map(
+                        (l) => (
+                          <Link
+                            key={l.href}
+                            href={l.href}
+                            onClick={() => setOpen(false)}
+                            className="flex items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
+                          >
+                            <span>{l.label}</span>
+                            <span className="text-ink-faint">→</span>
+                          </Link>
+                        ),
+                      )}
+                    </div>
+
+                    <div className="border-t border-rule-soft p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setView("switch")}
+                        className="flex w-full items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <SwapIcon className="h-3 w-3 text-ink-faint" />
+                          Switch account
+                        </span>
+                        <span className="text-ink-faint">→</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openModal("edit-profile")}
+                        className="flex w-full items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
+                      >
+                        <span>Edit profile</span>
+                        <span className="text-ink-faint">→</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openModal("contact")}
+                        className="flex w-full items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
+                      >
+                        <span>Contact</span>
+                        <span className="text-ink-faint">→</span>
+                      </button>
+                    </div>
+
+                    <div className="border-t border-rule-soft p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          authStore.clear()
+                          setOpen(false)
+                          router.push("/")
+                        }}
+                        className="block w-full rounded-sm px-3 py-2 text-left text-[0.875rem] text-ink-muted transition-colors hover:bg-paper-deep hover:text-ink"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </motion.div>
                 ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => openModal("edit-profile")}
-                      className="flex w-full items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
-                    >
-                      <span>Edit profile</span>
-                      <span className="text-ink-faint">→</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openModal("contact")}
-                      className="flex w-full items-center justify-between rounded-sm px-3 py-2 text-[0.875rem] text-ink-soft transition-colors hover:bg-paper-deep hover:text-ink"
-                    >
-                      <span>Contact</span>
-                      <span className="text-ink-faint">→</span>
-                    </button>
-                  </>
-                )}
-              </div>
+                  <motion.div
+                    key="switch"
+                    initial={{ opacity: 0, x: 8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 8 }}
+                    transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <div className="flex items-center gap-2 border-b border-rule-soft px-3 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setView("menu")}
+                        disabled={switchingEmail !== null}
+                        className="grid h-7 w-7 place-items-center rounded-full text-ink-faint transition-colors hover:bg-paper-deep hover:text-ink disabled:opacity-50"
+                        aria-label="Back to menu"
+                      >
+                        ←
+                      </button>
+                      <div className="min-w-0">
+                        <div className="eyebrow eyebrow-tick text-[0.625rem]">
+                          Switch account
+                        </div>
+                        <div className="mt-0.5 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+                          one tap · no logout needed
+                        </div>
+                      </div>
+                    </div>
 
-              <div className="border-t border-rule-soft p-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    authStore.clear()
-                    setOpen(false)
-                    router.push("/")
-                  }}
-                  className="block w-full rounded-sm px-3 py-2 text-left text-[0.875rem] text-ink-muted transition-colors hover:bg-paper-deep hover:text-ink"
-                >
-                  Sign out
-                </button>
-              </div>
+                    <SwitcherList
+                      accounts={accounts}
+                      accountsError={accountsError}
+                      currentEmail={user.email}
+                      switchingEmail={switchingEmail}
+                      switchError={switchError}
+                      onPick={switchToAccount}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
@@ -158,6 +311,182 @@ export function AuthPill() {
       <EditProfileModal user={user} open={modal === "edit-profile"} onClose={() => setModal(null)} />
       <ContactModal open={modal === "contact"} onClose={() => setModal(null)} />
     </>
+  )
+}
+
+function SwitcherList({
+  accounts,
+  accountsError,
+  currentEmail,
+  switchingEmail,
+  switchError,
+  onPick,
+}: {
+  accounts: DemoAccount[] | null
+  accountsError: boolean
+  currentEmail: string
+  switchingEmail: string | null
+  switchError: string | null
+  onPick: (a: DemoAccount) => void
+}) {
+  if (accounts === null) {
+    return (
+      <div className="space-y-1 p-1.5">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-12 animate-pulse rounded-sm border border-rule bg-paper-deep/40"
+          />
+        ))}
+      </div>
+    )
+  }
+
+  const others = accounts.filter((a) => a.email !== currentEmail)
+  const sponsors = others.filter((a) => a.role === "sponsor")
+  const students = others.filter((a) => a.role === "student")
+
+  return (
+    <div className="max-h-[360px] overflow-y-auto">
+      {accountsError && (
+        <div className="mx-3 my-2 border-l-2 border-amber bg-amber/5 px-3 py-2 text-[0.75rem] leading-relaxed text-amber">
+          Couldn&rsquo;t reach the server. Try again in a moment.
+        </div>
+      )}
+      {others.length === 0 && !accountsError && (
+        <div className="px-4 py-6 text-center text-[0.8125rem] text-ink-muted">
+          No other demo accounts available.
+        </div>
+      )}
+      {switchError && (
+        <div className="mx-3 my-2 border-l-2 border-terracotta bg-terracotta/5 px-3 py-2 text-[0.75rem] leading-relaxed text-terracotta">
+          {switchError}
+        </div>
+      )}
+      {sponsors.length > 0 && (
+        <AccountSection
+          title="Sponsors"
+          count={sponsors.length}
+          accounts={sponsors}
+          switchingEmail={switchingEmail}
+          onPick={onPick}
+        />
+      )}
+      {students.length > 0 && (
+        <AccountSection
+          title="Students"
+          count={students.length}
+          accounts={students}
+          switchingEmail={switchingEmail}
+          onPick={onPick}
+        />
+      )}
+      <div className="border-t border-rule-soft px-4 py-2 text-center font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ink-faint">
+        password · demo1234
+      </div>
+    </div>
+  )
+}
+
+function AccountSection({
+  title,
+  count,
+  accounts,
+  switchingEmail,
+  onPick,
+}: {
+  title: string
+  count: number
+  accounts: DemoAccount[]
+  switchingEmail: string | null
+  onPick: (a: DemoAccount) => void
+}) {
+  return (
+    <div className="border-b border-rule-soft last:border-b-0">
+      <div className="flex items-baseline gap-2 px-4 pb-1 pt-3">
+        <h3 className="font-mono text-[0.5625rem] font-semibold uppercase tracking-[0.22em] text-ink-soft">
+          {title}
+        </h3>
+        <span className="font-mono text-[0.5625rem] text-ink-faint">
+          {count}
+        </span>
+      </div>
+      <div className="p-1.5 pt-0">
+        {accounts.map((a) => {
+          const isSwitching = switchingEmail === a.email
+          const anySwitching = switchingEmail !== null
+          return (
+            <button
+              key={a.email}
+              type="button"
+              disabled={anySwitching}
+              onClick={() => onPick(a)}
+              className={cn(
+                "group flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 text-left transition-colors disabled:cursor-not-allowed",
+                isSwitching
+                  ? "bg-teal-soft/40"
+                  : "hover:bg-paper-deep",
+                anySwitching && !isSwitching && "opacity-50",
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[0.875rem] font-medium text-ink">
+                  {a.name}
+                </div>
+                <div className="truncate font-mono text-[0.6875rem] text-ink-faint">
+                  {a.email}
+                </div>
+              </div>
+              {isSwitching ? (
+                <SpinnerDots />
+              ) : (
+                <span className="shrink-0 text-[0.6875rem] text-ink-faint transition-colors group-hover:text-ink-soft">
+                  →
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function SwapIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 5h9l-2-2" />
+      <path d="M13 11H4l2 2" />
+    </svg>
+  )
+}
+
+function SpinnerDots() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5" aria-label="Switching…">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="h-1 w-1 rounded-full bg-teal"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{
+            duration: 0.9,
+            repeat: Infinity,
+            delay: i * 0.15,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </span>
   )
 }
 
@@ -228,7 +557,7 @@ function EditProfileModal({
   open,
   onClose,
 }: {
-  user: { name: string; email: string }
+  user: AuthUser
   open: boolean
   onClose: () => void
 }) {

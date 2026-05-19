@@ -61,7 +61,7 @@ export default function SignupPage() {
   return (
     <AuthCard
       title="Create your account"
-      subtitle="Let's get you started. Tell us how you'll use Proof-of-Learn."
+      subtitle="Let's get you started. Tell us how you'll use EduPay."
       footer={
         <>
           Already have an account?{" "}
