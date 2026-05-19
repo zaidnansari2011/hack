@@ -7,11 +7,12 @@ import type {
   ChatMessage,
   CheckQuestion,
   EnrollmentDetail,
+  TutorFormat,
   TutorLanguage,
   TutorPersona,
 } from "@pol/shared"
 
-import { ApiClientError, apiFetch } from "@/lib/api"
+import { ApiClientError, apiFetch, apiStream } from "@/lib/api"
 import { ease } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 import {
@@ -37,10 +38,68 @@ const LANG_VERB: Record<TutorLanguage, string> = {
   ta: "தமிழில் பதிலளிக்கும்",
   te: "తెలుగులో సమాధానం",
 }
-// One consistent tutor voice. We deliberately don't expose persona
-// switching anymore — a single steady "mentor" keeps replies consistent
-// and on the course's key topics instead of drifting in style.
-const TUTOR_PERSONA: TutorPersona = "mentor"
+const LANG_NAMES_EN: Record<TutorLanguage, string> = {
+  en: "English",
+  hi: "Hindi",
+  ta: "Tamil",
+  te: "Telugu",
+}
+// Default tutor voice. Students can flip to "socratic" from the settings
+// modal: same RAG + same curriculum, but the tutor refuses to state
+// answers and only asks leading questions, so the learner reasons their
+// way there. Choice is persisted to localStorage.
+const DEFAULT_PERSONA: TutorPersona = "mentor"
+const PERSONA_LABELS: Record<TutorPersona, string> = {
+  mentor: "Mentor",
+  examiner: "Examiner",
+  coach: "Coach",
+  socratic: "Socratic",
+}
+const PERSONA_BLURBS: Record<TutorPersona, string> = {
+  mentor: "Warm, patient explanations with examples and follow-up questions.",
+  examiner: "Precise, definition-led, treats every answer like it's being graded.",
+  coach: "High-energy, momentum-first, celebrates small wins.",
+  socratic: "Never gives the answer outright. Asks leading questions so you derive it yourself.",
+}
+
+// Response shape preference. Independent of persona: a Coach can answer in
+// Bullets or Prose, same voice, different layout. Persisted to localStorage.
+const DEFAULT_FORMAT: TutorFormat = "prose"
+const FORMAT_LABELS: Record<TutorFormat, string> = {
+  prose: "Prose",
+  bullets: "Bullets",
+  examples: "Examples-first",
+  brief: "Brief",
+}
+const FORMAT_BLURBS: Record<TutorFormat, string> = {
+  prose: "Conversational paragraphs. The default.",
+  bullets: "Tight bulleted lists you can scan.",
+  examples: "Lead with a concrete example, then the concept.",
+  brief: "Direct answer in 3 sentences, no fluff.",
+}
+
+// Unicode ranges for the Indic scripts we support. Used to heuristically
+// detect what language an already-persisted tutor reply is in, since the
+// backend doesn't store a language tag on each message. The threshold of
+// 10 characters filters out incidental English text in a Hindi reply
+// (e.g. a stray "function" or "smart contract" inside Devanagari prose).
+const SCRIPT_RANGES: Record<Exclude<TutorLanguage, "en">, RegExp> = {
+  hi: /[ऀ-ॿ]/g,
+  ta: /[஀-௿]/g,
+  te: /[ఀ-౿]/g,
+}
+
+function messageMatchesLanguage(text: string, lang: TutorLanguage): boolean {
+  if (lang === "en") {
+    // Treat as English when the content has no meaningful chunk of Indic
+    // script. Tiny embedded fragments don't count; an actual Hindi/Tamil/
+    // Telugu reply will have many.
+    const indic = text.match(/[ऀ-ॿ஀-௿ఀ-౿]/g)
+    return !indic || indic.length < 10
+  }
+  const matches = text.match(SCRIPT_RANGES[lang])
+  return !!matches && matches.length >= 10
+}
 
 // ─── Code sandbox languages ───────────────────────────────────────────────────
 
@@ -48,57 +107,79 @@ type CodeLang =
   | "python" | "javascript" | "typescript" | "java" | "cpp" | "c"
   | "go" | "rust" | "kotlin" | "swift" | "ruby" | "sql"
 
+// `piston` is the language id we send to the Piston public sandbox
+// (https://emkc.org/api/v2/piston). `indent` is what Tab inserts; `comment`
+// is the line-comment prefix Ctrl+/ toggles.
 const LANGUAGES: {
-  id: CodeLang; label: string; fence: string; runHint: string; starter: string
+  id: CodeLang
+  label: string
+  fence: string
+  runHint: string
+  starter: string
+  piston: string | null
+  indent: string
+  comment: string
 }[] = [
   {
     id: "python", label: "Python", fence: "python", runHint: "python solution.py",
     starter: `def solution():\n    # write your code here\n    pass\n\nprint(solution())\n`,
+    piston: "python", indent: "    ", comment: "# ",
   },
   {
     id: "javascript", label: "JavaScript", fence: "javascript", runHint: "node solution.js",
     starter: `function solution() {\n  // write your code here\n}\n\nconsole.log(solution());\n`,
+    piston: "javascript", indent: "  ", comment: "// ",
   },
   {
     id: "typescript", label: "TypeScript", fence: "typescript", runHint: "ts-node solution.ts",
     starter: `function solution(): void {\n  // write your code here\n}\n\nsolution();\n`,
+    piston: "typescript", indent: "  ", comment: "// ",
   },
   {
     id: "java", label: "Java", fence: "java", runHint: "javac Solution.java && java Solution",
     starter: `public class Solution {\n    public static void main(String[] args) {\n        // write your code here\n    }\n}\n`,
+    piston: "java", indent: "    ", comment: "// ",
   },
   {
     id: "cpp", label: "C++", fence: "cpp", runHint: "g++ -o sol solution.cpp && ./sol",
     starter: `#include <iostream>\nusing namespace std;\n\nint main() {\n    // write your code here\n    return 0;\n}\n`,
+    piston: "c++", indent: "    ", comment: "// ",
   },
   {
     id: "c", label: "C", fence: "c", runHint: "gcc -o sol solution.c && ./sol",
     starter: `#include <stdio.h>\n\nint main() {\n    // write your code here\n    return 0;\n}\n`,
+    piston: "c", indent: "    ", comment: "// ",
   },
   {
     id: "go", label: "Go", fence: "go", runHint: "go run solution.go",
     starter: `package main\n\nimport "fmt"\n\nfunc main() {\n    // write your code here\n    fmt.Println("hello")\n}\n`,
+    piston: "go", indent: "\t", comment: "// ",
   },
   {
     id: "rust", label: "Rust", fence: "rust", runHint: "rustc solution.rs && ./solution",
     starter: `fn main() {\n    // write your code here\n    println!("hello, world!");\n}\n`,
+    piston: "rust", indent: "    ", comment: "// ",
   },
   {
     id: "kotlin", label: "Kotlin", fence: "kotlin",
     runHint: "kotlinc solution.kt -include-runtime -d sol.jar && java -jar sol.jar",
     starter: `fun main() {\n    // write your code here\n    println("hello")\n}\n`,
+    piston: "kotlin", indent: "    ", comment: "// ",
   },
   {
     id: "swift", label: "Swift", fence: "swift", runHint: "swift solution.swift",
     starter: `import Foundation\n\n// write your code here\nprint("hello, world!")\n`,
+    piston: "swift", indent: "    ", comment: "// ",
   },
   {
     id: "ruby", label: "Ruby", fence: "ruby", runHint: "ruby solution.rb",
     starter: `# write your code here\ndef solution\n  # ...\nend\n\np solution\n`,
+    piston: "ruby", indent: "  ", comment: "# ",
   },
   {
     id: "sql", label: "SQL", fence: "sql", runHint: "psql -f solution.sql",
     starter: `-- write your query here\nSELECT *\nFROM table_name\nWHERE condition;\n`,
+    piston: "sqlite3", indent: "  ", comment: "-- ",
   },
 ]
 
@@ -156,58 +237,110 @@ function recommendedLangs(curriculum: EnrollmentDetail["curriculum"]): CodeLang[
   return [primary, ...Array.from(found).filter((l) => l !== primary)]
 }
 
-// A best-effort, offline "interpreter" for the IDE terminal. We don't run
-// code on a server — instead we scan for the common print/log calls in each
-// language and echo their string-literal arguments, which is enough to make
-// the terminal feel real for teaching exercises.
-function simulateRun(lang: CodeLang, code: string): string[] {
-  const out: string[] = []
-  const pushLiteral = (raw: string) => {
-    const m = raw.match(/^\s*(["'`])([\s\S]*?)\1\s*$/)
-    out.push(m ? m[2] : raw.trim())
+// Executes student code in the Piston public sandbox
+// (https://github.com/engineer-man/piston). We send `version: "*"` to let
+// Piston pick the latest installed runtime for each language. Returns the
+// combined stdout/stderr lines and an exit-code suffix the terminal renders.
+// Network failures fall back to a friendly message instead of crashing the UI.
+const PISTON_URL = "https://emkc.org/api/v2/piston/execute"
+
+type RunResult = { lines: string[]; ok: boolean }
+
+async function runViaPiston(
+  lang: CodeLang,
+  code: string,
+  stdin: string,
+): Promise<RunResult> {
+  const ld = langById(lang)
+  if (!ld.piston) {
+    return {
+      lines: [`Run is not wired up for ${ld.label} yet.`],
+      ok: false,
+    }
   }
-  const grab = (re: RegExp) => {
-    let m: RegExpExecArray | null
-    while ((m = re.exec(code)) !== null) pushLiteral(m[1])
+  const ext = LANG_EXT[lang]
+  // Java is the one language Piston pins to a class-named file. Our starter
+  // declares `public class Solution`, so we name the file accordingly.
+  const fileName = lang === "java" ? `Solution.${ext}` : `solution.${ext}`
+  try {
+    const res = await fetch(PISTON_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language: ld.piston,
+        version: "*",
+        files: [{ name: fileName, content: code }],
+        stdin,
+        compile_timeout: 10000,
+        run_timeout: 5000,
+      }),
+    })
+    if (!res.ok) {
+      return {
+        lines: [`Sandbox returned HTTP ${res.status}. Try again in a moment.`],
+        ok: false,
+      }
+    }
+    const data = (await res.json()) as {
+      run?: { stdout?: string; stderr?: string; output?: string; code?: number; signal?: string | null }
+      compile?: { stdout?: string; stderr?: string; output?: string; code?: number }
+      message?: string
+    }
+    if (data.message) {
+      return { lines: [`Sandbox: ${data.message}`], ok: false }
+    }
+    const lines: string[] = []
+    const compileErr = (data.compile?.stderr ?? "").trim()
+    if (compileErr) {
+      lines.push("— compile error —")
+      lines.push(...compileErr.split("\n"))
+    }
+    const stdout = (data.run?.stdout ?? "").trim()
+    const stderr = (data.run?.stderr ?? "").trim()
+    if (stdout) lines.push(...stdout.split("\n"))
+    if (stderr) {
+      if (stdout) lines.push("— stderr —")
+      lines.push(...stderr.split("\n"))
+    }
+    const exit = data.run?.code ?? 0
+    const signal = data.run?.signal
+    if (lines.length === 0) {
+      lines.push(`Program finished with no output (exit ${exit})`)
+    } else {
+      lines.push(`— exit ${exit}${signal ? ` · signal ${signal}` : ""} —`)
+    }
+    return { lines, ok: exit === 0 && !compileErr }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown error"
+    return {
+      lines: [
+        "Could not reach the code sandbox.",
+        `(${msg})`,
+        "Check your connection — the sandbox runs at emkc.org/api/v2/piston.",
+      ],
+      ok: false,
+    }
   }
-  switch (lang) {
-    case "python":
-      grab(/print\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "javascript":
-    case "typescript":
-      grab(/console\.log\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "java":
-      grab(/System\.out\.print(?:ln)?\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "cpp":
-      grab(/cout\s*<<\s*([^;]+?)\s*(?:<<\s*endl)?\s*;/g)
-      break
-    case "c":
-      grab(/printf\s*\(\s*([^,)]*?)\s*[,)]/g)
-      break
-    case "go":
-      grab(/fmt\.Print(?:ln|f)?\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "rust":
-      grab(/println!\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "kotlin":
-      grab(/println\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "swift":
-      grab(/print\s*\(\s*([^)]*?)\s*\)/g)
-      break
-    case "ruby":
-      grab(/(?:puts|p)\s+(.+)/g)
-      break
-    case "sql":
-      out.push("(query parsed. Connect a database to see rows)")
-      break
+}
+
+// Map a fenced-code language tag (the bit after ``` in markdown) to one of
+// our editor language ids. Used by "Send to editor" buttons.
+function fenceToLang(fence: string): CodeLang | null {
+  const norm = fence.trim().toLowerCase()
+  const direct = LANGUAGES.find((l) => l.fence === norm || l.id === norm)
+  if (direct) return direct.id
+  switch (norm) {
+    case "py": return "python"
+    case "js": case "jsx": case "node": return "javascript"
+    case "ts": case "tsx": return "typescript"
+    case "c++": case "cxx": return "cpp"
+    case "golang": return "go"
+    case "rs": return "rust"
+    case "kt": return "kotlin"
+    case "rb": return "ruby"
+    case "postgres": case "postgresql": case "mysql": return "sql"
+    default: return null
   }
-  if (out.length === 0) out.push("Program finished with no output (exit 0)")
-  return out
 }
 
 // ─── Resize hook ──────────────────────────────────────────────────────────────
@@ -405,6 +538,20 @@ export function TutorChat({
   const [pendingCheck, setPendingCheck] = useState<{ question: CheckQuestion; submitting: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tutorLang, setTutorLang] = useState<TutorLanguage>("en")
+  const [tutorPersona, setTutorPersona] = useState<TutorPersona>(DEFAULT_PERSONA)
+  const [tutorFormat, setTutorFormat] = useState<TutorFormat>(DEFAULT_FORMAT)
+  // Id of the tutor message currently being streamed in via SSE. While
+  // non-null, the bubble for that id renders `liveTutorContent` instead of
+  // its (empty) entry in `messages`. This keeps the messages array stable
+  // during streaming, so framer-motion + every effect that keys off
+  // `messages` doesn't thrash on each token.
+  const [liveStreamingId, setLiveStreamingId] = useState<string | null>(null)
+  const [liveTutorContent, setLiveTutorContent] = useState("")
+  // Tokens accumulate into the ref synchronously; we flush to state on a
+  // rAF tick so re-renders cap out at the browser's frame rate, not at
+  // network packet rate.
+  const liveContentRef = useRef("")
+  const liveFlushScheduledRef = useRef(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [listening, setListening] = useState(false)
   const [speakReplies, setSpeakReplies] = useState(false)
@@ -435,6 +582,44 @@ export function TutorChat({
     for (const l of LANGUAGES) init[l.id] = l.starter
     return init
   })
+  // Hydrate persisted code + active language for this enrollment from
+  // localStorage. We hydrate inside an effect (not lazy useState init) so
+  // SSR markup matches client markup and we avoid hydration mismatches.
+  const codeStorageKey = `pol:code:${initialEnrollment.id}`
+  const codeLangStorageKey = `pol:code:${initialEnrollment.id}:lang`
+  const [codeHydrated, setCodeHydrated] = useState(false)
+  useEffect(() => {
+    if (typeof window === "undefined") { setCodeHydrated(true); return }
+    try {
+      const rawCodes = window.localStorage.getItem(codeStorageKey)
+      if (rawCodes) {
+        const parsed = JSON.parse(rawCodes) as Partial<Record<CodeLang, string>>
+        setCodes((prev) => {
+          const next = { ...prev }
+          for (const l of LANGUAGES) {
+            if (typeof parsed[l.id] === "string") next[l.id] = parsed[l.id] as string
+          }
+          return next
+        })
+      }
+      const savedLang = window.localStorage.getItem(codeLangStorageKey) as CodeLang | null
+      if (savedLang && LANGUAGES.some((l) => l.id === savedLang)) {
+        setCodeLang(savedLang)
+      }
+    } catch {
+      // Corrupt JSON or quota error — ignore and start fresh.
+    }
+    setCodeHydrated(true)
+  }, [codeStorageKey, codeLangStorageKey])
+  useEffect(() => {
+    if (!codeHydrated || typeof window === "undefined") return
+    try { window.localStorage.setItem(codeStorageKey, JSON.stringify(codes)) } catch { /* quota */ }
+  }, [codes, codeHydrated, codeStorageKey])
+  useEffect(() => {
+    if (!codeHydrated || typeof window === "undefined") return
+    try { window.localStorage.setItem(codeLangStorageKey, codeLang) } catch { /* quota */ }
+  }, [codeLang, codeHydrated, codeLangStorageKey])
+
   const codeText = codes[codeLang]
   const isCodeModified = codeText.trim() !== "" && codeText.trim() !== langById(codeLang).starter.trim()
 
@@ -442,22 +627,108 @@ export function TutorChat({
     setCodes((prev) => ({ ...prev, [lang]: text }))
   }
 
+  // Drop an AI-suggested code block into the editor: switch language, set
+  // the buffer for that language, and open the side panel if hidden. This is
+  // the wiring behind the "Send to editor" button on tutor code fences.
+  function sendCodeToEditor(lang: CodeLang, text: string) {
+    setCodes((prev) => ({ ...prev, [lang]: text }))
+    setCodeLang(lang)
+    setCodeOpen(true)
+  }
+
   // Tutor message ids that just arrived this session and should type in
   // (typewriter). Ids loaded from history are not in here, so they render
   // instantly instead of replaying on every session switch.
   const streamRef = useRef<Set<string>>(new Set())
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([])
+  const [voiceForLang, setVoiceForLang] = useState<Partial<Record<TutorLanguage, boolean>>>({})
+  // Id of the message whose audio is currently playing — used to flip the
+  // play button into a stop button and to allow tapping any other reply's
+  // play button to swap targets cleanly. `null` means nothing is speaking.
+  const [speakingId, setSpeakingId] = useState<string | null>(null)
+  const speakingIdRef = useRef<string | null>(null)
   const lastSpokenIdRef = useRef<string | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   // ── Persist prefs ──
+  // `langHydrated` flips true once we've finished restoring the saved
+  // language from localStorage; the re-teach watcher below uses it to skip
+  // the restore itself (which is a programmatic change, not a user one).
+  const [langHydrated, setLangHydrated] = useState(false)
+  const prevLangRef = useRef<TutorLanguage>("en")
   useEffect(() => {
     if (typeof window === "undefined") return
     const l = window.localStorage.getItem("pol:tutor:lang") as TutorLanguage | null
-    if (l && ["en", "hi", "ta", "te"].includes(l)) setTutorLang(l)
+    if (l && ["en", "hi", "ta", "te"].includes(l)) {
+      setTutorLang(l)
+      prevLangRef.current = l
+    }
+    setLangHydrated(true)
   }, [])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("pol:tutor:lang", tutorLang) }, [tutorLang])
+
+  // Hydrate + persist persona. Falls back to mentor on any unknown saved
+  // value so legacy "examiner"/"coach" strings still work after a future
+  // schema change.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const p = window.localStorage.getItem("pol:tutor:persona") as TutorPersona | null
+    if (p && (["mentor", "examiner", "coach", "socratic"] as TutorPersona[]).includes(p)) {
+      setTutorPersona(p)
+    }
+  }, [])
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem("pol:tutor:persona", tutorPersona)
+  }, [tutorPersona])
+
+  // Hydrate + persist response-shape preference. Same defensive parsing as
+  // persona: unknown saved values silently fall back to the prose default.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const f = window.localStorage.getItem("pol:tutor:format") as TutorFormat | null
+    if (f && (["prose", "bullets", "examples", "brief"] as TutorFormat[]).includes(f)) {
+      setTutorFormat(f)
+    }
+  }, [])
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem("pol:tutor:format", tutorFormat)
+  }, [tutorFormat])
+
+  // When the student changes the tutor language while inside a module's
+  // chat, transparently re-teach that module's lesson in the new language.
+  // The user's complaint: the first lesson in a chapter always loads in
+  // English, which is fine — but flipping the language setting should
+  // also flip that first lesson, not just future replies. We compare the
+  // most recent lesson by its script (not by metadata, since older lessons
+  // don't carry a language tag) so the check is self-healing across
+  // history. Free-form chat (sessionIndex 0) is skipped because there is
+  // no canonical lesson to regenerate; new turns in that chat already
+  // come back in the selected language via the existing send flow.
+  useEffect(() => {
+    if (!langHydrated) return
+    if (prevLangRef.current === tutorLang) return
+    prevLangRef.current = tutorLang
+    if (sessionIndex <= 0) return
+    const moduleIdx = sessionIndex - 1
+    // findLast: the most recently emitted lesson wins. If a student bounces
+    // EN → HI → EN, we should reteach back into English from the Hindi
+    // version, not get stuck because the *first* lesson is still English.
+    const recentLesson = [...messages]
+      .reverse()
+      .find(
+        (m) => m.meta?.kind === "lesson" && m.meta.moduleIndex === moduleIdx,
+      )
+    if (!recentLesson) return
+    if (messageMatchesLanguage(recentLesson.content, tutorLang)) return
+    teachModule(moduleIdx, { force: true })
+    // teachModule is stable enough; depending on it would re-fire this
+    // effect on every render of the parent and is not what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorLang, langHydrated, sessionIndex, messages])
 
   // ── Notes (localStorage, per enrollment) ──
   useEffect(() => {
@@ -497,6 +768,55 @@ export function TutorChat({
     })
   }, [])
 
+  // Load the synthesis voice catalog. Browsers populate this asynchronously;
+  // Chrome on Windows fires `voiceschanged` once the system voices finish
+  // loading, while Safari has them ready synchronously. We cache the catalog
+  // in a ref so `speak()` can pick a matching voice without re-querying, and
+  // mirror "do we have a voice for this language?" to state so the settings
+  // panel can warn the student when the OS lacks a Hindi/Tamil/Telugu voice.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return
+    const synth = window.speechSynthesis
+    const refresh = () => {
+      const list = synth.getVoices()
+      voicesRef.current = list
+      const support: Partial<Record<TutorLanguage, boolean>> = {}
+      ;(["en", "hi", "ta", "te"] as TutorLanguage[]).forEach((l) => {
+        support[l] = list.some((v) => v.lang.toLowerCase().startsWith(l))
+      })
+      setVoiceForLang(support)
+    }
+    refresh()
+    synth.addEventListener?.("voiceschanged", refresh)
+    return () => synth.removeEventListener?.("voiceschanged", refresh)
+  }, [])
+
+  // Stop any in-flight TTS when the chat unmounts. Without this, leaving
+  // the tutor mid-playback keeps the speech going on the next page.
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined") {
+        window.speechSynthesis?.cancel()
+      }
+    }
+  }, [])
+
+  // Pick the best available voice for a tutor language. Prefer an exact
+  // locale match (e.g. "hi-IN"), then any voice whose lang starts with the
+  // 2-letter prefix ("hi"). Returns null if the system has no matching
+  // voice — the caller can decide to surface a warning.
+  function pickVoiceFor(lang: TutorLanguage): SpeechSynthesisVoice | null {
+    const want = LANG_LOCALES[lang].toLowerCase()
+    const prefix = lang.toLowerCase()
+    const all = voicesRef.current
+    if (all.length === 0) return null
+    const exact = all.find((v) => v.lang.toLowerCase() === want)
+    if (exact) return exact
+    const byPrefix = all.find((v) => v.lang.toLowerCase().startsWith(prefix))
+    if (byPrefix) return byPrefix
+    return null
+  }
+
   // ── Auto-teach a module if requested by the parent overview page ──
   const autoTaughtRef = useRef(false)
   useEffect(() => {
@@ -511,16 +831,55 @@ export function TutorChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoTeachModuleIndex])
 
-  // Speak a single message on demand (hover play button). Always available
-  // regardless of the autoplay toggle.
-  function speak(text: string) {
+  // Speak (or stop) a single message. The play button on a reply calls this
+  // with the message's id, so tapping it again behaves as a toggle (stop)
+  // and tapping a *different* reply's button cleanly cancels the previous
+  // utterance before starting the new one. The autoplay path passes the
+  // synthetic id `auto` so its lifecycle still lives in the same state.
+  function speak(text: string, id: string = "auto") {
     if (typeof window === "undefined") return
     const synth = window.speechSynthesis
     if (!synth) return
+
+    // Toggle: tapping the same button that's currently playing stops it.
+    if (speakingIdRef.current === id) {
+      synth.cancel()
+      speakingIdRef.current = null
+      setSpeakingId(null)
+      return
+    }
+
     const utt = new SpeechSynthesisUtterance(stripMarkdown(text))
     utt.lang = LANG_LOCALES[tutorLang]
     utt.rate = 1.05
+    // Setting `utt.lang` alone is a hint browsers tend to ignore: most ship
+    // with only a handful of English voices, so without an explicit voice
+    // they read non-English text in an English voice (the symptom: "only
+    // the accent changes"). Picking a voice whose `.lang` matches the
+    // tutor language is the only reliable way to switch the actual TTS.
+    const voice = pickVoiceFor(tutorLang)
+    if (voice) {
+      utt.voice = voice
+    } else if (tutorLang !== "en") {
+      setError(
+        `Your device doesn't have a ${LANG_NAMES_EN[tutorLang]} text-to-speech voice installed. The reply will still be in ${LANG_NAMES_EN[tutorLang]}, but read aloud in the default voice.`,
+      )
+    }
+    // Clear `speakingId` whenever the utterance ends naturally OR is
+    // interrupted by the user clicking another play button. The ref guard
+    // protects against races: a stale `onend` from a cancelled utterance
+    // must not reset state belonging to a fresher one.
+    utt.onend = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = null
+        setSpeakingId(null)
+      }
+    }
+    utt.onerror = utt.onend
+
     synth.cancel()
+    speakingIdRef.current = id
+    setSpeakingId(id)
     synth.speak(utt)
   }
 
@@ -539,9 +898,24 @@ export function TutorChat({
   }, [messages, speakReplies, tutorLang])
 
   // ── Auto-scroll ──
+  // Track length only (not content of every message) so this doesn't fire
+  // on each rAF flush of live streaming text — that path uses its own
+  // dependency below to keep the viewport pinned to the bottom while the
+  // tutor types.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
   }, [messages.length, pending, lessonInFlight, pendingCheck])
+
+  // While the tutor is streaming, keep the viewport pinned to the bottom as
+  // tokens flow in. `behavior: "auto"` (no smooth) avoids fighting the
+  // browser when frames pile up; smooth scroll only on the initial paint
+  // above.
+  useEffect(() => {
+    if (!liveStreamingId) return
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [liveTutorContent, liveStreamingId])
 
   const isFirstTurn = messages.length === 0
   const suggestedPrompts = useMemo(
@@ -612,24 +986,93 @@ export function TutorChat({
       fullMessage += `\n\n[My current ${ld.label} code in the sandbox]\n\`\`\`${ld.fence}\n${codeText}\n\`\`\``
     }
 
-    const optimistic: ChatMessage = {
-      id: `tmp-${Date.now()}`, role: "user",
+    // Optimistic user bubble + empty tutor bubble. We do NOT mutate
+    // `messages` per token. Instead, tokens accumulate into `liveContentRef`
+    // and we flush to `liveTutorContent` state at most once per animation
+    // frame; the streaming bubble reads from that state. Two reasons:
+    //   1. `setMessages((prev) => prev.map(...))` per token allocates a new
+    //      array each call, which re-fires every effect/memo keyed on
+    //      `messages` and trips React's update-depth limiter under load.
+    //   2. Framer-motion's AnimatePresence runs a layout pass per messages
+    //      change, which is what makes the chat look fidgety while streaming.
+    const tempUserId = `tmp-u-${Date.now()}`
+    const tempTutorId = `tmp-t-${Date.now()}`
+    const userBubble: ChatMessage = {
+      id: tempUserId, role: "user",
       content: fullMessage, createdAt: new Date().toISOString(),
     }
-    setMessages((prev) => [...prev, optimistic])
+    const tutorBubble: ChatMessage = {
+      id: tempTutorId, role: "tutor",
+      content: "", createdAt: new Date().toISOString(),
+    }
+    liveContentRef.current = ""
+    liveFlushScheduledRef.current = false
+    setLiveTutorContent("")
+    setMessages((prev) => [...prev, userBubble, tutorBubble])
     setInput("")
     setPending(true)
-    try {
-      const res = await apiFetch<{ user: ChatMessage; tutor: ChatMessage }>("/tutor/messages", {
-        method: "POST",
-        json: { enrollmentId: initialEnrollment.id, message: fullMessage, lang: tutorLang, persona: TUTOR_PERSONA, sessionIndex },
+    setLiveStreamingId(tempTutorId)
+
+    // Schedule a single rAF flush per frame, no matter how many deltas
+    // arrive. This caps re-renders at the browser's frame rate (~60/s) and
+    // lets multiple tokens land in one paint.
+    const scheduleFlush = () => {
+      if (liveFlushScheduledRef.current) return
+      liveFlushScheduledRef.current = true
+      requestAnimationFrame(() => {
+        liveFlushScheduledRef.current = false
+        setLiveTutorContent(liveContentRef.current)
       })
-      streamRef.current.add(res.tutor.id)
-      setMessages((prev) => [...prev.filter((m) => m.id !== optimistic.id), res.user, res.tutor])
+    }
+
+    try {
+      const stream = apiStream("/tutor/stream", {
+        json: {
+          enrollmentId: initialEnrollment.id,
+          message: fullMessage,
+          lang: tutorLang,
+          persona: tutorPersona,
+          format: tutorFormat,
+          sessionIndex,
+        },
+      })
+
+      for await (const ev of stream) {
+        if (ev.event === "meta") {
+          // Swap the optimistic user bubble for the persisted one so its
+          // id matches what /history would return on reload.
+          const payload = JSON.parse(ev.data) as { user: ChatMessage }
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempUserId ? payload.user : m)),
+          )
+        } else if (ev.event === "delta") {
+          const payload = JSON.parse(ev.data) as { text: string }
+          liveContentRef.current += payload.text
+          scheduleFlush()
+        } else if (ev.event === "done") {
+          const payload = JSON.parse(ev.data) as { tutor: ChatMessage }
+          // Replace the placeholder with the persisted tutor row so any
+          // citations / metadata are attached, and future actions key off
+          // the real id.
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempTutorId ? payload.tutor : m)),
+          )
+          setLiveStreamingId(null)
+          setLiveTutorContent("")
+          liveContentRef.current = ""
+        } else if (ev.event === "error") {
+          const payload = JSON.parse(ev.data) as { message?: string }
+          setError(payload.message || "Tutor stream failed")
+        }
+      }
     } catch (err) {
-      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
+      // Network failure: drop the placeholder bubbles so the user can retry.
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserId && m.id !== tempTutorId))
       setError(err instanceof ApiClientError ? err.message : "Could not reach the tutor")
     } finally {
+      setLiveStreamingId(null)
+      setLiveTutorContent("")
+      liveContentRef.current = ""
       setPending(false)
       inputRef.current?.focus()
     }
@@ -673,12 +1116,19 @@ export function TutorChat({
       }
 
       // Don't regenerate a lesson if one already exists in this module's
-      // chat. The student is just revisiting. Pass { force: true } to
-      // override (e.g. a future "re-teach this module" button).
-      const alreadyTaught = history.some(
+      // chat AND it's in the currently selected language. The latter clause
+      // matters: a student who first taught a module in English then
+      // switched to Hindi must get the lesson re-emitted in Hindi rather
+      // than reading the stale English version. We detect language by the
+      // script the lesson actually uses, not by metadata, so old lessons
+      // without a stored language tag are still handled correctly.
+      const existingLesson = history.find(
         (m) => m.meta?.kind === "lesson" && m.meta.moduleIndex === moduleIndex,
       )
-      if (alreadyTaught && !opts?.force) return
+      const alreadyTaught = !!existingLesson
+      const matchesLang =
+        !existingLesson || messageMatchesLanguage(existingLesson.content, tutorLang)
+      if (alreadyTaught && matchesLang && !opts?.force) return
 
       const res = await apiFetch<{ tutor: ChatMessage }>("/tutor/lesson", {
         method: "POST",
@@ -867,6 +1317,7 @@ export function TutorChat({
           enrollment={initialEnrollment}
           progressPct={progressPct}
           lang={tutorLang}
+          persona={tutorPersona}
           onOpenSettings={() => setSettingsOpen(true)}
           sessions={sessions}
           sessionIndex={sessionIndex}
@@ -904,10 +1355,14 @@ export function TutorChat({
                     message={m}
                     onCheck={startCheck}
                     onPrompt={send}
-                    onSpeak={speak}
+                    onSpeak={(text) => speak(text, m.id)}
                     canSpeak={voiceSupport.synthesis}
+                    isSpeaking={speakingId === m.id}
                     stream={streamRef.current.has(m.id)}
+                    live={liveStreamingId === m.id}
+                    liveContent={liveStreamingId === m.id ? liveTutorContent : undefined}
                     canCheck={m.meta?.kind === "lesson" && pendingCheck === null && lessonInFlight === null}
+                    onSendCode={sendCodeToEditor}
                   />
                 ))}
               </AnimatePresence>
@@ -963,6 +1418,15 @@ export function TutorChat({
               )}
             >
               <MicrophoneIcon className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => send("I'm stuck. Give me one specific hint to move me forward, but don't give me the full answer.")}
+              disabled={pending || lessonInFlight !== null}
+              title="Ask for a hint instead of typing"
+              className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-rule bg-surface text-ink-faint transition-colors hover:border-amber/40 hover:bg-amber/8 hover:text-amber disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-rule disabled:hover:bg-surface disabled:hover:text-ink-faint"
+            >
+              <LightBulbIcon className="h-4 w-4" />
             </button>
             <button
               type="submit"
@@ -1026,9 +1490,14 @@ export function TutorChat({
         onClose={() => setSettingsOpen(false)}
         lang={tutorLang}
         onLangChange={setTutorLang}
+        persona={tutorPersona}
+        onPersonaChange={setTutorPersona}
+        format={tutorFormat}
+        onFormatChange={setTutorFormat}
         speakReplies={speakReplies}
         onToggleSpeak={toggleSpeakReplies}
         synthesisSupported={voiceSupport.synthesis}
+        voiceForLang={voiceForLang}
       />
     </div>
   )
@@ -1039,17 +1508,27 @@ function SettingsModal({
   onClose,
   lang,
   onLangChange,
+  persona,
+  onPersonaChange,
+  format,
+  onFormatChange,
   speakReplies,
   onToggleSpeak,
   synthesisSupported,
+  voiceForLang,
 }: {
   open: boolean
   onClose: () => void
   lang: TutorLanguage
   onLangChange: (l: TutorLanguage) => void
+  persona: TutorPersona
+  onPersonaChange: (p: TutorPersona) => void
+  format: TutorFormat
+  onFormatChange: (f: TutorFormat) => void
   speakReplies: boolean
   onToggleSpeak: () => void
   synthesisSupported: boolean
+  voiceForLang: Partial<Record<TutorLanguage, boolean>>
 }) {
   useEffect(() => {
     if (!open) return
@@ -1097,22 +1576,121 @@ function SettingsModal({
                   The tutor replies and reads aloud in this language.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {(Object.keys(LANG_LABELS) as TutorLanguage[]).map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => onLangChange(l)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
-                        lang === l
-                          ? "border-ink bg-ink text-paper"
-                          : "border-rule bg-surface text-ink-soft hover:border-ink/30",
-                      )}
-                    >
-                      {LANG_LABELS[l]}
-                    </button>
-                  ))}
+                  {(Object.keys(LANG_LABELS) as TutorLanguage[]).map((l) => {
+                    const hasVoice = voiceForLang[l] === true
+                    return (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => onLangChange(l)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+                          lang === l
+                            ? "border-ink bg-ink text-paper"
+                            : "border-rule bg-surface text-ink-soft hover:border-ink/30",
+                        )}
+                        title={
+                          hasVoice
+                            ? `${LANG_LABELS[l]} voice available`
+                            : `${LANG_LABELS[l]} replies will be in text only; your device has no ${LANG_LABELS[l]} voice for read-aloud`
+                        }
+                      >
+                        <span>{LANG_LABELS[l]}</span>
+                        {synthesisSupported && !hasVoice && (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "text-[0.625rem]",
+                              lang === l ? "text-paper/60" : "text-ink-faint",
+                            )}
+                          >
+                            (no voice)
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
+                {synthesisSupported && lang !== "en" && voiceForLang[lang] === false && (
+                  <p className="mt-2 text-[0.75rem] leading-relaxed text-amber">
+                    Your device has no {LANG_NAMES_EN[lang]} text-to-speech voice. Replies still come back in {LANG_NAMES_EN[lang]}, but the read-aloud button falls back to the default English voice. On Windows you can add a voice via Settings → Time & Language → Speech.
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t border-rule pt-5">
+                <div className="text-[0.8125rem] font-medium text-ink-soft">Teaching style</div>
+                <p className="mt-0.5 text-[0.75rem] text-ink-muted">
+                  How the tutor talks to you. Same curriculum, different voice.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(Object.keys(PERSONA_LABELS) as TutorPersona[]).map((p) => {
+                    const active = persona === p
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => onPersonaChange(p)}
+                        title={PERSONA_BLURBS[p]}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+                          active
+                            ? "border-ink bg-ink text-paper"
+                            : "border-rule bg-surface text-ink-soft hover:border-ink/30",
+                        )}
+                      >
+                        <span>{PERSONA_LABELS[p]}</span>
+                        {p === "socratic" && (
+                          <span className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[0.5625rem] font-mono uppercase tracking-[0.15em]",
+                            active ? "bg-paper/15 text-paper/80" : "bg-teal-soft text-teal",
+                          )}>
+                            new
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-[0.75rem] leading-snug text-ink-muted">
+                  {PERSONA_BLURBS[persona]}
+                </p>
+                {persona === "socratic" && (
+                  <p className="mt-1.5 text-[0.75rem] leading-relaxed text-amber">
+                    Heads up: the tutor will not give answers outright in this mode. Expect leading questions back.
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t border-rule pt-5">
+                <div className="text-[0.8125rem] font-medium text-ink-soft">Response style</div>
+                <p className="mt-0.5 text-[0.75rem] text-ink-muted">
+                  How replies are shaped on the page.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(Object.keys(FORMAT_LABELS) as TutorFormat[]).map((f) => {
+                    const active = format === f
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => onFormatChange(f)}
+                        title={FORMAT_BLURBS[f]}
+                        className={cn(
+                          "inline-flex items-center rounded-full border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+                          active
+                            ? "border-ink bg-ink text-paper"
+                            : "border-rule bg-surface text-ink-soft hover:border-ink/30",
+                        )}
+                      >
+                        {FORMAT_LABELS[f]}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-[0.75rem] leading-snug text-ink-muted">
+                  {FORMAT_BLURBS[format]}
+                </p>
               </div>
 
               <div className="border-t border-rule pt-5">
@@ -1332,7 +1910,7 @@ function ConfirmClearModal({
 // ─── ChatHeader ───────────────────────────────────────────────────────────────
 
 function ChatHeader({
-  enrollment, progressPct, lang, onOpenSettings,
+  enrollment, progressPct, lang, persona, onOpenSettings,
   sessions, sessionIndex, sessionLoading, onSwitchSession, onNewSession,
   sidebarOpen, onToggleSidebar, codeOpen, onToggleCode,
   onClearChat, canClearChat,
@@ -1340,6 +1918,7 @@ function ChatHeader({
   enrollment: EnrollmentDetail
   progressPct: number
   lang: TutorLanguage
+  persona: TutorPersona
   onOpenSettings: () => void
   sessions: SessionSummary[]
   sessionIndex: number
@@ -1421,6 +2000,17 @@ function ChatHeader({
           <span className="inline-flex items-center rounded-full bg-teal-soft px-2 py-0.5 text-[0.55rem] font-medium text-teal">
             {LANG_LABELS[lang]}
           </span>
+        )}
+        {persona === "socratic" && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            title="Socratic mode: the tutor only asks leading questions. Click to change."
+            className="inline-flex h-6 items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-2.5 font-mono text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-amber transition-colors hover:border-amber/60"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-amber animate-pulse" />
+            Socratic mode
+          </button>
         )}
 
         <button
@@ -1580,16 +2170,34 @@ const PRESET_PROMPTS: { label: string; prompt: string }[] = [
   { label: "Quiz me", prompt: "Ask me a question to test if I understood this." },
 ]
 
-// Reveals tutor text progressively (typewriter) the first time a message
-// arrives, then settles into fully formatted markdown. History messages
-// pass stream={false} so they render instantly.
-function StreamedText({ text, stream }: { text: string; stream: boolean }) {
-  const [count, setCount] = useState(stream ? 0 : text.length)
+// Renders tutor text. Three modes:
+// - `live` (currently streaming over SSE): show the text as it grows, with a
+//   blinking caret. The SSE deltas ARE the typewriter, so we don't add a
+//   second one on top.
+// - `stream` (just arrived from a non-streaming endpoint like /lesson): play
+//   the classic typewriter reveal over the full text once.
+// - neither: instant render (history messages).
+function StreamedText({
+  text,
+  stream,
+  live,
+  onSendCode,
+}: {
+  text: string
+  stream: boolean
+  live?: boolean
+  onSendCode?: (lang: CodeLang, code: string) => void
+}) {
+  // Hooks must always run in the same order, so we declare them
+  // unconditionally and branch in the return. In `live` mode the count
+  // state and interval are unused (we render `text` directly), but having
+  // them present keeps React's hook order stable when `live` flips.
+  const [count, setCount] = useState(stream && !live ? 0 : text.length)
 
   useEffect(() => {
+    if (live) return
     if (!stream) { setCount(text.length); return }
     const total = text.length
-    // Reveal in ~1.6s for short replies, capped so long lessons don't crawl.
     const step = Math.max(3, Math.round(total / 110))
     let i = 0
     const id = window.setInterval(() => {
@@ -1602,14 +2210,28 @@ function StreamedText({ text, stream }: { text: string; stream: boolean }) {
       }
     }, 16)
     return () => window.clearInterval(id)
-    // Stream decision is fixed at mount; text is stable for a given message.
+    // Decision is fixed at mount; text is stable for a given non-live
+    // message. `live` is checked inside but does not need to re-trigger
+    // the typewriter setup.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  if (live) {
+    return (
+      <div className="relative">
+        <FormattedContent text={text} onSendCode={undefined} />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -bottom-0.5 right-0 inline-block h-[1.05em] w-[2px] animate-pulse bg-ink/50"
+        />
+      </div>
+    )
+  }
 
   const done = count >= text.length
   return (
     <>
-      <FormattedContent text={text.slice(0, count)} />
+      <FormattedContent text={text.slice(0, count)} onSendCode={done ? onSendCode : undefined} />
       {!done && (
         <span className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] animate-pulse bg-ink/50" />
       )}
@@ -1617,14 +2239,18 @@ function StreamedText({ text, stream }: { text: string; stream: boolean }) {
   )
 }
 
-function MessageBubble({ message, onCheck, onPrompt, onSpeak, canSpeak, stream, canCheck }: {
+function MessageBubble({ message, onCheck, onPrompt, onSpeak, canSpeak, isSpeaking, stream, live, liveContent, canCheck, onSendCode }: {
   message: ChatMessage
   onCheck: (i: number) => void
   onPrompt: (text: string) => void
   onSpeak: (text: string) => void
   canSpeak: boolean
+  isSpeaking: boolean
   stream: boolean
+  live: boolean
+  liveContent?: string
   canCheck: boolean
+  onSendCode?: (lang: CodeLang, code: string) => void
 }) {
   const isUser = message.role === "user"
   const isLesson = message.meta?.kind === "lesson"
@@ -1632,9 +2258,15 @@ function MessageBubble({ message, onCheck, onPrompt, onSpeak, canSpeak, stream, 
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      // While the tutor is streaming, suppress framer-motion's layout pass
+      // for THIS bubble — height grows on every token, and animating that
+      // grow looks like a constant jitter. Other bubbles keep `layout` so
+      // new messages still slide in cleanly. Same for the entry animation:
+      // the placeholder appears with empty content, so fading it in from
+      // opacity:0 looks like a pop when the first token lands.
+      layout={!live}
+      initial={live ? false : { opacity: 0, y: 8 }}
+      animate={live ? undefined : { opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, ease: ease.outQuart }}
       className={cn("group flex gap-3", isUser ? "justify-end" : "justify-start")}
@@ -1662,20 +2294,66 @@ function MessageBubble({ message, onCheck, onPrompt, onSpeak, canSpeak, stream, 
             : "rounded-xl border border-rule bg-surface-soft px-5 py-4 text-[0.9375rem] leading-relaxed text-ink",
         )}>
           {isUser ? (
-            <FormattedContent text={message.content} />
+            <UserMessageContent text={message.content} />
           ) : (
-            <StreamedText text={message.content} stream={stream} />
+            <StreamedText
+              text={live && liveContent !== undefined ? liveContent : message.content}
+              stream={stream}
+              live={live}
+              onSendCode={onSendCode}
+            />
           )}
         </div>
         {!isUser && canSpeak && (
           <button
             type="button"
             onClick={() => onSpeak(message.content)}
-            title="Play this reply"
-            className="inline-flex items-center gap-1.5 self-start rounded-full border border-rule bg-surface px-2.5 py-1 text-[0.6875rem] font-medium text-ink-faint opacity-0 transition-opacity hover:border-ink/30 hover:text-ink group-hover:opacity-100"
+            title={isSpeaking ? "Stop playback" : "Play this reply"}
+            className={cn(
+              "inline-flex items-center gap-1.5 self-start overflow-hidden rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium transition-all duration-300 ease-out-quart group-hover:opacity-100",
+              isSpeaking
+                ? "border-teal/40 bg-teal-soft text-teal opacity-100"
+                : "border-rule bg-surface text-ink-faint opacity-0 hover:border-ink/30 hover:text-ink",
+            )}
           >
-            <SpeakerWaveIcon className="h-2.5 w-2.5" />
-            Play
+            <span className="relative grid h-2.5 w-2.5 place-items-center">
+              <AnimatePresence initial={false} mode="wait">
+                {isSpeaking ? (
+                  <motion.span
+                    key="stop"
+                    initial={{ opacity: 0, scale: 0.6, rotate: -90 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    exit={{ opacity: 0, scale: 0.6, rotate: 90 }}
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 grid place-items-center"
+                  >
+                    <StopIcon className="h-2.5 w-2.5" />
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="play"
+                    initial={{ opacity: 0, scale: 0.6, rotate: 90 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    exit={{ opacity: 0, scale: 0.6, rotate: -90 }}
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 grid place-items-center"
+                  >
+                    <SpeakerWaveIcon className="h-2.5 w-2.5" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </span>
+            <AnimatePresence initial={false} mode="wait">
+              <motion.span
+                key={isSpeaking ? "label-stop" : "label-play"}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+              >
+                {isSpeaking ? "Stop" : "Play"}
+              </motion.span>
+            </AnimatePresence>
           </button>
         )}
         {isLesson && message.meta?.kind === "lesson" && (
@@ -1767,6 +2445,8 @@ const LANG_EXT: Record<CodeLang, string> = {
 
 type ScratchFile = { id: string; name: string; content: string }
 
+type TermLine = { kind: "cmd" | "out" | "err" | "info"; text: string }
+
 function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskAI, pending, recommended }: {
   codeLang: CodeLang
   onLangChange: (l: CodeLang) => void
@@ -1780,9 +2460,13 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
   const [copied, setCopied] = useState(false)
   const [files, setFiles] = useState<ScratchFile[]>([])
   const [activeId, setActiveId] = useState<string>("solution")
-  const [term, setTerm] = useState<string[]>([])
+  const [term, setTerm] = useState<TermLine[]>([])
   const [termOpen, setTermOpen] = useState(false)
+  const [stdin, setStdin] = useState("")
+  const [stdinOpen, setStdinOpen] = useState(false)
+  const [running, setRunning] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const gutterInnerRef = useRef<HTMLDivElement>(null)
 
   const ld = langById(codeLang)
   const ext = LANG_EXT[codeLang]
@@ -1790,6 +2474,17 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
   const isSolution = activeId === "solution"
   const activeFile = files.find((f) => f.id === activeId)
   const activeContent = isSolution ? code : activeFile?.content ?? ""
+
+  // Keep the line-number gutter aligned with the textarea by translating the
+  // inner numbers element directly via DOM (not state) on every scroll. Using
+  // `scrollTop` on the gutter would require `overflow: auto`, which paints a
+  // scrollbar; `transform: translateY()` on `overflow: hidden` is silent.
+  const syncGutterScroll = () => {
+    const t = textareaRef.current
+    const g = gutterInnerRef.current
+    if (t && g) g.style.transform = `translateY(${-t.scrollTop}px)`
+  }
+  const lineCount = Math.max(1, activeContent.split("\n").length)
 
   function handleLangChange(next: CodeLang) {
     onLangChange(next)
@@ -1822,15 +2517,137 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
     })
   }
 
-  function runActive() {
+  function resetActiveToStarter() {
+    if (isSolution) onCodeChange(ld.starter)
+    else setFiles((prev) => prev.map((f) => (f.id === activeId ? { ...f, content: "" } : f)))
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }
+
+  async function runActive() {
+    if (running) return
     const name = isSolution ? solutionName : activeFile?.name ?? "file"
-    const lines = simulateRun(codeLang, activeContent)
-    setTerm((prev) => [
-      ...prev,
-      `$ ${ld.runHint.replace(/solution\.\w+|Solution\.\w+/, name)}`,
-      ...lines,
-    ])
+    const cmd = ld.runHint.replace(/solution\.\w+|Solution\.\w+/, name)
+    setTerm((prev) => [...prev, { kind: "cmd", text: `$ ${cmd}` }])
     setTermOpen(true)
+    setRunning(true)
+    try {
+      const result = await runViaPiston(codeLang, activeContent, stdin)
+      setTerm((prev) => [
+        ...prev,
+        ...result.lines.map<TermLine>((text) => ({
+          kind: result.ok ? "out" : "err",
+          text,
+        })),
+      ])
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  // Editor key handlers: Tab inserts the lang's indent unit, Shift+Tab
+  // dedents the current line, Ctrl/Cmd+Enter runs, Ctrl/Cmd+/ toggles a
+  // line comment, Enter carries the previous line's leading whitespace.
+  function onEditorKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const ta = e.currentTarget
+    const { selectionStart: s, selectionEnd: en, value } = ta
+    const mod = e.ctrlKey || e.metaKey
+
+    if (mod && e.key === "Enter") {
+      e.preventDefault()
+      void runActive()
+      return
+    }
+
+    if (mod && e.key === "/") {
+      e.preventDefault()
+      const start = value.lastIndexOf("\n", s - 1) + 1
+      const endLineEnd = (() => {
+        const next = value.indexOf("\n", en)
+        return next === -1 ? value.length : next
+      })()
+      const block = value.slice(start, endLineEnd)
+      const lines = block.split("\n")
+      const prefix = ld.comment
+      const allCommented = lines.every((l) => l.trim() === "" || l.trimStart().startsWith(prefix.trim()))
+      const next = lines
+        .map((l) => {
+          if (allCommented) {
+            const idx = l.indexOf(prefix.trim())
+            if (idx === -1) return l
+            // Remove the prefix plus its trailing space if present.
+            const head = l.slice(0, idx)
+            const rest = l.slice(idx + prefix.trim().length).replace(/^ /, "")
+            return head + rest
+          }
+          if (l.trim() === "") return l
+          return prefix + l
+        })
+        .join("\n")
+      const newValue = value.slice(0, start) + next + value.slice(endLineEnd)
+      setActiveContent(newValue)
+      const delta = next.length - block.length
+      requestAnimationFrame(() => {
+        ta.setSelectionRange(s + (allCommented ? 0 : prefix.length), en + delta)
+      })
+      return
+    }
+
+    if (e.key === "Tab") {
+      e.preventDefault()
+      const indent = ld.indent
+      // Multi-line selection: indent / outdent every covered line.
+      if (s !== en && value.slice(s, en).includes("\n")) {
+        const blockStart = value.lastIndexOf("\n", s - 1) + 1
+        const blockEnd = (() => {
+          const next = value.indexOf("\n", en)
+          return next === -1 ? value.length : next
+        })()
+        const block = value.slice(blockStart, blockEnd)
+        const lines = block.split("\n")
+        const transformed = e.shiftKey
+          ? lines.map((l) => l.startsWith(indent) ? l.slice(indent.length) : l.replace(/^ {1,4}|^\t/, ""))
+          : lines.map((l) => indent + l)
+        const next = transformed.join("\n")
+        const newValue = value.slice(0, blockStart) + next + value.slice(blockEnd)
+        setActiveContent(newValue)
+        const delta = next.length - block.length
+        requestAnimationFrame(() => {
+          ta.setSelectionRange(s + (e.shiftKey ? -indent.length : indent.length), en + delta)
+        })
+        return
+      }
+      // Shift+Tab on a single line: trim one level of leading indent.
+      if (e.shiftKey) {
+        const lineStart = value.lastIndexOf("\n", s - 1) + 1
+        const head = value.slice(lineStart, s)
+        if (head.startsWith(indent)) {
+          const newValue = value.slice(0, lineStart) + head.slice(indent.length) + value.slice(s)
+          setActiveContent(newValue)
+          requestAnimationFrame(() => ta.setSelectionRange(s - indent.length, en - indent.length))
+        }
+        return
+      }
+      // Plain Tab: insert indent at cursor (or replace selection).
+      const newValue = value.slice(0, s) + indent + value.slice(en)
+      setActiveContent(newValue)
+      requestAnimationFrame(() => ta.setSelectionRange(s + indent.length, s + indent.length))
+      return
+    }
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      // Auto-carry leading whitespace from the current line so blocks
+      // stay aligned without the student manually re-indenting.
+      const lineStart = value.lastIndexOf("\n", s - 1) + 1
+      const currentLine = value.slice(lineStart, s)
+      const leading = currentLine.match(/^[ \t]*/)?.[0] ?? ""
+      if (leading.length > 0) {
+        e.preventDefault()
+        const insert = "\n" + leading
+        const newValue = value.slice(0, s) + insert + value.slice(en)
+        setActiveContent(newValue)
+        requestAnimationFrame(() => ta.setSelectionRange(s + insert.length, s + insert.length))
+      }
+    }
   }
 
   const hasCode = activeContent.trim() !== "" && activeContent.trim() !== ld.starter.trim()
@@ -1838,40 +2655,82 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-rule bg-surface-soft px-3 py-2.5">
+      {/* Toolbar — single row at any panel width above 280px. Labelled
+          controls (lang / Run / Input) on the left; secondary actions on
+          the right are bundled into one icon pill (Terminal · Reset · Copy
+          · Close) so the row never wraps. */}
+      <div className="flex shrink-0 items-center gap-1.5 border-b border-rule bg-surface-soft px-2.5 py-1.5">
         <LangDropdown value={codeLang} onChange={handleLangChange} recommended={recommended} />
         <button
           type="button"
-          onClick={runActive}
-          className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-forest px-3 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-paper transition-colors hover:bg-forest/85"
+          onClick={() => void runActive()}
+          disabled={running}
+          title="Run (Ctrl/Cmd + Enter)"
+          className={cn(
+            "inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-paper transition-colors",
+            running ? "cursor-wait bg-forest/60" : "bg-forest hover:bg-forest/85",
+          )}
         >
-          ▶ Run
+          <span aria-hidden>▶</span>
+          {running ? "Running…" : "Run"}
         </button>
-        <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setStdinOpen((v) => !v)}
+          title="Input the program reads from stdin (e.g. Python input(), Java Scanner). Leave off if your code does not read input."
+          className={cn(
+            "inline-flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border px-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.1em] transition-colors",
+            stdinOpen ? "border-teal/40 bg-teal-soft text-teal" : "border-rule bg-paper text-ink-faint hover:text-ink-soft",
+          )}
+        >
+          Input
+          {stdin && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-teal" />}
+        </button>
+
+        {/* Grouped icon cluster on the right: four flush-edged buttons
+            share a single border to read as one IDE-chrome component. */}
+        <div className="ml-auto flex h-7 shrink-0 items-stretch overflow-hidden rounded-lg border border-rule bg-paper">
           <button
             type="button"
             onClick={() => setTermOpen((v) => !v)}
+            title={termOpen ? "Hide terminal" : "Show terminal"}
+            aria-label={termOpen ? "Hide terminal" : "Show terminal"}
+            aria-pressed={termOpen}
             className={cn(
-              "inline-flex h-6 items-center gap-1 rounded-lg border px-2.5 font-mono text-[0.6rem] font-semibold uppercase tracking-[0.1em] transition-colors",
-              termOpen ? "border-ink/30 bg-ink text-paper" : "border-rule bg-paper text-ink-faint hover:text-ink-soft",
+              "grid w-7 place-items-center transition-colors",
+              termOpen ? "bg-ink text-paper" : "text-ink-faint hover:bg-surface-soft hover:text-ink-soft",
             )}
           >
-            Terminal
+            <TerminalIcon className="h-3.5 w-3.5" />
           </button>
+          <span className="w-px self-stretch bg-rule" aria-hidden />
+          <button
+            type="button"
+            onClick={resetActiveToStarter}
+            title="Reset file to starter template"
+            aria-label="Reset file"
+            className="grid w-7 place-items-center text-ink-faint transition-colors hover:bg-surface-soft hover:text-ink-soft"
+          >
+            <ResetIcon className="h-3.5 w-3.5" />
+          </button>
+          <span className="w-px self-stretch bg-rule" aria-hidden />
           <button
             type="button"
             onClick={copyCode}
             disabled={!activeContent.trim()}
-            className="inline-flex h-6 items-center gap-1 rounded-lg border border-rule bg-paper px-2.5 font-mono text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-ink-faint transition-colors hover:text-ink-soft disabled:opacity-40"
+            title={copied ? "Copied!" : "Copy file contents"}
+            aria-label="Copy file"
+            className="grid w-7 place-items-center text-ink-faint transition-colors hover:bg-surface-soft hover:text-ink-soft disabled:opacity-40 disabled:hover:bg-transparent"
           >
-            {copied ? "Copied!" : "Copy"}
+            {copied ? <CheckIcon className="h-3.5 w-3.5 text-forest" /> : <CopyIcon className="h-3.5 w-3.5" />}
           </button>
+          <span className="w-px self-stretch bg-rule" aria-hidden />
           <button
             type="button"
             onClick={onClose}
             title="Close editor"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-rule bg-paper text-ink-faint transition-colors hover:text-ink-soft"
+            aria-label="Close editor"
+            className="grid w-7 place-items-center text-ink-faint transition-colors hover:bg-surface-soft hover:text-ink-soft"
           >
             <CloseIcon className="h-3 w-3" />
           </button>
@@ -1916,25 +2775,84 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
         </button>
       </div>
 
-      {/* Editor */}
-      <textarea
-        ref={textareaRef}
-        value={activeContent}
-        onChange={(e) => setActiveContent(e.target.value)}
-        spellCheck={false}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        className="min-h-0 flex-1 resize-none bg-paper-deep px-4 py-4 font-mono text-[0.8125rem] leading-relaxed text-ink-soft outline-none"
-        placeholder={`// ${isSolution ? solutionName : activeFile?.name}\n// Write your ${ld.label} code here…`}
-      />
+      {/* Editor: gutter + textarea share font / size / line-height so line
+          numbers align. The gutter wrapper is overflow:hidden and the inner
+          numbers element is translated vertically on every textarea scroll
+          via syncGutterScroll(). */}
+      <div className="flex min-h-0 flex-1 bg-paper-deep">
+        <div
+          aria-hidden
+          className="relative shrink-0 select-none overflow-hidden border-r border-rule/60 bg-paper-deep"
+          style={{ minWidth: `${String(lineCount).length + 2}ch` }}
+        >
+          <div
+            ref={gutterInnerRef}
+            className="px-2 py-4 text-right font-mono text-[0.8125rem] leading-relaxed text-ink-faint/60 will-change-transform"
+          >
+            {Array.from({ length: lineCount }, (_, i) => (
+              <div key={i} className="tabular">{i + 1}</div>
+            ))}
+          </div>
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={activeContent}
+          onChange={(e) => setActiveContent(e.target.value)}
+          onKeyDown={onEditorKeyDown}
+          onScroll={syncGutterScroll}
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          className="min-h-0 flex-1 resize-none bg-paper-deep px-4 py-4 font-mono text-[0.8125rem] leading-relaxed text-ink-soft outline-none"
+          placeholder={`${ld.comment}${isSolution ? solutionName : activeFile?.name}\n${ld.comment}Write your ${ld.label} code here…`}
+        />
+      </div>
+
+      {/* Input pane: feeds Piston's `stdin` field. Hidden by default to keep
+          the editor uncluttered for problems that don't read input. The
+          tooltip-style hint below explains what this is in plain English,
+          because "stdin" is jargon for someone learning their first language. */}
+      {stdinOpen && (
+        <div className="shrink-0 border-t border-rule bg-surface-soft px-3 py-2">
+          <div className="mb-1 flex items-start justify-between gap-2">
+            <p className="text-[0.6875rem] leading-snug text-ink-muted">
+              Type lines here that your program will read as input.
+              {" "}
+              <span className="text-ink-faint">
+                Only needed if your code calls things like{" "}
+                <code className="rounded bg-paper px-1 font-mono text-[0.625rem] text-ink-soft">input()</code>
+                {" "}or{" "}
+                <code className="rounded bg-paper px-1 font-mono text-[0.625rem] text-ink-soft">Scanner</code>.
+              </span>
+            </p>
+            {stdin && (
+              <button
+                type="button"
+                onClick={() => setStdin("")}
+                className="shrink-0 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-ink-faint transition-colors hover:text-ink-soft"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <textarea
+            value={stdin}
+            onChange={(e) => setStdin(e.target.value)}
+            rows={2}
+            spellCheck={false}
+            placeholder={'One value per line, e.g.\n5\nworld'}
+            className="h-16 w-full resize-none rounded border border-rule bg-paper px-2 py-1.5 font-mono text-[0.75rem] leading-relaxed text-ink-soft placeholder:text-ink-faint focus:border-ink/30 focus:outline-none"
+          />
+        </div>
+      )}
 
       {/* Terminal */}
       {termOpen && (
         <div className="flex h-44 shrink-0 flex-col border-t border-rule bg-ink">
           <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5">
             <span className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-paper/60">
-              Terminal
+              Terminal · sandboxed by piston
             </span>
             <button
               type="button"
@@ -1946,14 +2864,21 @@ function CodePanel({ codeLang, onLangChange, code, onCodeChange, onClose, onAskA
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2 font-mono text-[0.75rem] leading-relaxed text-paper/85">
             {term.length === 0 ? (
-              <span className="text-paper/40">Press Run to execute the active file.</span>
+              <span className="text-paper/40">
+                Press Run (or Ctrl/Cmd + Enter) to execute the active file.
+              </span>
             ) : (
               term.map((line, i) => (
                 <div
                   key={i}
-                  className={cn(line.startsWith("$ ") ? "text-forest" : "whitespace-pre-wrap")}
+                  className={cn(
+                    "whitespace-pre-wrap",
+                    line.kind === "cmd" && "text-forest",
+                    line.kind === "err" && "text-terracotta/90",
+                    line.kind === "info" && "text-paper/60",
+                  )}
                 >
-                  {line}
+                  {line.text}
                 </div>
               ))
             )}
@@ -2175,7 +3100,7 @@ function CurriculumSidebar({
           </div>
           {allMastered ? (
             <Link
-              href={`/learn/${enrollment.bountyId}/quiz`}
+              href={`/learn/${enrollment.bounty.slug}/quiz`}
               className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-[0.75rem] font-medium text-paper transition-all hover:bg-forest/85"
             >
               Final exam <span className="text-paper/60">→</span>
@@ -2200,8 +3125,14 @@ function CurriculumSidebar({
 // **bold**, *italic*, `inline code`, --- horizontal rules, and numbered/
 // bulleted lists. Strips [^citation-id] markers since those are surfaced
 // separately by the Citations pills below the message.
-function FormattedContent({ text }: { text: string }) {
-  // 1) Split out code fences so we don't apply inline markdown inside them.
+// Render what the student typed. Critically, this does NOT use the
+// `MarkdownBlocks` pipeline — that pipeline forces `text-ink-soft` on every
+// <p>, which lands as near-black text on the user bubble's near-black
+// `bg-ink` (the "fully black text box" bug). We inherit colour from the
+// bubble instead, so the user's text reads as `text-paper` and stays
+// legible. Code fences still get their own dark-on-dark-but-distinct
+// surface, matching the editorial code style elsewhere.
+function UserMessageContent({ text }: { text: string }) {
   const fenced = text.split(/(```[\s\S]*?```)/g)
   return (
     <>
@@ -2211,15 +3142,92 @@ function FormattedContent({ text }: { text: string }) {
           return (
             <pre
               key={i}
-              className="my-5 overflow-x-auto rounded-xl border border-rule bg-paper-deep px-5 py-4 font-mono text-[0.8125rem] leading-[1.7] text-ink-soft"
+              className="my-3 overflow-x-auto rounded-lg border border-paper/15 bg-ink-soft px-4 py-3 font-mono text-[0.8125rem] leading-[1.7] text-paper"
             >
               <code>{inner}</code>
             </pre>
           )
         }
+        if (!chunk) return null
+        return (
+          <p
+            key={i}
+            className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed [&:not(:first-child)]:mt-2"
+          >
+            {chunk}
+          </p>
+        )
+      })}
+    </>
+  )
+}
+
+function FormattedContent({
+  text,
+  onSendCode,
+}: {
+  text: string
+  onSendCode?: (lang: CodeLang, code: string) => void
+}) {
+  // 1) Split out code fences so we don't apply inline markdown inside them.
+  // The trailing `(?:```|$)` makes the regex match unclosed fences too — so
+  // mid-stream, an opening ``` immediately renders as a code block instead
+  // of flickering through inline text and snapping into <pre> when the
+  // closing ``` finally arrives. The "is this fence closed?" check below
+  // hides the "Send to editor" action until the block is complete.
+  const fenced = text.split(/(```[a-zA-Z+#-]*\n?[\s\S]*?(?:```|$))/g)
+  return (
+    <>
+      {fenced.map((chunk, i) => {
+        if (chunk.startsWith("```")) {
+          const fenceMatch = chunk.match(/^```([a-zA-Z+#-]*)\n?/)
+          const fenceLang = fenceMatch?.[1] ?? ""
+          const isClosed = /```$/.test(chunk) && chunk.length > 3
+          const inner = chunk.replace(/^```[a-zA-Z+#-]*\n?/, "").replace(/```$/, "")
+          const targetLang = fenceToLang(fenceLang)
+          return (
+            <div key={i} className="my-5">
+              <pre className="overflow-x-auto rounded-xl border border-rule bg-paper-deep px-5 py-4 font-mono text-[0.8125rem] leading-[1.7] text-ink-soft">
+                <code>{inner}</code>
+              </pre>
+              {isClosed && (targetLang || inner.trim()) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 px-1">
+                  {targetLang && onSendCode && (
+                    <button
+                      type="button"
+                      onClick={() => onSendCode(targetLang, inner)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-teal/40 bg-teal-soft px-2.5 py-0.5 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-teal transition-colors hover:bg-teal/15"
+                    >
+                      Send to editor · {langById(targetLang).label}
+                    </button>
+                  )}
+                  <CopyFenceButton text={inner} />
+                </div>
+              )}
+            </div>
+          )
+        }
         return <MarkdownBlocks key={i} text={chunk} />
       })}
     </>
+  )
+}
+
+function CopyFenceButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true)
+          window.setTimeout(() => setCopied(false), 1600)
+        })
+      }}
+      className="inline-flex items-center rounded-full border border-rule bg-surface px-2.5 py-0.5 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-ink-faint transition-colors hover:text-ink-soft"
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
   )
 }
 
@@ -2567,6 +3575,18 @@ function CloseIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className} aria-hidden><path d="M18 6 6 18M6 6l12 12" /></svg>
 }
 
+function CopyIcon({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></svg>
+}
+
+function ResetIcon({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></svg>
+}
+
+function TerminalIcon({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="m5 8 4 4-4 4" /><path d="M12 18h7" /></svg>
+}
+
 function CodeBracketIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M8 9l-3 3 3 3M16 9l3 3-3 3M14 4l-4 16" /></svg>
 }
@@ -2579,8 +3599,16 @@ function MicrophoneIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" /><path d="M9 21h6" /></svg>
 }
 
+function LightBulbIcon({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M9 18h6" /><path d="M10 22h4" /><path d="M12 2a7 7 0 0 0-4 12.7c.7.6 1 1.5 1 2.3v1h6v-1c0-.8.3-1.7 1-2.3A7 7 0 0 0 12 2Z" /></svg>
+}
+
 function SpeakerWaveIcon({ className }: { className?: string }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden><path d="M11 5 6 9H3v6h3l5 4z" /><path d="M16 8a5 5 0 0 1 0 8" /><path d="M19 5a9 9 0 0 1 0 14" /></svg>
+}
+
+function StopIcon({ className }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
 }
 
 function SparkleIcon({ className }: { className?: string }) {
