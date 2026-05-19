@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google"
 
 import { AppShell } from "@/components/layout/app-shell"
+import { Toaster } from "@/components/ui/toast"
 
 import "./globals.css"
 
@@ -31,7 +32,7 @@ const mono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Proof-of-Learn: Sponsor-funded learning, settled in seconds",
+  title: "EduPay: Sponsor-funded learning, settled in seconds",
   description:
     "An editorial-grade proof-of-learning protocol. Sponsors deposit USDC into escrow on Base; students learn with an AI tutor; verified completions settle in INR over UPI in seconds.",
 }
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-paper text-ink antialiased">
         <AppShell>{children}</AppShell>
+        <Toaster />
       </body>
     </html>
   )

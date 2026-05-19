@@ -2,7 +2,13 @@ import type { Bounty, Curriculum, Enrollment, SyllabusModule } from "@pol/shared
 import { Prisma } from "@prisma/client"
 
 import { prisma } from "@/db/prisma"
-import { Conflict, Forbidden, NotFound, ValidationError } from "@/lib/errors"
+import {
+  Conflict,
+  Forbidden,
+  NotFound,
+  Unauthorized,
+  ValidationError,
+} from "@/lib/errors"
 
 function toEnrollmentDto(e: {
   id: string
@@ -24,19 +30,33 @@ function toEnrollmentDto(e: {
   }
 }
 
+// UUID v4-ish detector. We accept both UUIDs and slugs in the bounty
+// id-or-slug param; this lets us route old links and the new pretty URLs
+// through the same handlers without a breaking API change.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+async function findBountyByIdOrSlug(idOrSlug: string) {
+  if (UUID_RE.test(idOrSlug)) {
+    return prisma.bounty.findUnique({ where: { id: idOrSlug } })
+  }
+  return prisma.bounty.findUnique({ where: { slug: idOrSlug } })
+}
+
 export async function startEnrollment(args: {
   userId: string
   bountyId: string
 }): Promise<Enrollment> {
   const user = await prisma.user.findUnique({ where: { id: args.userId } })
-  if (!user) throw Forbidden()
+  // JWT decoded fine but the user row is gone (usually after a DB reseed).
+  // 401 lets the client clear the stale token and bounce to /login instead
+  // of leaving the student stuck on a "Forbidden" screen they cannot recover
+  // from without manually clearing storage.
+  if (!user) throw Unauthorized("Your session is no longer valid. Please sign in again.")
   if (user.role !== "student") {
     throw Forbidden("Only students can enroll in bounties")
   }
 
-  const bounty = await prisma.bounty.findUnique({
-    where: { id: args.bountyId },
-  })
+  const bounty = await findBountyByIdOrSlug(args.bountyId)
   if (!bounty) throw NotFound("Bounty not found")
   if (bounty.status === "depleted" || bounty.status === "closed") {
     throw Conflict("This bounty is no longer accepting enrollments")
@@ -50,7 +70,7 @@ export async function startEnrollment(args: {
     where: {
       studentId_bountyId: {
         studentId: args.userId,
-        bountyId: args.bountyId,
+        bountyId: bounty.id,
       },
     },
   })
@@ -64,12 +84,12 @@ export async function startEnrollment(args: {
       const enrollment = await tx.enrollment.create({
         data: {
           studentId: args.userId,
-          bountyId: args.bountyId,
+          bountyId: bounty.id,
           status: "active",
         },
       })
       await tx.bounty.update({
-        where: { id: args.bountyId },
+        where: { id: bounty.id },
         data: { enrolled: { increment: 1 } },
       })
       return enrollment
@@ -84,7 +104,7 @@ export async function startEnrollment(args: {
         where: {
           studentId_bountyId: {
             studentId: args.userId,
-            bountyId: args.bountyId,
+            bountyId: bounty.id,
           },
         },
       })
@@ -101,6 +121,7 @@ export type EnrollmentDetail = Enrollment & {
 
 function bountyDto(b: {
   id: string
+  slug: string
   sponsorId: string
   title: string
   description: string
@@ -119,6 +140,7 @@ function bountyDto(b: {
 }): Bounty {
   return {
     id: b.id,
+    slug: b.slug,
     sponsorId: b.sponsorId,
     sponsorName: b.sponsor?.organizationName ?? null,
     title: b.title,
@@ -188,11 +210,15 @@ export async function getEnrollmentByBounty(args: {
   userId: string
   bountyId: string
 }): Promise<EnrollmentDetail | null> {
+  // Resolve the bounty first so callers can pass either a UUID or a slug
+  // (e.g. /enrollments/by-bounty/rupeenest-personal-finance).
+  const bounty = await findBountyByIdOrSlug(args.bountyId)
+  if (!bounty) return null
   const e = await prisma.enrollment.findUnique({
     where: {
       studentId_bountyId: {
         studentId: args.userId,
-        bountyId: args.bountyId,
+        bountyId: bounty.id,
       },
     },
     include: { bounty: { include: { curriculum: true } } },

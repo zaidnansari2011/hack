@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils"
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", index: "01" },
-  { href: "/insights", label: "Insights", index: "02" },
+  { href: "/dashboard?new=1", label: "New bounty", index: "02" },
+  { href: "/insights", label: "Insights", index: "03" },
+  { href: "/recruit", label: "Find talent", index: "04" },
 ] as const
 
 export function SponsorShell({ children }: { children: ReactNode }) {
