@@ -7,7 +7,11 @@
       "Bash(gh repo:*)",
       "Bash(git remote:*)",
       "Bash(git branch:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git -C /d/Documents/hack status --short)",
+      "Bash(git -C /d/Documents/hack log --oneline -5)",
+      "Bash(git -C /d/Documents/hack fetch origin)",
+      "Bash(git -C /d/Documents/hack rev-list --left-right --count origin/main...HEAD)"
     ]
   }
 }
