@@ -1,13 +1,19 @@
 import type { ChatMessage as PrismaChatMessage, Prisma } from "@prisma/client"
 import type {
   ChatMessage,
+  TutorFormat,
   TutorLanguage,
   TutorPersona,
 } from "@pol/shared"
 
 import { prisma } from "@/db/prisma"
 import { Forbidden, NotFound } from "@/lib/errors"
-import { groqAvailable, groqChat, type GroqMessage } from "./groq-client"
+import {
+  groqAvailable,
+  groqChat,
+  groqChatStream,
+  type GroqMessage,
+} from "./groq-client"
 import {
   retrieveChunks,
   retrieveModuleChunks,
@@ -25,10 +31,41 @@ const LANG_INSTRUCTIONS: Record<TutorLanguage, string> = {
   te: "CRITICAL: You MUST reply in Telugu using Telugu script (తెలుగులో సమాధానం ఇవ్వండి). Do not reply in English even if the question is in English. Keep only technical terms in English; everything else MUST be in Telugu. Begin your reply directly in Telugu.",
 }
 
+// Response-shape preference, independent of persona. The persona controls
+// VOICE (warm vs rigorous vs energetic); this controls SHAPE (bullets vs
+// prose vs example-led vs short). Both stack: a "Coach" answering in
+// "Bullets" is still a coach, just shaped differently.
+const FORMAT_INSTRUCTIONS: Record<TutorFormat, string> = {
+  prose:
+    "Default shape: 2 to 4 short conversational paragraphs. Use lists only when the underlying idea is genuinely a list (e.g. enumerating cases). Otherwise write flowing sentences.",
+  bullets:
+    "Shape every reply as a tight bulleted list. Open with one short orienting sentence (max 12 words), then 3 to 6 bullets, each one a complete thought of 1 to 2 sentences. End with one short follow-up question on its own line, NOT as a bullet. Do not write long prose paragraphs.",
+  examples:
+    "Lead with a concrete example before stating the principle. Open with 'Imagine...' or 'Picture this:' or 'Say you have...' and walk through a worked example or scenario from the CONTEXT in 2 to 3 sentences. THEN, in a second short paragraph, name the underlying concept and why the example illustrates it. Keep abstract definitions out of the first paragraph.",
+  brief:
+    "Keep replies short: 3 sentences maximum, one paragraph. Give the direct answer first, one supporting sentence, and one optional follow-up question. Do not add caveats, do not list, do not add a syllabus nudge unless the student is clearly ready to move on.",
+}
+
 const PERSONA_INSTRUCTIONS: Record<TutorPersona, string> = {
   mentor: `Voice: warm, Socratic mentor who has taught this for a decade. Lead with questions when it lets the student arrive at the answer themselves; explain directly when asked. Acknowledge what's hard. Never condescend.`,
   examiner: `Voice: rigorous examiner. Be precise, lean on definitions, and cite the specific source chunk for every factual claim. Push back gently if the student handwaves. Treat the answer like it will be graded.`,
-  coach: `Voice: high-energy coach. Short sentences, momentum-first, celebrate small wins, name the next move. Use direct language ("you've got this", "next move:"). Stay accurate — energy never replaces correctness.`,
+  coach: `Voice: high-energy coach. Short sentences, momentum-first, celebrate small wins, name the next move. Use direct language ("you've got this", "next move:"). Stay accurate, energy never replaces correctness.`,
+  socratic: `Voice: pure Socratic guide. ABSOLUTE RULE: do not state the answer outright. Your job is to ask the single best next question that exposes what the student already half-knows and lets them reason the rest. Follow this loop on every turn:
+
+1. Read the student's last message. Identify the smallest gap between what they said and the correct understanding.
+2. Reply with ONE short leading question (under 25 words) that targets exactly that gap. Use everyday framing. Anchor it to a concrete example from the CONTEXT when possible.
+3. After the question, add at most one sentence of acknowledgement of what they got right ("You're on the right track about X..."). No more.
+4. Never write paragraphs. Never lecture. Never list definitions. Never reveal the final answer even if the student asks "just tell me". If they insist, say one sentence that reframes WHY they're being asked to derive it, then ask the next question.
+
+Escalation ladder when the student is stuck:
+- First retry: ask a simpler version of the same question.
+- Second retry: ask about a concrete tiny case (e.g. "What happens when n = 1?").
+- Third retry: point to the exact chunk that contains the clue and ask what they see in it.
+- Only on the FOURTH retry may you state one piece of the answer, and only the smallest piece, then immediately ask the next question.
+
+When they finally get it right, confirm in one sentence ("Yes, exactly, because..."), then ask one follow-up that tests whether they truly own it (apply to a new case, predict an edge case, or explain WHY).
+
+Tone: curious, patient, never condescending. Use contractions. Never apologise for being Socratic.`,
 }
 
 // A reinforcer message Groq sees right before generating, so the lang
@@ -63,6 +100,7 @@ function buildSystemPrompt(args: {
   syllabus: SyllabusModule[]
   lang?: TutorLanguage
   persona?: TutorPersona
+  format?: TutorFormat
 }): string {
   const syllabusBlock =
     args.syllabus.length > 0
@@ -76,6 +114,7 @@ function buildSystemPrompt(args: {
 
   const langLine = LANG_INSTRUCTIONS[args.lang ?? "en"]
   const personaLine = PERSONA_INSTRUCTIONS[args.persona ?? "mentor"]
+  const formatLine = FORMAT_INSTRUCTIONS[args.format ?? "prose"]
 
   return `You are the EduPay AI tutor for the curriculum "${args.title}".
 
@@ -91,8 +130,20 @@ ${langLine}
 VOICE
 ${personaLine}
 
+RESPONSE SHAPE
+${formatLine}
+
 WRITE LIKE A HUMAN
 Talk like a real, warm teacher having a conversation, not like documentation. Use plain everyday words, short sentences, and a friendly tone. Prefer a concrete example over an abstract definition. Skip throat-clearing like "in this response" or "let me explain"; just answer. NEVER use em dashes ("${"—"}") or en dashes ("${"–"}"). Use a comma, a period, a colon, or parentheses instead. Contractions are good. Sound like a person who genuinely wants this to click for the learner.
+
+TOPIC GUARD
+Your only subject is "${args.title}". Stay inside that scope. If the student asks about something clearly outside this curriculum (an unrelated programming language, recipes, news, generic life advice, another technical field this course doesn't cover), do NOT attempt to answer it. Instead:
+1. Acknowledge in one short sentence ("That's outside what we cover here.").
+2. Restate scope in one sentence ("I focus on ${args.title}.").
+3. Steer back with one concrete pointer to the syllabus ("Want to look at module N next?" or "Earlier you asked about X, want to keep going there?").
+Do not lecture about being off-topic and do not refuse coldly. Be warm and brief.
+ALLOWED even though they aren't curriculum content: questions about how the quiz works, how payouts work, how to navigate this platform, the bounty mechanics. Those are part of the learning loop, answer them normally and briefly.
+If a question is borderline (could plausibly connect to the curriculum), give the benefit of the doubt and answer, but anchor the answer to a concrete idea from the syllabus or CONTEXT.
 
 HOW TO ANSWER
 - Keep answers tight: 2 to 4 short paragraphs unless the student asks for depth.
@@ -222,6 +273,14 @@ function buildContextBlock(chunks: RetrievedChunk[]): string {
     .join("\n\n---\n\n")
 }
 
+// When retrieval comes back empty, the question is very likely off-topic for
+// this curriculum. We pin a short note to the prompt for that turn so the
+// model leans on the TOPIC GUARD redirect instead of free-styling an answer.
+function offTopicHint(chunks: RetrievedChunk[]): string | null {
+  if (chunks.length > 0) return null
+  return "Retrieval returned no curriculum chunks for this question. Treat this as a strong signal that the question is outside the curriculum and apply the TOPIC GUARD redirect, unless the question is clearly a platform-mechanics question (quiz flow, payouts, navigation)."
+}
+
 function fallbackTutorAnswer(
   _message: string,
   chunks: RetrievedChunk[],
@@ -240,6 +299,7 @@ export async function sendMessage(args: {
   message: string
   lang?: TutorLanguage
   persona?: TutorPersona
+  format?: TutorFormat
   sessionIndex?: number
 }): Promise<{ user: ChatMessage; tutor: ChatMessage }> {
   const trimmed = args.message.trim()
@@ -281,6 +341,7 @@ export async function sendMessage(args: {
     : []
 
   const reinforcer = langReinforcer(args.lang)
+  const topicHint = offTopicHint(chunks)
   const groqMessages: GroqMessage[] = [
     {
       role: "system",
@@ -290,12 +351,14 @@ export async function sendMessage(args: {
         syllabus,
         lang: args.lang,
         persona: args.persona,
+        format: args.format,
       }),
     },
     {
       role: "system",
       content: `CONTEXT chunks retrieved for this question:\n\n${buildContextBlock(chunks)}`,
     },
+    ...(topicHint ? [{ role: "system" as const, content: topicHint }] : []),
     ...orderedHistory.map<GroqMessage>((m) => ({
       role: m.role === "tutor" ? "assistant" : "user",
       content: m.content,
@@ -337,6 +400,158 @@ export async function sendMessage(args: {
   })
 
   return { user: toDto(userMessage), tutor: toDto(tutorMessage) }
+}
+
+// ─── Streaming send ───────────────────────────────────────────────────────────
+
+export type TutorStreamEvent =
+  | { type: "meta"; user: ChatMessage; citations: Citation[]; sessionIndex: number }
+  | { type: "delta"; text: string }
+  | { type: "done"; tutor: ChatMessage }
+  | { type: "error"; message: string }
+
+/**
+ * Streaming variant of {@link sendMessage}. Persists the user message, runs
+ * retrieval, and yields a sequence of events the route can forward over SSE:
+ * a single `meta` event with citations + the echoed user message, then a
+ * series of `delta` events as tokens arrive from Groq, then a single `done`
+ * event once the tutor message has been persisted.
+ *
+ * On Groq failure or missing key, the fallback answer is emitted as a single
+ * `delta` followed by `done`, so the client always sees the same shape.
+ */
+export async function* streamMessage(args: {
+  enrollmentId: string
+  userId: string
+  message: string
+  lang?: TutorLanguage
+  persona?: TutorPersona
+  format?: TutorFormat
+  sessionIndex?: number
+  signal?: AbortSignal
+}): AsyncGenerator<TutorStreamEvent, void, void> {
+  const trimmed = args.message.trim()
+  if (!trimmed) {
+    yield { type: "error", message: "Message cannot be empty" }
+    return
+  }
+
+  const enrollment = await loadEnrollment(args)
+  const curriculum = enrollment.bounty.curriculum
+  const sessionIndex = args.sessionIndex ?? 0
+
+  const userMessage = await prisma.chatMessage.create({
+    data: {
+      enrollmentId: enrollment.id,
+      userId: args.userId,
+      role: "user",
+      content: trimmed,
+      sessionIndex,
+    },
+  })
+
+  const chunks = await retrieveChunks({
+    curriculumId: curriculum.id,
+    query: trimmed,
+    limit: 4,
+  })
+
+  const history = await prisma.chatMessage.findMany({
+    where: { enrollmentId: enrollment.id, sessionIndex },
+    orderBy: { createdAt: "desc" },
+    take: MAX_HISTORY_MESSAGES,
+  })
+  const orderedHistory = history.reverse()
+
+  const syllabus: SyllabusModule[] = Array.isArray(curriculum.syllabus)
+    ? (curriculum.syllabus as unknown as SyllabusModule[])
+    : []
+
+  const reinforcer = langReinforcer(args.lang)
+  const topicHint = offTopicHint(chunks)
+  const groqMessages: GroqMessage[] = [
+    {
+      role: "system",
+      content: buildSystemPrompt({
+        title: curriculum.title,
+        summary: curriculum.summary,
+        syllabus,
+        lang: args.lang,
+        persona: args.persona,
+        format: args.format,
+      }),
+    },
+    {
+      role: "system",
+      content: `CONTEXT chunks retrieved for this question:\n\n${buildContextBlock(chunks)}`,
+    },
+    ...(topicHint ? [{ role: "system" as const, content: topicHint }] : []),
+    ...orderedHistory.map<GroqMessage>((m) => ({
+      role: m.role === "tutor" ? "assistant" : "user",
+      content: m.content,
+    })),
+    ...(reinforcer ? [{ role: "system" as const, content: reinforcer }] : []),
+  ]
+
+  const citations: Citation[] = chunks.map((c) => ({
+    chunkId: c.id,
+    source: c.source,
+    score: c.score,
+  }))
+
+  // Emit meta first so the client can paint the user bubble, show citations,
+  // and prepare an empty tutor bubble before tokens start flowing.
+  yield {
+    type: "meta",
+    user: toDto(userMessage),
+    citations,
+    sessionIndex,
+  }
+
+  let accumulated = ""
+  if (groqAvailable()) {
+    try {
+      for await (const piece of groqChatStream({
+        messages: groqMessages,
+        temperature: 0.35,
+        maxTokens: 700,
+        signal: args.signal,
+      })) {
+        const clean = sanitizeTutorText(piece)
+        accumulated += clean
+        yield { type: "delta", text: clean }
+      }
+    } catch (err) {
+      // If we already streamed some text, keep it and append a soft error
+      // marker. Otherwise fall back to the human-written answer.
+      if (accumulated.length === 0) {
+        accumulated = fallbackTutorAnswer(trimmed, chunks)
+        yield { type: "delta", text: accumulated }
+      } else {
+        const note = "\n\n(connection to the tutor dropped, but here is what I had so far.)"
+        accumulated += note
+        yield { type: "delta", text: note }
+      }
+      const reason = err instanceof Error ? err.message : "stream failed"
+      yield { type: "error", message: reason }
+    }
+  } else {
+    accumulated = fallbackTutorAnswer(trimmed, chunks)
+    yield { type: "delta", text: accumulated }
+  }
+
+  const tutorMessage = await prisma.chatMessage.create({
+    data: {
+      enrollmentId: enrollment.id,
+      userId: args.userId,
+      role: "tutor",
+      content: sanitizeTutorText(accumulated),
+      citations: citations as unknown as Prisma.InputJsonValue,
+      sessionIndex,
+    },
+  })
+
+  yield { type: "done", tutor: toDto(tutorMessage) }
 }
 
 // ─── Lesson mode ──────────────────────────────────────────────────────────────
@@ -547,7 +762,10 @@ function lessonFallback(
     return c.content.replace(/\s+/g, " ").trim().slice(0, limit)
   }
 
-  const top = chunks[0]
+  // `chunks.length === 0` returns above, so `top` is provably defined here.
+  // TypeScript's noUncheckedIndexedAccess can't see that through array
+  // indexing — the assertion just narrows the type to match the runtime.
+  const top = chunks[0]!
   const second = chunks[1]
   const third = chunks[2]
 

@@ -13,6 +13,7 @@ import {
   getHistory,
   getSessionList,
   sendMessage,
+  streamMessage,
   submitCheckAnswer,
   teachModule,
 } from "@/services/tutor/tutor-service"
@@ -22,7 +23,8 @@ const sendSchema = z.object({
   enrollmentId: z.string().uuid(),
   message: z.string().min(1).max(2000),
   lang: z.enum(["en", "hi", "ta", "te"]).optional(),
-  persona: z.enum(["mentor", "examiner", "coach"]).optional(),
+  persona: z.enum(["mentor", "examiner", "coach", "socratic"]).optional(),
+  format: z.enum(["prose", "bullets", "examples", "brief"]).optional(),
   sessionIndex: z.number().int().min(0).max(99).optional(),
 })
 
@@ -120,11 +122,69 @@ tutorRouter.post(
         message: req.body.message,
         lang: req.body.lang,
         persona: req.body.persona,
+        format: req.body.format,
         sessionIndex: req.body.sessionIndex,
       })
       res.status(201).json(ok(result))
     } catch (err) {
       next(err)
+    }
+  },
+)
+
+// Streaming chat: tokens arrive over SSE so the tutor "thinks out loud"
+// instead of dropping a wall of text after a multi-second wait. Same input
+// schema as /messages; output is an SSE stream of `meta`, `delta`, `done`,
+// and (optionally) `error` events. Persistence and side effects match the
+// non-streaming path: a final `done` event carries the saved tutor row.
+tutorRouter.post(
+  "/stream",
+  requireRole("student"),
+  tutorLimit,
+  async (req, res, next) => {
+    const parsed = sendSchema.safeParse(req.body)
+    if (!parsed.success) {
+      next(parsed.error)
+      return
+    }
+
+    res.setHeader("Content-Type", "text/event-stream")
+    res.setHeader("Cache-Control", "no-cache, no-transform")
+    res.setHeader("Connection", "keep-alive")
+    res.setHeader("X-Accel-Buffering", "no")
+    res.flushHeaders?.()
+
+    const controller = new AbortController()
+    const onClose = () => controller.abort()
+    req.on("close", onClose)
+
+    const writeEvent = (event: string, payload: unknown) => {
+      if (res.writableEnded) return
+      res.write(`event: ${event}\n`)
+      res.write(`data: ${JSON.stringify(payload)}\n\n`)
+    }
+
+    try {
+      const iter = streamMessage({
+        enrollmentId: parsed.data.enrollmentId,
+        userId: req.auth!.sub,
+        message: parsed.data.message,
+        lang: parsed.data.lang,
+        persona: parsed.data.persona,
+        format: parsed.data.format,
+        sessionIndex: parsed.data.sessionIndex,
+        signal: controller.signal,
+      })
+      for await (const ev of iter) {
+        writeEvent(ev.type, ev)
+        if (ev.type === "done") break
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "stream failed"
+      writeEvent("error", { type: "error", message })
+    } finally {
+      req.off("close", onClose)
+      if (!res.writableEnded) res.end()
     }
   },
 )
