@@ -57,6 +57,8 @@ export function SiteHeader() {
   }, [pathname])
 
   const onLanding = pathname === "/"
+  const onAuthPage =
+    pathname.startsWith("/login") || pathname.startsWith("/signup")
   const homeHref = user
     ? user.role === "sponsor"
       ? "/dashboard"
@@ -88,7 +90,7 @@ export function SiteHeader() {
                 {item.label}
               </a>
             ))}
-          {!onLanding && !user &&
+          {!onLanding && !onAuthPage && !user &&
             LOGGED_OUT_NAV.map((item) => (
               <Link
                 key={item.href}
