@@ -57,6 +57,11 @@ export function SiteHeader() {
   }, [pathname])
 
   const onLanding = pathname === "/"
+  const homeHref = user
+    ? user.role === "sponsor"
+      ? "/dashboard"
+      : "/learn"
+    : "/"
 
   return (
     <header
@@ -68,7 +73,7 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-16 w-[min(1240px,94vw)] items-center justify-between gap-3 md:gap-6">
-        <Link href="/" className="group flex items-center gap-2.5">
+        <Link href={homeHref} className="group flex items-center gap-2.5">
           <Wordmark />
         </Link>
 
