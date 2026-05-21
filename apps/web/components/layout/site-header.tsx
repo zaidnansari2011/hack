@@ -21,14 +21,14 @@ const LANDING_NAV = [
 
 const LOGGED_OUT_NAV = [
   { href: "/about", label: "About" },
-  { href: "/recruit", label: "Find talent" },
+  { href: "/recruit", label: "Talents" },
 ] as const
 
 const SPONSOR_DRAWER_NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard?new=1", label: "New bounty" },
   { href: "/insights", label: "Insights" },
-  { href: "/recruit", label: "Find talent" },
+  { href: "/recruit", label: "Talents" },
   { href: "/leaderboard", label: "Leaderboard" },
 ] as const
 

@@ -8,7 +8,7 @@ type FooterLink = { href: string; label: string; external?: boolean }
 
 const LINKS: FooterLink[] = [
   { href: "/about", label: "Manifesto" },
-  { href: "/recruit", label: "Verified talent" },
+  { href: "/recruit", label: "Talents" },
   { href: "/login?role=student", label: "For learners" },
   { href: "/login?role=sponsor", label: "For sponsors" },
 ]

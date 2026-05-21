@@ -22,9 +22,9 @@ export function StudentSubNav() {
 
   return (
     <div className="border-b border-rule bg-paper">
-      <div className="mx-auto flex w-[min(1240px,94vw)] items-center gap-8 py-4">
-        <span className="eyebrow eyebrow-tick">Student</span>
-        <nav className="flex items-baseline gap-6 text-[0.875rem]">
+      <div className="mx-auto flex w-[min(1240px,94vw)] items-center gap-6 overflow-x-auto py-4">
+        <span className="eyebrow eyebrow-tick shrink-0">Student</span>
+        <nav className="flex flex-nowrap items-baseline gap-5 whitespace-nowrap text-[0.875rem]">
           {STUDENT_NAV.map((item) => {
             const active =
               item.href === "/learn"
