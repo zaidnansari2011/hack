@@ -10,6 +10,7 @@ export const SPONSOR_NAV = [
   { href: "/dashboard?new=1", label: "New bounty", index: "02" },
   { href: "/insights", label: "Insights", index: "03" },
   { href: "/recruit", label: "Find talent", index: "04" },
+  { href: "/leaderboard", label: "Leaderboard", index: "05" },
 ] as const
 
 export function SponsorRail() {

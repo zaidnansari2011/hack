@@ -8,6 +8,7 @@ import { credentialsRouter } from "./credentials"
 import { curriculaRouter } from "./curricula"
 import { enrollmentsRouter } from "./enrollments"
 import { healthRouter } from "./health"
+import { leaderboardRouter } from "./leaderboard"
 import { payoutsRouter } from "./payouts"
 import { proofsRouter } from "./proofs"
 import { quizRouter } from "./quiz"
@@ -31,3 +32,4 @@ apiRouter.use("/activity", activityRouter)
 apiRouter.use("/recruit", recruitRouter)
 apiRouter.use("/recruiter-messages", recruiterMessagesRouter)
 apiRouter.use("/credentials", credentialsRouter)
+apiRouter.use("/leaderboard", leaderboardRouter)

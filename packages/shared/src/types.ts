@@ -360,6 +360,37 @@ export type RecruitResults = {
   total: number
 }
 
+// ─── Leaderboard ─────────────────────────────────────────────────
+export type LeaderboardStudent = {
+  rank: number
+  initials: string
+  address: string | null
+  completions: number
+  totalEarnedInr: number
+  avgScorePct: number
+  bestScorePct: number
+  topCurriculum: string
+}
+
+export type LeaderboardSponsor = {
+  rank: number
+  name: string
+  bounties: number
+  studentsFunded: number
+  totalReleasedInr: number
+  topCurriculum: string
+}
+
+export type Leaderboard = {
+  students: LeaderboardStudent[]
+  sponsors: LeaderboardSponsor[]
+  totals: {
+    verifiedCompletions: number
+    paidOutInr: number
+    activeSponsors: number
+  }
+}
+
 // ─── Recruiter outreach ──────────────────────────────────────────
 // An anonymous recruiter on /recruit clicks "Reach out" on a verified
 // candidate and posts this payload. The backend resolves the address to

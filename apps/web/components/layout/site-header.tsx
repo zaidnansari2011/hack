@@ -29,12 +29,14 @@ const SPONSOR_DRAWER_NAV = [
   { href: "/dashboard?new=1", label: "New bounty" },
   { href: "/insights", label: "Insights" },
   { href: "/recruit", label: "Find talent" },
+  { href: "/leaderboard", label: "Leaderboard" },
 ] as const
 
 const STUDENT_DRAWER_NAV = [
   { href: "/learn", label: "Bounties" },
   { href: "/history", label: "History" },
   { href: "/payouts", label: "Earnings" },
+  { href: "/leaderboard", label: "Leaderboard" },
 ] as const
 
 export function SiteHeader() {
