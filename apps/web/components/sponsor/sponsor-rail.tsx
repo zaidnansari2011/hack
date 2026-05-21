@@ -7,10 +7,9 @@ import { cn } from "@/lib/utils"
 
 export const SPONSOR_NAV = [
   { href: "/dashboard", label: "Dashboard", index: "01" },
-  { href: "/dashboard?new=1", label: "New bounty", index: "02" },
-  { href: "/insights", label: "Insights", index: "03" },
-  { href: "/recruit", label: "Find talent", index: "04" },
-  { href: "/leaderboard", label: "Leaderboard", index: "05" },
+  { href: "/insights", label: "Insights", index: "02" },
+  { href: "/recruit", label: "Talents", index: "03" },
+  { href: "/leaderboard", label: "Leaderboard", index: "04" },
 ] as const
 
 export function SponsorRail() {
@@ -18,7 +17,16 @@ export function SponsorRail() {
 
   return (
     <aside className="hidden h-fit lg:sticky lg:top-24 lg:block">
-      <div className="eyebrow eyebrow-tick">Sponsor</div>
+      <Link
+        href="/dashboard?new=1"
+        className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-[0.875rem] font-medium text-paper transition-all duration-300 ease-out-quart hover:bg-ink/90"
+      >
+        New bounty
+        <span className="transition-transform duration-300 ease-out-quart group-hover:translate-x-0.5">
+          +
+        </span>
+      </Link>
+      <div className="eyebrow eyebrow-tick mt-6">Sponsor</div>
       <nav className="mt-5 space-y-1.5">
         {SPONSOR_NAV.map((item) => {
           const active = pathname === item.href.split("?")[0]

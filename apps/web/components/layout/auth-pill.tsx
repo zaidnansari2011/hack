@@ -25,7 +25,7 @@ const DEMO_PASSWORD = "demo1234"
 const SPONSOR_LINKS: readonly DropdownLink[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard?new=1", label: "New bounty" },
-  { href: "/recruit", label: "Find talent" },
+  { href: "/recruit", label: "Talents" },
 ] as const
 
 const STUDENT_LINKS: readonly DropdownLink[] = [

@@ -92,7 +92,16 @@ export function sanitizeTutorText(text: string): string {
     .replace(/,\s*([.!?;:])/g, "$1")
     .replace(/,\s*,/g, ",")
     .replace(/\s+,/g, ",")
+    .replace(stripRetrievalIntroRe, "")
+    .replace(/^>\s?.*$/gm, (line) => line.replace(/^>\s?/, ""))
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
 }
+
+// Strip the boilerplate intros that betray the RAG mechanism. The tutor
+// should sound like a person, not a citation engine.
+const stripRetrievalIntroRe =
+  /^\s*(here['']s|here is)\s+(the\s+)?(most\s+)?relevant\s+(passage|excerpt|section|chunk)[^.\n]*[.:]\s*/i
 
 function buildSystemPrompt(args: {
   title: string
@@ -146,6 +155,9 @@ ALLOWED even though they aren't curriculum content: questions about how the quiz
 If a question is borderline (could plausibly connect to the curriculum), give the benefit of the doubt and answer, but anchor the answer to a concrete idea from the syllabus or CONTEXT.
 
 HOW TO ANSWER
+- Speak like a tutor sitting next to the student in a 1:1 session, not like a search engine quoting source material back at them.
+- Never start with phrases like "Here's the most relevant passage", "According to the material", or "The text says". Just teach.
+- Do NOT paste curriculum text as a markdown blockquote (lines starting with "> "). Paraphrase it in your own words instead.
 - Keep answers tight: 2 to 4 short paragraphs unless the student asks for depth.
 - Ground every claim in the provided CONTEXT chunks. If the answer isn't in the context, say so honestly and offer the closest relevant idea.
 - When you reference a specific concept, cite it inline as [^source] using the source tag from the chunk header.
@@ -281,16 +293,51 @@ function offTopicHint(chunks: RetrievedChunk[]): string | null {
   return "Retrieval returned no curriculum chunks for this question. Treat this as a strong signal that the question is outside the curriculum and apply the TOPIC GUARD redirect, unless the question is clearly a platform-mechanics question (quiz flow, payouts, navigation)."
 }
 
+// When the LLM call is unavailable we still answer — but we answer like a
+// tutor speaking in a 1:1 session, not like a search engine echoing the
+// matched passage back at the student. Pull a couple of sentences from the
+// top chunk, drop the quote-block formatting, and end with a teaching nudge.
 function fallbackTutorAnswer(
-  _message: string,
+  message: string,
   chunks: RetrievedChunk[],
 ): string {
   const top = chunks[0]
   if (!top) {
-    return `I couldn't find a curriculum section that matches your question. Try rephrasing, or pick one of the modules from the syllabus on the right and I'll walk you through it.`
+    return "I'm not sure I have material on that yet. Tell me which module you're working on and I'll walk you through it from there."
   }
-  const headingLine = top.content.split("\n", 1)[0] ?? "this topic"
-  return `Here's the most relevant passage I have on hand:\n\n> ${top.content.replace(/\s+/g, " ").slice(0, 360)}…\n\n[^${top.source}]\n\nWhat about "${headingLine}" would you like me to unpack first?`
+
+  // First non-heading line is usually the topic header; the meat starts on
+  // the line after. Fall back to the whole chunk if there is no body.
+  const lines = top.content
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+  const heading = lines[0] ?? "this part of the course"
+  const body = lines.slice(1).join(" ").trim() || lines.join(" ").trim()
+
+  // Take the first two sentences so the reply stays conversational and short.
+  const sentences = body.match(/[^.!?]+[.!?]/g) ?? [body]
+  const teaching = sentences
+    .slice(0, 2)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+
+  const intro = pickIntro(message, heading)
+  const followUp = `Want to go deeper into "${heading}", or should I take you to a related idea?`
+
+  return `${intro} ${teaching} [^${top.source}]\n\n${followUp}`
+}
+
+function pickIntro(message: string, heading: string): string {
+  const trimmed = message.trim().toLowerCase()
+  if (!trimmed) {
+    return `Let's pick up with ${heading}.`
+  }
+  if (/^(what|why|how|when|where|who|can|does|do|is|are)\b/.test(trimmed)) {
+    return "Good question."
+  }
+  return `Here's how I think about ${heading}.`
 }
 
 export async function sendMessage(args: {
