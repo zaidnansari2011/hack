@@ -121,62 +121,52 @@ function RecruitInner() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="space-y-6">
-            <FilterBlock label="Curriculum">
-              <select
-                value={curriculumSlug}
-                onChange={(e) => setCurriculumSlug(e.target.value)}
-                className="w-full rounded-sm border border-rule bg-paper px-3 py-2 text-[0.875rem] text-ink focus:border-ink focus:outline-none"
-              >
-                <option value="">All curricula</option>
-                {(data?.curricula ?? []).map((c) => (
-                  <option key={c.slug} value={c.slug}>
-                    {c.title} ({c.passedCount})
-                  </option>
-                ))}
-              </select>
-            </FilterBlock>
+        <div className="mt-8 flex flex-wrap items-end gap-x-8 gap-y-4 border-y border-rule py-4">
+          <FilterBlock label="Curriculum">
+            <select
+              value={curriculumSlug}
+              onChange={(e) => setCurriculumSlug(e.target.value)}
+              className="min-w-[200px] rounded-sm border border-rule bg-paper px-3 py-2 text-[0.875rem] text-ink focus:border-ink focus:outline-none"
+            >
+              <option value="">All curricula</option>
+              {(data?.curricula ?? []).map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.title} ({c.passedCount})
+                </option>
+              ))}
+            </select>
+          </FilterBlock>
 
-            <FilterBlock label="Minimum score">
-              <div className="grid grid-cols-2 gap-1.5">
-                {SCORE_OPTIONS.map((opt) => (
-                  <PillButton
-                    key={opt.value}
-                    active={minScore === opt.value}
-                    onClick={() => setMinScore(opt.value)}
-                  >
-                    {opt.label}
-                  </PillButton>
-                ))}
-              </div>
-            </FilterBlock>
-
-            <FilterBlock label="Time window">
-              <div className="grid grid-cols-2 gap-1.5">
-                {TIME_OPTIONS.map((opt) => (
-                  <PillButton
-                    key={opt.value}
-                    active={withinDays === opt.value}
-                    onClick={() => setWithinDays(opt.value)}
-                  >
-                    {opt.label}
-                  </PillButton>
-                ))}
-              </div>
-            </FilterBlock>
-
-            <div className="rounded-md border border-rule bg-surface-soft p-4">
-              <div className="font-mono text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
-                Why this works
-              </div>
-              <p className="mt-2 text-[0.8125rem] leading-relaxed text-ink-muted">
-                Every score on this list is committed on-chain via a
-                soulbound credential. Resumes lie. Receipts don&rsquo;t.
-              </p>
+          <FilterBlock label="Minimum score">
+            <div className="flex flex-wrap gap-1.5">
+              {SCORE_OPTIONS.map((opt) => (
+                <PillButton
+                  key={opt.value}
+                  active={minScore === opt.value}
+                  onClick={() => setMinScore(opt.value)}
+                >
+                  {opt.label}
+                </PillButton>
+              ))}
             </div>
-          </aside>
+          </FilterBlock>
 
+          <FilterBlock label="Time window">
+            <div className="flex flex-wrap gap-1.5">
+              {TIME_OPTIONS.map((opt) => (
+                <PillButton
+                  key={opt.value}
+                  active={withinDays === opt.value}
+                  onClick={() => setWithinDays(opt.value)}
+                >
+                  {opt.label}
+                </PillButton>
+              ))}
+            </div>
+          </FilterBlock>
+        </div>
+
+        <div className="mt-8">
           <section>
             <div className="flex items-center justify-between border-b border-rule pb-3">
               <span className="font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-ink-faint">
