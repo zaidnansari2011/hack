@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import type { Bounty, Curriculum } from "@pol/shared"
 
 import { CATEGORY_META, DIFFICULTY_META } from "@/lib/bounty-filters"
+import { useScrollLock } from "@/lib/use-scroll-lock"
 
 type BountyWithCurriculum = Bounty & { curriculum: Curriculum }
 
@@ -16,16 +17,13 @@ export function BountyModal({
   bounty: BountyWithCurriculum | null
   onClose: () => void
 }) {
+  useScrollLock(Boolean(bounty))
+
   useEffect(() => {
     if (!bounty) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = "hidden"
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
     window.addEventListener("keydown", onKey)
-    return () => {
-      document.body.style.overflow = prev
-      window.removeEventListener("keydown", onKey)
-    }
+    return () => window.removeEventListener("keydown", onKey)
   }, [bounty, onClose])
 
   const cat = bounty ? CATEGORY_META[bounty.curriculum.category] : null

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ease } from "@/lib/motion"
+import { useScrollLock } from "@/lib/use-scroll-lock"
 import { cn } from "@/lib/utils"
 
 export function NewBountyModal({
@@ -43,16 +44,13 @@ export function NewBountyModal({
       .catch(() => undefined)
   }, [open, curricula.length])
 
+  useScrollLock(open)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !submitting) onClose() }
     window.addEventListener("keydown", onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      window.removeEventListener("keydown", onKey)
-      document.body.style.overflow = prev
-    }
+    return () => window.removeEventListener("keydown", onKey)
   }, [open, submitting, onClose])
 
   const totalInr = useMemo(

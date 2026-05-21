@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useState } from "react"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
+import { useScrollLock } from "@/lib/use-scroll-lock"
 
 type Stage = "compose" | "sending" | "sent" | "error"
 
@@ -45,6 +46,8 @@ export function ReachOutModal({
       // localStorage can throw in private mode; not fatal.
     }
   }, [open])
+
+  useScrollLock(open)
 
   // Close on Escape.
   useEffect(() => {
