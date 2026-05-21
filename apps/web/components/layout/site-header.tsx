@@ -57,7 +57,6 @@ export function SiteHeader() {
   }, [pathname])
 
   const onLanding = pathname === "/"
-  const dashboardHref = user?.role === "sponsor" ? "/dashboard" : "/learn"
 
   return (
     <header
@@ -97,22 +96,6 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
-          {user && (
-            <Link
-              href={dashboardHref}
-              className={cn(
-                "link-underline transition-colors hover:text-ink",
-                (pathname.startsWith("/dashboard") ||
-                  pathname.startsWith("/learn") ||
-                  pathname.startsWith("/history") ||
-                  pathname.startsWith("/payouts") ||
-                  pathname.startsWith("/insights")) &&
-                  "text-ink",
-              )}
-            >
-              Dashboard
-            </Link>
-          )}
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">

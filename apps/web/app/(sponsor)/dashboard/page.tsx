@@ -7,7 +7,6 @@ import type { SponsorDashboard } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
 import { BountyRow } from "@/components/sponsor/bounty-row"
-import { DashboardCharts } from "@/components/sponsor/dashboard-charts"
 import { NewBountyModal } from "@/components/sponsor/new-bounty-modal"
 import { StatCard } from "@/components/sponsor/stat-card"
 
@@ -137,15 +136,15 @@ function SponsorDashboardInner() {
       )}
 
       {loading ? (
-        <div className="grid gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse bg-surface" />
+        <div className="grid gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-32 animate-pulse bg-surface" />
           ))}
         </div>
       ) : data ? (
         <>
-          {/* Headline stats — colour carries the hierarchy */}
-          <div className="grid gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-4">
+          {/* Operational stats — quick read on what is open and what is funded */}
+          <div className="grid gap-px overflow-hidden rounded-md border border-rule bg-rule sm:grid-cols-3">
             <StatCard
               label="Active bounties"
               value={data.activeBounties.toLocaleString("en-IN")}
@@ -156,37 +155,19 @@ function SponsorDashboardInner() {
             <StatCard
               label="Verified completions"
               value={data.studentsCompleted.toLocaleString("en-IN")}
-              hint="Each backed by a public on-chain event"
+              hint="Each backed by an on-chain event"
               accent="success"
               pulse={completionsBumped}
               icon={<span className="text-[0.875rem]">✓</span>}
             />
             <StatCard
-              label="Committed"
-              value={`₹${data.totalCommittedInr.toLocaleString("en-IN")}`}
-              hint="Across all bounties"
+              label="Remaining in escrow"
+              value={`₹${data.totalRemainingInr.toLocaleString("en-IN")}`}
+              hint={`${`₹${data.totalCommittedInr.toLocaleString("en-IN")}`} committed`}
               accent="amber"
               icon={<span className="text-[0.875rem]">₹</span>}
             />
-            <StatCard
-              label="Cost / verified learner"
-              value={
-                data.analytics.costPerVerifiedLearnerInr > 0
-                  ? `₹${data.analytics.costPerVerifiedLearnerInr.toLocaleString("en-IN")}`
-                  : "·"
-              }
-              hint={
-                data.analytics.bootcampMultiplier > 0
-                  ? `${data.analytics.bootcampMultiplier}× cheaper than a bootcamp`
-                  : "First completion unlocks this"
-              }
-              accent="terracotta"
-              icon={<span className="text-[0.875rem]">↯</span>}
-            />
           </div>
-
-          {/* Visuals replace the old second stat block */}
-          <DashboardCharts data={data} />
 
           {data.topScorers.length > 0 && (
             <section>

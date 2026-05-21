@@ -6,7 +6,9 @@ import { useSearchParams } from "next/navigation"
 import type { RecruitResults } from "@pol/shared"
 
 import { ApiClientError, apiFetch } from "@/lib/api"
+import { useAuth } from "@/lib/use-auth"
 import { ReachOutModal } from "@/components/recruit/reach-out-modal"
+import { SponsorRail } from "@/components/sponsor/sponsor-rail"
 
 const SCORE_OPTIONS = [
   { value: "0", label: "Any score" },
@@ -32,6 +34,8 @@ export default function RecruitPage() {
 
 function RecruitInner() {
   const searchParams = useSearchParams()
+  const { user } = useAuth()
+  const showSponsorRail = user?.role === "sponsor"
 
   const [curriculumSlug, setCurriculumSlug] = useState<string>(
     searchParams.get("curriculum") ?? "",
@@ -88,7 +92,15 @@ function RecruitInner() {
   }, [data, curriculumSlug, minScore, withinDays])
 
   return (
-    <div className="mx-auto w-[min(1180px,94vw)] py-10">
+    <div
+      className={
+        showSponsorRail
+          ? "relative isolate mx-auto grid w-[min(1240px,94vw)] gap-10 py-12 lg:grid-cols-[220px_1fr] lg:gap-16"
+          : "mx-auto w-[min(1180px,94vw)] py-10"
+      }
+    >
+      {showSponsorRail && <SponsorRail />}
+      <div>
       <div className="flex items-center justify-end">
         <span className="font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-ink-faint">
           Recruiter portal
@@ -299,6 +311,7 @@ function RecruitInner() {
             )}
           </section>
         </div>
+      </div>
       </div>
 
       <ReachOutModal
