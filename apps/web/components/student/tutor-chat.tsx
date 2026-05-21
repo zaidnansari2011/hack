@@ -17,6 +17,7 @@ import { ease } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 import {
   buildLearningPath,
+  extractSubmodules,
   loadNotes,
   masteryProgress,
   rememberPosition,
@@ -952,6 +953,34 @@ export function TutorChat({
     return set
   }, [messages])
 
+  // Per-module submodule hit counts. We can only measure the active module
+  // because `messages` is scoped to the loaded session — that's enough to
+  // light up submodules as the student talks through the current topic.
+  // Mastered modules get all submodules marked done by buildLearningPath
+  // regardless of hits, so prior modules still render correctly.
+  const submoduleHits = useMemo(() => {
+    const map = new Map<number, Map<string, number>>()
+    if (sessionIndex <= 0) return map
+    const moduleIdx = sessionIndex - 1
+    const syllabusItem =
+      initialEnrollment.curriculum.syllabus[moduleIdx]
+    if (!syllabusItem) return map
+    const subs = extractSubmodules(syllabusItem.summary)
+    if (subs.length === 0) return map
+    const counts = new Map<string, number>()
+    for (const m of messages) {
+      if (m.role !== "user") continue
+      const lower = m.content.toLowerCase()
+      for (const sub of subs) {
+        if (sub.keywords.some((k) => lower.includes(k))) {
+          counts.set(sub.label, (counts.get(sub.label) ?? 0) + 1)
+        }
+      }
+    }
+    if (counts.size > 0) map.set(moduleIdx, counts)
+    return map
+  }, [messages, sessionIndex, initialEnrollment.curriculum.syllabus])
+
   // Modules the student has opened at least once (a lesson exists in their
   // chat history for that module). Module N lives in sessionIndex N + 1,
   // so any session with idx >= 1 and at least one message means the module
@@ -979,9 +1008,12 @@ export function TutorChat({
     if (!trimmed || pending) return
     setError(null)
 
-    // Append sandbox code as context when panel is open and code has been edited
+    // Append sandbox code as context when the panel is open and code has
+    // been edited. Skip if the student already pasted a fenced code block,
+    // otherwise the same snippet ends up in the message twice.
     let fullMessage = trimmed
-    if (codeOpen && isCodeModified) {
+    const messageHasFence = /```[\s\S]*```/.test(trimmed)
+    if (codeOpen && isCodeModified && !messageHasFence) {
       const ld = langById(codeLang)
       fullMessage += `\n\n[My current ${ld.label} code in the sandbox]\n\`\`\`${ld.fence}\n${codeText}\n\`\`\``
     }
@@ -1300,6 +1332,7 @@ export function TutorChat({
           viewedModules={viewedModules}
           activeModuleIndex={sessionIndex > 0 ? sessionIndex - 1 : null}
           touchedTopics={touchedTopics}
+          submoduleHits={submoduleHits}
           lessonInFlight={lessonInFlight}
           onTeach={teachModule}
           onOpenNotes={() => setNotesOpen(true)}
@@ -1459,9 +1492,12 @@ export function TutorChat({
           code={codeText}
           onCodeChange={(text) => setCodeForLang(codeLang, text)}
           onClose={() => setCodeOpen(false)}
-          onAskAI={(code) => {
+          onAskAI={(_code) => {
             const ld = langById(codeLang)
-            send(`Review my ${ld.label} code. Is the logic correct? Any improvements?\n\`\`\`${ld.fence}\n${code}\n\`\`\``)
+            // The sandbox snapshot is auto-attached inside send() so we
+            // don't include the code in the prompt itself — otherwise it
+            // ends up duplicated in the user message.
+            send(`Review my ${ld.label} code. Is the logic correct? Any improvements?`)
           }}
           pending={pending}
           recommended={recommendedLanguages}
@@ -2911,6 +2947,7 @@ function CurriculumSidebar({
   viewedModules,
   activeModuleIndex,
   touchedTopics: _touchedTopics,
+  submoduleHits,
   lessonInFlight,
   onTeach,
   onOpenNotes,
@@ -2921,6 +2958,7 @@ function CurriculumSidebar({
   viewedModules: Set<number>
   activeModuleIndex: number | null
   touchedTopics: Set<string>
+  submoduleHits: Map<number, Map<string, number>>
   lessonInFlight: number | null
   onTeach: (i: number) => void
   onOpenNotes: () => void
@@ -2931,6 +2969,7 @@ function CurriculumSidebar({
     lessonedModules,
     viewedModules,
     activeModuleIndex,
+    submoduleHits,
   )
   const { done, total } = masteryProgress(syllabus, lessonedModules)
   const progress = Math.min(100, Math.max(0, progressPct))
@@ -3133,22 +3172,28 @@ function CurriculumSidebar({
 // legible. Code fences still get their own dark-on-dark-but-distinct
 // surface, matching the editorial code style elsewhere.
 function UserMessageContent({ text }: { text: string }) {
-  const fenced = text.split(/(```[\s\S]*?```)/g)
+  // We render code blocks the student sent as a collapsed file attachment
+  // so a long paste does not overflow the bubble. The "[My current X code
+  // in the sandbox]" auto-prelude that send() adds is stripped from the
+  // visible prose, since the file chip already conveys the same thing.
+  const sandboxPrefixRe = /\n*\[My current ([^\]]+) code in the sandbox\]\n*```([a-zA-Z+#-]*)/
+  const cleaned = text
+    .replace(sandboxPrefixRe, "\n```$2")
+    .trim()
+
+  const fenced = cleaned.split(/(```[a-zA-Z+#-]*\n?[\s\S]*?```)/g)
   return (
     <>
       {fenced.map((chunk, i) => {
         if (chunk.startsWith("```")) {
-          const inner = chunk.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "")
-          return (
-            <pre
-              key={i}
-              className="my-3 overflow-x-auto rounded-lg border border-paper/15 bg-ink-soft px-4 py-3 font-mono text-[0.8125rem] leading-[1.7] text-paper"
-            >
-              <code>{inner}</code>
-            </pre>
-          )
+          const fenceMatch = chunk.match(/^```([a-zA-Z+#-]*)\n?/)
+          const lang = fenceMatch?.[1] ?? ""
+          const inner = chunk
+            .replace(/^```[a-zA-Z+#-]*\n?/, "")
+            .replace(/```$/, "")
+          return <CollapsibleCodeAttachment key={i} lang={lang} code={inner} />
         }
-        if (!chunk) return null
+        if (!chunk.trim()) return null
         return (
           <p
             key={i}
@@ -3160,6 +3205,83 @@ function UserMessageContent({ text }: { text: string }) {
       })}
     </>
   )
+}
+
+function CollapsibleCodeAttachment({
+  lang,
+  code,
+}: {
+  lang: string
+  code: string
+}) {
+  const [open, setOpen] = useState(false)
+  const meta = fileMetaForLang(lang)
+  const lineCount = code.split("\n").length
+
+  return (
+    <div className="my-3 overflow-hidden rounded-lg border border-paper/20 bg-paper/[0.06]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-paper/90 transition-colors hover:bg-paper/[0.04]"
+      >
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-paper/15 font-mono text-[0.625rem] font-semibold uppercase tracking-wide text-paper">
+          {meta.badge}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-mono text-[0.8125rem] text-paper">
+            {meta.filename}
+          </span>
+          <span className="block font-mono text-[0.625rem] uppercase tracking-[0.18em] text-paper/55">
+            {meta.label} · {lineCount} {lineCount === 1 ? "line" : "lines"}
+          </span>
+        </span>
+        <span
+          aria-hidden
+          className={cn(
+            "shrink-0 text-paper/60 transition-transform",
+            open && "rotate-90",
+          )}
+        >
+          ›
+        </span>
+      </button>
+      {open && (
+        <pre className="max-h-[60vh] overflow-auto border-t border-paper/15 bg-ink-soft px-4 py-3 font-mono text-[0.8125rem] leading-[1.7] text-paper">
+          <code>{code}</code>
+        </pre>
+      )}
+    </div>
+  )
+}
+
+function fileMetaForLang(lang: string): {
+  label: string
+  filename: string
+  badge: string
+} {
+  const lower = lang.toLowerCase()
+  if (lower === "python" || lower === "py")
+    return { label: "Python", filename: "solution.py", badge: "py" }
+  if (lower === "javascript" || lower === "js")
+    return { label: "JavaScript", filename: "solution.js", badge: "js" }
+  if (lower === "typescript" || lower === "ts")
+    return { label: "TypeScript", filename: "solution.ts", badge: "ts" }
+  if (lower === "java")
+    return { label: "Java", filename: "Solution.java", badge: "java" }
+  if (lower === "cpp" || lower === "c++")
+    return { label: "C++", filename: "solution.cpp", badge: "cpp" }
+  if (lower === "c") return { label: "C", filename: "solution.c", badge: "c" }
+  if (lower === "rust" || lower === "rs")
+    return { label: "Rust", filename: "solution.rs", badge: "rs" }
+  if (lower === "go")
+    return { label: "Go", filename: "solution.go", badge: "go" }
+  if (lower === "ruby" || lower === "rb")
+    return { label: "Ruby", filename: "solution.rb", badge: "rb" }
+  if (lower === "sol" || lower === "solidity")
+    return { label: "Solidity", filename: "Contract.sol", badge: "sol" }
+  if (!lower) return { label: "Code", filename: "snippet.txt", badge: "txt" }
+  return { label: lang, filename: `snippet.${lower}`, badge: lower.slice(0, 4) }
 }
 
 function FormattedContent({
