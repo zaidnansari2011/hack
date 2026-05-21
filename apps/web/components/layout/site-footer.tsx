@@ -15,13 +15,18 @@ const LINKS: FooterLink[] = [
 
 export function SiteFooter() {
   const { user, hydrated } = useAuth()
+  const homeHref = user
+    ? user.role === "sponsor"
+      ? "/dashboard"
+      : "/learn"
+    : "/"
 
   return (
     <footer className="mt-20 border-t border-rule">
       <div className="mx-auto w-[min(1240px,94vw)]">
         <section className="flex flex-col gap-4 py-6 text-[0.8125rem] text-ink-muted lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <Link href="/" className="inline-block">
+            <Link href={homeHref} className="inline-block">
               <img
                 src="/edupaylogonew.svg"
                 alt="EduPay"
