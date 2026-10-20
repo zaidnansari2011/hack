@@ -57,3 +57,7 @@ apps/api/prisma/migrations/*.sql.bak
 tmp/
 temp/
 *.tmp
+
+# Local tool config
+.claude/
+CLAUDE.md
